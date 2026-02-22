@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowLeft, Save, ExternalLink } from "lucide-react";
+import { ArrowLeft, Save, ExternalLink, X } from "lucide-react";
 import Link from "next/link";
 
 interface Investor {
@@ -40,6 +40,7 @@ interface LinkedContact {
 }
 
 const PIPELINE_STATUSES = ["Prospect", "Qualified", "Engaged", "First Meeting", "In Closing", "Closed", "Passed"];
+const CONNECTION_STATUSES = ["Active", "Stale", "Need Introduction", "Warm Intro", "Cold"];
 
 export default function InvestorDetail() {
   const params = useParams();
@@ -69,22 +70,107 @@ export default function InvestorDetail() {
     if (!investor) return;
     setSaving(true);
     const { error } = await supabase.from("investors").update({
-      description: editData.description,
-      notes: editData.notes,
-      pipeline_status: editData.pipeline_status,
-      connection_status: editData.connection_status,
-      next_action: editData.next_action,
+      firm_name: editData.firm_name,
+      description: editData.description || null,
+      fund_type: editData.fund_type || null,
+      investor_type: editData.investor_type || null,
+      geography: editData.geography || null,
+      location: editData.location || null,
+      sector_focus: editData.sector_focus || null,
+      check_size: editData.check_size || null,
+      portfolio_url: editData.portfolio_url || null,
+      website: editData.website || null,
+      notable_investments: editData.notable_investments || null,
+      connection_status: editData.connection_status || null,
+      pipeline_status: editData.pipeline_status || null,
+      likelihood_score: editData.likelihood_score != null && String(editData.likelihood_score) !== "" ? Number(editData.likelihood_score) : null,
+      source: editData.source || null,
+      notes: editData.notes || null,
+      last_contact_date: editData.last_contact_date || null,
+      next_action: editData.next_action || null,
     }).eq("id", investor.id);
     if (!error) {
-      setInvestor({ ...investor, ...editData });
+      const updated = { ...investor, ...editData, likelihood_score: editData.likelihood_score != null && String(editData.likelihood_score) !== "" ? Number(editData.likelihood_score) : null };
+      setInvestor(updated as Investor);
       setEditing(false);
     }
     setSaving(false);
   };
 
+  const handleCancel = () => {
+    if (investor) setEditData(investor);
+    setEditing(false);
+  };
+
+  const setField = (field: keyof Investor, value: string | number | null) => {
+    setEditData((prev) => ({ ...prev, [field]: value }));
+  };
+
   if (!investor) {
     return <div className="p-8"><div className="animate-pulse h-64 bg-gray-200 rounded" /></div>;
   }
+
+  const Field = ({ label, field, type = "text" }: { label: string; field: keyof Investor; type?: "text" | "textarea" | "number" | "date" | "url" }) => {
+    const val = editing ? editData[field] : investor[field];
+    if (editing) {
+      if (type === "textarea") {
+        return (
+          <div>
+            <label className="text-xs text-gray-500">{label}</label>
+            <Textarea rows={3} value={String(val ?? "")} onChange={(e) => setField(field, e.target.value)} className="mt-0.5" />
+          </div>
+        );
+      }
+      return (
+        <div>
+          <label className="text-xs text-gray-500">{label}</label>
+          <Input
+            type={type === "number" ? "number" : type === "date" ? "date" : "text"}
+            value={String(val ?? "")}
+            onChange={(e) => setField(field, type === "number" ? (e.target.value ? Number(e.target.value) : null) : e.target.value)}
+            className="mt-0.5"
+          />
+        </div>
+      );
+    }
+    const display = val != null && val !== "" ? String(val) : "—";
+    return (
+      <div>
+        <span className="text-xs text-gray-500">{label}</span>
+        {type === "url" && val ? (
+          <p className="text-sm"><a href={String(val).startsWith("http") ? String(val) : `https://${val}`} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">{String(val)}</a></p>
+        ) : (
+          <p className={`text-sm ${display === "—" ? "text-gray-300" : ""}`}>{display}</p>
+        )}
+      </div>
+    );
+  };
+
+  const SelectField = ({ label, field, options }: { label: string; field: keyof Investor; options: string[] }) => {
+    const val = editing ? editData[field] : investor[field];
+    if (editing) {
+      return (
+        <div>
+          <label className="text-xs text-gray-500">{label}</label>
+          <select
+            className="w-full border rounded-md px-2 py-1.5 text-sm mt-0.5"
+            value={String(val ?? "")}
+            onChange={(e) => setField(field, e.target.value || null)}
+          >
+            <option value="">—</option>
+            {options.map((s) => <option key={s} value={s}>{s}</option>)}
+          </select>
+        </div>
+      );
+    }
+    const display = val != null && val !== "" ? String(val) : "—";
+    return (
+      <div>
+        <span className="text-xs text-gray-500">{label}</span>
+        <p className={`text-sm ${display === "—" ? "text-gray-300" : ""}`}>{display}</p>
+      </div>
+    );
+  };
 
   return (
     <div className="p-8 max-w-4xl">
@@ -94,22 +180,35 @@ export default function InvestorDetail() {
 
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">{investor.firm_name}</h1>
+          {editing ? (
+            <Input
+              value={editData.firm_name || ""}
+              onChange={(e) => setField("firm_name", e.target.value)}
+              className="text-2xl font-bold h-auto py-1 px-2 -ml-2"
+            />
+          ) : (
+            <h1 className="text-2xl font-bold text-gray-900">{investor.firm_name}</h1>
+          )}
           <div className="flex gap-2 mt-2">
-            <Badge variant="secondary">{investor.pipeline_status || "Prospect"}</Badge>
+            <Badge variant="secondary">{investor.pipeline_status || "Not in Pipeline"}</Badge>
             {investor.connection_status && <Badge variant="outline">{investor.connection_status}</Badge>}
             {investor.investor_type && <Badge variant="outline">{investor.investor_type}</Badge>}
           </div>
         </div>
         <div className="flex gap-2">
-          {investor.website && (
+          {!editing && investor.website && (
             <a href={investor.website.startsWith("http") ? investor.website : `https://${investor.website}`} target="_blank" rel="noopener noreferrer">
               <Button variant="outline" size="sm"><ExternalLink className="h-4 w-4 mr-1" /> Website</Button>
             </a>
           )}
-          <Button variant={editing ? "default" : "outline"} onClick={editing ? handleSave : () => setEditing(true)} disabled={saving}>
-            {editing ? <><Save className="h-4 w-4 mr-1" /> Save</> : "Edit"}
-          </Button>
+          {editing ? (
+            <>
+              <Button variant="ghost" onClick={handleCancel}><X className="h-4 w-4 mr-1" /> Cancel</Button>
+              <Button onClick={handleSave} disabled={saving}><Save className="h-4 w-4 mr-1" /> Save</Button>
+            </>
+          ) : (
+            <Button variant="outline" onClick={() => setEditing(true)}>Edit</Button>
+          )}
         </div>
       </div>
 
@@ -117,13 +216,15 @@ export default function InvestorDetail() {
         <Card>
           <CardHeader><CardTitle className="text-base">Firm Details</CardTitle></CardHeader>
           <CardContent className="space-y-3 text-sm">
-            <div><span className="text-xs text-gray-500">Geography</span><p>{investor.geography || "—"}</p></div>
-            <div><span className="text-xs text-gray-500">Location</span><p>{investor.location || "—"}</p></div>
-            <div><span className="text-xs text-gray-500">Sector Focus</span><p>{investor.sector_focus || "—"}</p></div>
-            <div><span className="text-xs text-gray-500">Check Size</span><p>{investor.check_size || "—"}</p></div>
-            <div><span className="text-xs text-gray-500">Fund Type</span><p>{investor.fund_type || "—"}</p></div>
-            <div><span className="text-xs text-gray-500">Notable Investments</span><p>{investor.notable_investments || "—"}</p></div>
-            <div><span className="text-xs text-gray-500">Likelihood Score</span><p>{investor.likelihood_score ?? "—"}</p></div>
+            <Field label="Investor Type" field="investor_type" />
+            <Field label="Fund Type" field="fund_type" />
+            <Field label="Geography" field="geography" />
+            <Field label="Location" field="location" />
+            <Field label="Sector Focus" field="sector_focus" />
+            <Field label="Check Size" field="check_size" />
+            <Field label="Notable Investments" field="notable_investments" type="textarea" />
+            <Field label="Likelihood Score" field="likelihood_score" type="number" />
+            <Field label="Source" field="source" />
           </CardContent>
         </Card>
 
@@ -131,40 +232,32 @@ export default function InvestorDetail() {
           <Card>
             <CardHeader><CardTitle className="text-base">Pipeline & Status</CardTitle></CardHeader>
             <CardContent className="space-y-3">
-              {editing ? (
-                <>
-                  <div>
-                    <label className="text-xs text-gray-500">Pipeline Status</label>
-                    <select className="w-full border rounded-md px-2 py-1.5 text-sm" value={editData.pipeline_status || ""} onChange={(e) => setEditData({ ...editData, pipeline_status: e.target.value })}>
-                      {PIPELINE_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="text-xs text-gray-500">Connection Status</label>
-                    <Input value={editData.connection_status || ""} onChange={(e) => setEditData({ ...editData, connection_status: e.target.value })} />
-                  </div>
-                  <div>
-                    <label className="text-xs text-gray-500">Next Action</label>
-                    <Input value={editData.next_action || ""} onChange={(e) => setEditData({ ...editData, next_action: e.target.value })} />
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div><span className="text-xs text-gray-500">Last Contact</span><p className="text-sm">{investor.last_contact_date || "—"}</p></div>
-                  <div><span className="text-xs text-gray-500">Next Action</span><p className="text-sm">{investor.next_action || "—"}</p></div>
-                </>
-              )}
+              <SelectField label="Pipeline Status" field="pipeline_status" options={PIPELINE_STATUSES} />
+              <SelectField label="Connection Status" field="connection_status" options={CONNECTION_STATUSES} />
+              <Field label="Last Contact Date" field="last_contact_date" type="date" />
+              <Field label="Next Action" field="next_action" />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader><CardTitle className="text-base">Links</CardTitle></CardHeader>
+            <CardContent className="space-y-3">
+              <Field label="Website" field="website" type="url" />
+              <Field label="Portfolio URL" field="portfolio_url" type="url" />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader><CardTitle className="text-base">Description</CardTitle></CardHeader>
+            <CardContent>
+              <Field label="" field="description" type="textarea" />
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader><CardTitle className="text-base">Notes</CardTitle></CardHeader>
             <CardContent>
-              {editing ? (
-                <Textarea rows={4} value={editData.notes || ""} onChange={(e) => setEditData({ ...editData, notes: e.target.value })} />
-              ) : (
-                <p className="text-sm text-gray-600 whitespace-pre-wrap">{investor.notes || "No notes."}</p>
-              )}
+              <Field label="" field="notes" type="textarea" />
             </CardContent>
           </Card>
         </div>
