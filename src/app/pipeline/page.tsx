@@ -85,6 +85,33 @@ export default function PipelinePage() {
     }
   };
 
+  const removeOneFromPipeline = async (id: string) => {
+    const { error } = await supabase.from("investors").update({ pipeline_status: null }).eq("id", id);
+    if (!error) {
+      setInvestors((prev) => prev.filter((inv) => inv.id !== id));
+      setAllInvestors((prev) => prev.map((inv) => inv.id === id ? { ...inv, pipeline_status: null } : inv));
+    }
+  };
+
+  const deleteOne = async (id: string) => {
+    const { error } = await supabase.from("investors").delete().eq("id", id);
+    if (!error) {
+      setInvestors((prev) => prev.filter((inv) => inv.id !== id));
+      setAllInvestors((prev) => prev.filter((inv) => inv.id !== id));
+    }
+  };
+
+  const deleteSelected = async () => {
+    if (selected.size === 0) return;
+    const ids = Array.from(selected);
+    const { error } = await supabase.from("investors").delete().in("id", ids);
+    if (!error) {
+      setInvestors((prev) => prev.filter((inv) => !selected.has(inv.id)));
+      setAllInvestors((prev) => prev.filter((inv) => !selected.has(inv.id)));
+      setSelected(new Set());
+    }
+  };
+
   const bulkUpdate = async () => {
     if (!bulkField || selected.size === 0) return;
     const ids = Array.from(selected);
@@ -214,6 +241,7 @@ export default function PipelinePage() {
           <Button size="sm" variant="outline" className="border-orange-300 text-orange-700 hover:bg-orange-50" onClick={removeFromPipeline}>
             <X className="h-3 w-3 mr-1" /> Remove from Pipeline
           </Button>
+          <Button size="sm" variant="destructive" onClick={deleteSelected}><Trash2 className="h-3 w-3 mr-1" /> Delete</Button>
           <Button size="sm" variant="ghost" onClick={() => setSelected(new Set())}>Clear</Button>
         </div>
       )}
@@ -234,7 +262,23 @@ export default function PipelinePage() {
                 <div className={`rounded-t-lg px-3 py-2 ${STATUS_HEADER_COLORS[status]}`}><div className="flex items-center justify-between"><span className="text-sm font-semibold">{status}</span><Badge variant="secondary" className="text-xs">{cards.length}</Badge></div></div>
                 <div className={`rounded-b-lg border-2 ${STATUS_COLORS[status]} min-h-[200px] p-2 space-y-2`}>
                   {cards.map((inv) => (
-                    <div key={inv.id} draggable onDragStart={(e) => handleDragStart(e, inv.id)} className="bg-white rounded-lg border shadow-sm p-3 cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow">
+                    <div key={inv.id} draggable onDragStart={(e) => handleDragStart(e, inv.id)} className="group bg-white rounded-lg border shadow-sm p-3 cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow relative">
+                      <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-0.5">
+                        <button
+                          onClick={(e) => { e.stopPropagation(); removeOneFromPipeline(inv.id); }}
+                          className="p-0.5 rounded hover:bg-orange-50 text-gray-300 hover:text-orange-500"
+                          title="Remove from pipeline"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); deleteOne(inv.id); }}
+                          className="p-0.5 rounded hover:bg-red-50 text-gray-300 hover:text-red-500"
+                          title="Delete investor"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
                       <Link href={`/investors/${inv.id}`}><h3 className="text-sm font-medium text-gray-900 hover:text-blue-600">{inv.firm_name}</h3></Link>
                       {inv.sector_focus && <p className="text-xs text-gray-500 mt-1 line-clamp-1">{inv.sector_focus}</p>}
                       <div className="flex items-center gap-2 mt-2">
@@ -263,6 +307,7 @@ export default function PipelinePage() {
                   <th className="text-left px-4 py-3 font-medium text-gray-500">Connection</th>
                   <th className="text-left px-4 py-3 font-medium text-gray-500">Score</th>
                   <th className="text-left px-4 py-3 font-medium text-gray-500">Last Contact</th>
+                  <th className="w-10 px-3 py-3"></th>
                 </tr>
               </thead>
               <tbody>
@@ -277,6 +322,7 @@ export default function PipelinePage() {
                     <td className="px-4 py-2"><EditableCell value={inv.connection_status} onSave={(v) => updateCell(inv.id, "connection_status", v)} type="select" options={CONNECTION_STATUSES} /></td>
                     <td className="px-4 py-2"><EditableCell value={inv.likelihood_score} onSave={(v) => updateCell(inv.id, "likelihood_score", v)} type="number" /></td>
                     <td className="px-4 py-2"><EditableCell value={inv.last_contact_date} onSave={(v) => updateCell(inv.id, "last_contact_date", v)} type="date" /></td>
+                    <td className="px-3 py-2 whitespace-nowrap"><button onClick={() => removeOneFromPipeline(inv.id)} className="p-1 rounded hover:bg-orange-50 text-gray-300 hover:text-orange-500 transition-colors" title="Remove from pipeline"><X className="h-3.5 w-3.5" /></button><button onClick={() => deleteOne(inv.id)} className="p-1 rounded hover:bg-red-50 text-gray-300 hover:text-red-500 transition-colors" title="Delete investor"><Trash2 className="h-3.5 w-3.5" /></button></td>
                   </tr>
                 ))}
               </tbody>
