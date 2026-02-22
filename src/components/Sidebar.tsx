@@ -11,12 +11,14 @@ import {
   ArrowRightLeft,
   CheckSquare,
   Activity,
+  GitBranch,
 } from "lucide-react";
 
 const nav = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
   { href: "/contacts", label: "Contacts", icon: Users },
   { href: "/investors", label: "Investors", icon: TrendingUp },
+  { href: "/pipeline", label: "Pipeline", icon: GitBranch },
   { href: "/market-map", label: "Market Map", icon: Map },
   { href: "/soccer-orgs", label: "Soccer Orgs", icon: Building2 },
   { href: "/transactions", label: "Transactions", icon: ArrowRightLeft },

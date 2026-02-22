@@ -1,13 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { EditableCell } from "@/components/EditableCell";
 import Link from "next/link";
-import { Search, X } from "lucide-react";
+import { Search, X, Plus, Trash2, CheckSquare, Square } from "lucide-react";
 
 interface SoccerOrg {
   id: string;
@@ -19,31 +21,18 @@ interface SoccerOrg {
   merch_link: string | null;
   store_status: string | null;
   store_provider: string | null;
-  in_bays: boolean;
-  in_cmysl: boolean;
-  in_cysl: boolean;
-  in_ecnl: boolean;
-  in_ecysa: boolean;
-  in_mysl: boolean;
-  in_nashoba: boolean;
-  in_necsl: boolean;
-  in_roots: boolean;
-  in_south_coast: boolean;
-  in_south_shore: boolean;
+  in_bays: boolean; in_cmysl: boolean; in_cysl: boolean; in_ecnl: boolean; in_ecysa: boolean;
+  in_mysl: boolean; in_nashoba: boolean; in_necsl: boolean; in_roots: boolean; in_south_coast: boolean; in_south_shore: boolean;
 }
 
 const LEAGUE_FIELDS = [
-  { key: "in_cmysl", label: "CMYSL" },
-  { key: "in_cysl", label: "CYSL" },
-  { key: "in_ecnl", label: "ECNL" },
-  { key: "in_ecysa", label: "ECYSA" },
-  { key: "in_mysl", label: "MYSL" },
-  { key: "in_nashoba", label: "Nashoba" },
-  { key: "in_necsl", label: "NECSL" },
-  { key: "in_roots", label: "Roots" },
-  { key: "in_south_coast", label: "South Coast" },
-  { key: "in_south_shore", label: "South Shore" },
+  { key: "in_cmysl", label: "CMYSL" }, { key: "in_cysl", label: "CYSL" }, { key: "in_ecnl", label: "ECNL" },
+  { key: "in_ecysa", label: "ECYSA" }, { key: "in_mysl", label: "MYSL" }, { key: "in_nashoba", label: "Nashoba" },
+  { key: "in_necsl", label: "NECSL" }, { key: "in_roots", label: "Roots" }, { key: "in_south_coast", label: "South Coast" }, { key: "in_south_shore", label: "South Shore" },
 ] as const;
+
+const ORG_TYPES = ["Soccer Program Or Club", "Soccer League"];
+const STRUCTURES = ["501c3", "LLC", "Corporation", "Partnership"];
 
 export default function SoccerOrgsPage() {
   const [orgs, setOrgs] = useState<SoccerOrg[]>([]);
@@ -53,122 +42,140 @@ export default function SoccerOrgsPage() {
   const [filterStructure, setFilterStructure] = useState("");
   const [filterLeague, setFilterLeague] = useState("");
   const [showFilters, setShowFilters] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [showNew, setShowNew] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [newType, setNewType] = useState("");
+  const [newWebsite, setNewWebsite] = useState("");
+  const [showBulk, setShowBulk] = useState(false);
+  const [bulkField, setBulkField] = useState("");
+  const [bulkValue, setBulkValue] = useState("");
 
-  useEffect(() => {
-    async function load() {
-      const { data } = await supabase.from("soccer_orgs").select("*").order("org_name");
-      if (data) setOrgs(data);
-      setLoading(false);
-    }
-    load();
+  const load = useCallback(async () => {
+    const { data } = await supabase.from("soccer_orgs").select("*").order("org_name");
+    if (data) setOrgs(data);
+    setLoading(false);
   }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  const updateCell = async (id: string, field: string, value: string) => {
+    const { error } = await supabase.from("soccer_orgs").update({ [field]: value || null }).eq("id", id);
+    if (!error) setOrgs((prev) => prev.map((o) => (o.id === id ? { ...o, [field]: value || null } : o)));
+  };
+
+  const createOrg = async () => {
+    if (!newName.trim()) return;
+    const { data, error } = await supabase.from("soccer_orgs").insert({
+      org_name: newName, org_type: newType || null, website: newWebsite || null,
+    }).select().single();
+    if (!error && data) { setOrgs((prev) => [...prev, data]); setNewName(""); setNewType(""); setNewWebsite(""); setShowNew(false); }
+  };
+
+  const deleteSelected = async () => {
+    if (selected.size === 0) return;
+    const { error } = await supabase.from("soccer_orgs").delete().in("id", Array.from(selected));
+    if (!error) { setOrgs((prev) => prev.filter((o) => !selected.has(o.id))); setSelected(new Set()); }
+  };
+
+  const bulkUpdate = async () => {
+    if (!bulkField || selected.size === 0) return;
+    const ids = Array.from(selected);
+    const { error } = await supabase.from("soccer_orgs").update({ [bulkField]: bulkValue || null }).in("id", ids);
+    if (!error) { setOrgs((prev) => prev.map((o) => selected.has(o.id) ? { ...o, [bulkField]: bulkValue || null } : o)); setSelected(new Set()); setShowBulk(false); }
+  };
+
+  const toggleSelect = (id: string) => { setSelected((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; }); };
+  const toggleSelectAll = () => { if (selected.size === filtered.length) setSelected(new Set()); else setSelected(new Set(filtered.map((o) => o.id))); };
 
   const types = [...new Set(orgs.map((o) => o.org_type).filter(Boolean))] as string[];
   const structures = [...new Set(orgs.map((o) => o.corporate_structure).filter(Boolean))] as string[];
+  const getLeagues = (o: SoccerOrg) => LEAGUE_FIELDS.filter((lf) => o[lf.key]).map((lf) => lf.label);
 
   const filtered = orgs.filter((o) => {
     if (search && !o.org_name?.toLowerCase().includes(search.toLowerCase())) return false;
     if (filterType && o.org_type !== filterType) return false;
     if (filterStructure && o.corporate_structure !== filterStructure) return false;
-    if (filterLeague) {
-      const key = `in_${filterLeague.toLowerCase().replace(/ /g, "_")}` as keyof SoccerOrg;
-      if (!o[key]) return false;
-    }
+    if (filterLeague) { const key = `in_${filterLeague.toLowerCase().replace(/ /g, "_")}` as keyof SoccerOrg; if (!o[key]) return false; }
     return true;
   });
 
-  const getLeagues = (o: SoccerOrg) => {
-    return LEAGUE_FIELDS.filter((lf) => o[lf.key]).map((lf) => lf.label);
-  };
-
-  if (loading) {
-    return <div className="p-8"><div className="animate-pulse h-64 bg-gray-200 rounded" /></div>;
-  }
+  if (loading) return <div className="p-8"><div className="animate-pulse h-64 bg-gray-200 rounded" /></div>;
 
   return (
     <div className="p-8">
       <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Soccer Organizations</h1>
-          <p className="text-gray-500 text-sm mt-1">{filtered.length} of {orgs.length} organizations</p>
-        </div>
+        <div><h1 className="text-2xl font-bold text-gray-900">Soccer Organizations</h1><p className="text-gray-500 text-sm mt-1">{filtered.length} of {orgs.length} organizations</p></div>
+        <Dialog open={showNew} onOpenChange={setShowNew}>
+          <DialogTrigger asChild><Button><Plus className="h-4 w-4 mr-1" /> Add Org</Button></DialogTrigger>
+          <DialogContent>
+            <DialogHeader><DialogTitle>New Organization</DialogTitle></DialogHeader>
+            <div className="space-y-3">
+              <div><label className="text-xs text-gray-500">Name *</label><Input value={newName} onChange={(e) => setNewName(e.target.value)} /></div>
+              <div className="grid grid-cols-2 gap-3">
+                <div><label className="text-xs text-gray-500">Type</label><select className="w-full border rounded-md px-2 py-1.5 text-sm" value={newType} onChange={(e) => setNewType(e.target.value)}><option value="">—</option>{ORG_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}</select></div>
+                <div><label className="text-xs text-gray-500">Website</label><Input value={newWebsite} onChange={(e) => setNewWebsite(e.target.value)} /></div>
+              </div>
+              <Button onClick={createOrg} className="w-full" disabled={!newName.trim()}>Create Organization</Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
 
-      <div className="flex gap-3 mb-4">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-          <Input placeholder="Search organizations..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
+      {selected.size > 0 && (
+        <div className="flex items-center gap-3 mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+          <span className="text-sm font-medium text-blue-700">{selected.size} selected</span>
+          <Dialog open={showBulk} onOpenChange={setShowBulk}>
+            <DialogTrigger asChild><Button size="sm" variant="outline">Bulk Update</Button></DialogTrigger>
+            <DialogContent>
+              <DialogHeader><DialogTitle>Bulk Update {selected.size} Orgs</DialogTitle></DialogHeader>
+              <div className="space-y-3">
+                <div><label className="text-xs text-gray-500">Field</label><select className="w-full border rounded-md px-2 py-1.5 text-sm" value={bulkField} onChange={(e) => { setBulkField(e.target.value); setBulkValue(""); }}><option value="">Select...</option><option value="org_type">Type</option><option value="corporate_structure">Structure</option></select></div>
+                {bulkField === "org_type" && <div><label className="text-xs text-gray-500">Value</label><select className="w-full border rounded-md px-2 py-1.5 text-sm" value={bulkValue} onChange={(e) => setBulkValue(e.target.value)}><option value="">—</option>{ORG_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}</select></div>}
+                {bulkField === "corporate_structure" && <div><label className="text-xs text-gray-500">Value</label><select className="w-full border rounded-md px-2 py-1.5 text-sm" value={bulkValue} onChange={(e) => setBulkValue(e.target.value)}><option value="">—</option>{STRUCTURES.map((s) => <option key={s} value={s}>{s}</option>)}</select></div>}
+                <Button onClick={bulkUpdate} className="w-full" disabled={!bulkField}>Update {selected.size} Records</Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+          <Button size="sm" variant="destructive" onClick={deleteSelected}><Trash2 className="h-3 w-3 mr-1" /> Delete</Button>
+          <Button size="sm" variant="ghost" onClick={() => setSelected(new Set())}>Clear</Button>
         </div>
+      )}
+
+      <div className="flex gap-3 mb-4">
+        <div className="relative flex-1"><Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" /><Input placeholder="Search organizations..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" /></div>
         <Button variant={showFilters ? "default" : "outline"} onClick={() => setShowFilters(!showFilters)}>Filters</Button>
       </div>
 
       {showFilters && (
-        <Card className="mb-4">
-          <CardContent className="pt-4 pb-4">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              <div>
-                <label className="text-xs font-medium text-gray-500 mb-1 block">Type</label>
-                <select className="w-full border rounded-md px-2 py-1.5 text-sm" value={filterType} onChange={(e) => setFilterType(e.target.value)}>
-                  <option value="">All</option>
-                  {types.map((t) => <option key={t} value={t}>{t}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="text-xs font-medium text-gray-500 mb-1 block">Structure</label>
-                <select className="w-full border rounded-md px-2 py-1.5 text-sm" value={filterStructure} onChange={(e) => setFilterStructure(e.target.value)}>
-                  <option value="">All</option>
-                  {structures.map((s) => <option key={s} value={s}>{s}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="text-xs font-medium text-gray-500 mb-1 block">League</label>
-                <select className="w-full border rounded-md px-2 py-1.5 text-sm" value={filterLeague} onChange={(e) => setFilterLeague(e.target.value)}>
-                  <option value="">All</option>
-                  {LEAGUE_FIELDS.map((lf) => <option key={lf.key} value={lf.key.replace("in_", "")}>{lf.label}</option>)}
-                </select>
-              </div>
-              <div className="flex items-end">
-                <Button variant="ghost" size="sm" onClick={() => { setFilterType(""); setFilterStructure(""); setFilterLeague(""); }}>
-                  <X className="h-3 w-3 mr-1" /> Clear
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        <Card className="mb-4"><CardContent className="pt-4 pb-4"><div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div><label className="text-xs font-medium text-gray-500 mb-1 block">Type</label><select className="w-full border rounded-md px-2 py-1.5 text-sm" value={filterType} onChange={(e) => setFilterType(e.target.value)}><option value="">All</option>{types.map((t) => <option key={t} value={t}>{t}</option>)}</select></div>
+          <div><label className="text-xs font-medium text-gray-500 mb-1 block">Structure</label><select className="w-full border rounded-md px-2 py-1.5 text-sm" value={filterStructure} onChange={(e) => setFilterStructure(e.target.value)}><option value="">All</option>{structures.map((s) => <option key={s} value={s}>{s}</option>)}</select></div>
+          <div><label className="text-xs font-medium text-gray-500 mb-1 block">League</label><select className="w-full border rounded-md px-2 py-1.5 text-sm" value={filterLeague} onChange={(e) => setFilterLeague(e.target.value)}><option value="">All</option>{LEAGUE_FIELDS.map((lf) => <option key={lf.key} value={lf.key.replace("in_", "")}>{lf.label}</option>)}</select></div>
+          <div className="flex items-end"><Button variant="ghost" size="sm" onClick={() => { setFilterType(""); setFilterStructure(""); setFilterLeague(""); }}><X className="h-3 w-3 mr-1" /> Clear</Button></div>
+        </div></CardContent></Card>
       )}
 
       <Card>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b bg-gray-50">
-                <th className="text-left px-4 py-3 font-medium text-gray-500">Organization</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-500">Type</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-500">Structure</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-500">Website</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-500">Leagues</th>
-              </tr>
-            </thead>
+            <thead><tr className="border-b bg-gray-50">
+              <th className="w-10 px-3 py-3"><button onClick={toggleSelectAll}>{selected.size === filtered.length && filtered.length > 0 ? <CheckSquare className="h-4 w-4 text-blue-600" /> : <Square className="h-4 w-4 text-gray-300" />}</button></th>
+              <th className="text-left px-4 py-3 font-medium text-gray-500">Organization</th>
+              <th className="text-left px-4 py-3 font-medium text-gray-500">Type</th>
+              <th className="text-left px-4 py-3 font-medium text-gray-500">Structure</th>
+              <th className="text-left px-4 py-3 font-medium text-gray-500">Website</th>
+              <th className="text-left px-4 py-3 font-medium text-gray-500">Leagues</th>
+            </tr></thead>
             <tbody>
               {filtered.map((o) => (
-                <tr key={o.id} className="border-b hover:bg-gray-50">
-                  <td className="px-4 py-3">
-                    <Link href={`/soccer-orgs/${o.id}`} className="text-blue-600 hover:underline font-medium">{o.org_name}</Link>
-                  </td>
-                  <td className="px-4 py-3 text-gray-600">{o.org_type || "—"}</td>
-                  <td className="px-4 py-3 text-gray-600">{o.corporate_structure || "—"}</td>
-                  <td className="px-4 py-3 text-gray-600">
-                    {o.website ? (
-                      <a href={o.website.startsWith("http") ? o.website : `https://${o.website}`} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline truncate block max-w-[200px]">
-                        {o.website}
-                      </a>
-                    ) : "—"}
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex flex-wrap gap-1">
-                      {getLeagues(o).map((l) => <Badge key={l} variant="outline" className="text-xs">{l}</Badge>)}
-                    </div>
-                  </td>
+                <tr key={o.id} className={`border-b hover:bg-gray-50 ${selected.has(o.id) ? "bg-blue-50" : ""}`}>
+                  <td className="px-3 py-3"><button onClick={() => toggleSelect(o.id)}>{selected.has(o.id) ? <CheckSquare className="h-4 w-4 text-blue-600" /> : <Square className="h-4 w-4 text-gray-300" />}</button></td>
+                  <td className="px-4 py-2"><div className="flex items-center gap-2"><Link href={`/soccer-orgs/${o.id}`} className="text-blue-600 hover:underline shrink-0">↗</Link><EditableCell value={o.org_name} onSave={(v) => updateCell(o.id, "org_name", v)} /></div></td>
+                  <td className="px-4 py-2"><EditableCell value={o.org_type} onSave={(v) => updateCell(o.id, "org_type", v)} type="select" options={ORG_TYPES} /></td>
+                  <td className="px-4 py-2"><EditableCell value={o.corporate_structure} onSave={(v) => updateCell(o.id, "corporate_structure", v)} type="select" options={STRUCTURES} /></td>
+                  <td className="px-4 py-2"><EditableCell value={o.website} onSave={(v) => updateCell(o.id, "website", v)} /></td>
+                  <td className="px-4 py-3"><div className="flex flex-wrap gap-1">{getLeagues(o).map((l) => <Badge key={l} variant="outline" className="text-xs">{l}</Badge>)}</div></td>
                 </tr>
               ))}
             </tbody>

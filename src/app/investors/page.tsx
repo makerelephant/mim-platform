@@ -1,14 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { EditableCell } from "@/components/EditableCell";
 import Link from "next/link";
-import { Search, GripVertical, List, Columns3 } from "lucide-react";
+import { Search, Plus, Trash2, CheckSquare, Square, ArrowRight, X } from "lucide-react";
 
 interface Investor {
   id: string;
@@ -27,205 +28,216 @@ interface Investor {
   website: string | null;
 }
 
-const PIPELINE_STATUSES = [
-  "Prospect",
-  "Qualified",
-  "Engaged",
-  "First Meeting",
-  "In Closing",
-  "Closed",
-  "Passed",
-];
-
-const STATUS_COLORS: Record<string, string> = {
-  Prospect: "bg-gray-100 border-gray-300",
-  Qualified: "bg-yellow-50 border-yellow-300",
-  Engaged: "bg-blue-50 border-blue-300",
-  "First Meeting": "bg-indigo-50 border-indigo-300",
-  "In Closing": "bg-green-50 border-green-300",
-  Closed: "bg-green-100 border-green-400",
-  Passed: "bg-red-50 border-red-300",
-};
-
-const STATUS_HEADER_COLORS: Record<string, string> = {
-  Prospect: "bg-gray-200",
-  Qualified: "bg-yellow-200",
-  Engaged: "bg-blue-200",
-  "First Meeting": "bg-indigo-200",
-  "In Closing": "bg-green-200",
-  Closed: "bg-green-300",
-  Passed: "bg-red-200",
-};
+const CONNECTION_STATUSES = ["Active", "Stale", "Need Introduction", "Warm Intro", "Cold"];
+const PIPELINE_STATUSES = ["Prospect", "Qualified", "Engaged", "First Meeting", "In Closing", "Closed", "Passed"];
 
 export default function InvestorsPage() {
   const [investors, setInvestors] = useState<Investor[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [view, setView] = useState<"kanban" | "table">("kanban");
-  const [draggedId, setDraggedId] = useState<string | null>(null);
+  const [filterConnection, setFilterConnection] = useState("");
+  const [filterPipeline, setFilterPipeline] = useState<"all" | "in" | "not">("all");
+  const [showFilters, setShowFilters] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [showNew, setShowNew] = useState(false);
+  const [newFirm, setNewFirm] = useState("");
+  const [newType, setNewType] = useState("");
+  const [newGeo, setNewGeo] = useState("");
+  const [newSector, setNewSector] = useState("");
+  const [showBulk, setShowBulk] = useState(false);
+  const [bulkField, setBulkField] = useState("");
+  const [bulkValue, setBulkValue] = useState("");
 
-  useEffect(() => {
-    async function load() {
-      const { data } = await supabase.from("investors").select("*").order("firm_name");
-      if (data) setInvestors(data);
-      setLoading(false);
-    }
-    load();
+  const load = useCallback(async () => {
+    const { data } = await supabase.from("investors").select("*").order("firm_name");
+    if (data) setInvestors(data);
+    setLoading(false);
   }, []);
 
+  useEffect(() => { load(); }, [load]);
+
+  const updateCell = async (id: string, field: string, value: string) => {
+    const { error } = await supabase.from("investors").update({ [field]: value || null }).eq("id", id);
+    if (!error) setInvestors((prev) => prev.map((inv) => (inv.id === id ? { ...inv, [field]: value || null } : inv)));
+  };
+
+  const createInvestor = async () => {
+    if (!newFirm.trim()) return;
+    const { data, error } = await supabase.from("investors").insert({
+      firm_name: newFirm, investor_type: newType || null, geography: newGeo || null,
+      sector_focus: newSector || null, source: "manual",
+    }).select().single();
+    if (!error && data) {
+      setInvestors((prev) => [...prev, data]);
+      setNewFirm(""); setNewType(""); setNewGeo(""); setNewSector("");
+      setShowNew(false);
+    }
+  };
+
+  const deleteSelected = async () => {
+    if (selected.size === 0) return;
+    const { error } = await supabase.from("investors").delete().in("id", Array.from(selected));
+    if (!error) { setInvestors((prev) => prev.filter((inv) => !selected.has(inv.id))); setSelected(new Set()); }
+  };
+
+  const addToPipeline = async () => {
+    if (selected.size === 0) return;
+    const ids = Array.from(selected);
+    const { error } = await supabase.from("investors").update({ pipeline_status: "Prospect" }).in("id", ids);
+    if (!error) {
+      setInvestors((prev) => prev.map((inv) => selected.has(inv.id) && !inv.pipeline_status ? { ...inv, pipeline_status: "Prospect" } : inv));
+      setSelected(new Set());
+    }
+  };
+
+  const removeFromPipeline = async () => {
+    if (selected.size === 0) return;
+    const ids = Array.from(selected);
+    const { error } = await supabase.from("investors").update({ pipeline_status: null }).in("id", ids);
+    if (!error) {
+      setInvestors((prev) => prev.map((inv) => selected.has(inv.id) ? { ...inv, pipeline_status: null } : inv));
+      setSelected(new Set());
+    }
+  };
+
+  const bulkUpdate = async () => {
+    if (!bulkField || selected.size === 0) return;
+    const ids = Array.from(selected);
+    const { error } = await supabase.from("investors").update({ [bulkField]: bulkValue || null }).in("id", ids);
+    if (!error) {
+      setInvestors((prev) => prev.map((inv) => selected.has(inv.id) ? { ...inv, [bulkField]: bulkValue || null } : inv));
+      setSelected(new Set()); setShowBulk(false); setBulkField(""); setBulkValue("");
+    }
+  };
+
+  const toggleSelect = (id: string) => { setSelected((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; }); };
+  const toggleSelectAll = () => { if (selected.size === filtered.length) setSelected(new Set()); else setSelected(new Set(filtered.map((inv) => inv.id))); };
+
   const filtered = investors.filter((inv) => {
-    if (!search) return true;
-    const s = search.toLowerCase();
-    return (
-      inv.firm_name?.toLowerCase().includes(s) ||
-      inv.sector_focus?.toLowerCase().includes(s) ||
-      inv.geography?.toLowerCase().includes(s)
-    );
+    if (search) {
+      const s = search.toLowerCase();
+      if (!inv.firm_name?.toLowerCase().includes(s) && !inv.sector_focus?.toLowerCase().includes(s) && !inv.geography?.toLowerCase().includes(s)) return false;
+    }
+    if (filterConnection && inv.connection_status !== filterConnection) return false;
+    if (filterPipeline === "in" && !inv.pipeline_status) return false;
+    if (filterPipeline === "not" && inv.pipeline_status) return false;
+    return true;
   });
 
-  const handleDragStart = (e: React.DragEvent, id: string) => {
-    setDraggedId(id);
-    e.dataTransfer.effectAllowed = "move";
-  };
+  const inPipelineCount = investors.filter((inv) => inv.pipeline_status).length;
 
-  const handleDrop = async (e: React.DragEvent, status: string) => {
-    e.preventDefault();
-    if (!draggedId) return;
-
-    await supabase.from("investors").update({ pipeline_status: status }).eq("id", draggedId);
-    setInvestors((prev) =>
-      prev.map((inv) => (inv.id === draggedId ? { ...inv, pipeline_status: status } : inv))
-    );
-    setDraggedId(null);
-  };
-
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = "move";
-  };
-
-  if (loading) {
-    return (
-      <div className="p-8">
-        <div className="animate-pulse space-y-4">
-          <div className="h-8 bg-gray-200 rounded w-48" />
-          <div className="flex gap-4">
-            {[1, 2, 3, 4].map((i) => <div key={i} className="h-96 bg-gray-200 rounded flex-1" />)}
-          </div>
-        </div>
-      </div>
-    );
-  }
+  if (loading) return <div className="p-8"><div className="animate-pulse h-64 bg-gray-200 rounded" /></div>;
 
   return (
     <div className="p-8">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Investor Pipeline</h1>
-          <p className="text-gray-500 text-sm mt-1">{investors.length} firms</p>
+          <h1 className="text-2xl font-bold text-gray-900">Investors</h1>
+          <p className="text-gray-500 text-sm mt-1">
+            {filtered.length} of {investors.length} firms · {inPipelineCount} in pipeline
+          </p>
         </div>
         <div className="flex gap-2">
-          <Button variant={view === "kanban" ? "default" : "outline"} size="sm" onClick={() => setView("kanban")}>
-            <Columns3 className="h-4 w-4 mr-1" /> Kanban
-          </Button>
-          <Button variant={view === "table" ? "default" : "outline"} size="sm" onClick={() => setView("table")}>
-            <List className="h-4 w-4 mr-1" /> Table
-          </Button>
-        </div>
-      </div>
-
-      <div className="mb-4">
-        <div className="relative max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-          <Input
-            placeholder="Search firms..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-9"
-          />
-        </div>
-      </div>
-
-      {view === "kanban" ? (
-        <div className="flex gap-3 overflow-x-auto pb-4">
-          {PIPELINE_STATUSES.map((status) => {
-            const cards = filtered.filter((inv) => (inv.pipeline_status || "Prospect") === status);
-            return (
-              <div
-                key={status}
-                className="flex-shrink-0 w-64"
-                onDragOver={handleDragOver}
-                onDrop={(e) => handleDrop(e, status)}
-              >
-                <div className={`rounded-t-lg px-3 py-2 ${STATUS_HEADER_COLORS[status]}`}>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-semibold">{status}</span>
-                    <Badge variant="secondary" className="text-xs">{cards.length}</Badge>
-                  </div>
+          <Link href="/pipeline">
+            <Button variant="outline" size="sm"><ArrowRight className="h-4 w-4 mr-1" /> View Pipeline</Button>
+          </Link>
+          <Dialog open={showNew} onOpenChange={setShowNew}>
+            <DialogTrigger asChild><Button><Plus className="h-4 w-4 mr-1" /> Add Investor</Button></DialogTrigger>
+            <DialogContent>
+              <DialogHeader><DialogTitle>New Investor</DialogTitle></DialogHeader>
+              <div className="space-y-3">
+                <div><label className="text-xs text-gray-500">Firm Name *</label><Input value={newFirm} onChange={(e) => setNewFirm(e.target.value)} /></div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div><label className="text-xs text-gray-500">Type</label><Input value={newType} onChange={(e) => setNewType(e.target.value)} placeholder="e.g. Seed Fund" /></div>
+                  <div><label className="text-xs text-gray-500">Geography</label><Input value={newGeo} onChange={(e) => setNewGeo(e.target.value)} /></div>
                 </div>
-                <div className={`rounded-b-lg border-2 ${STATUS_COLORS[status]} min-h-[200px] p-2 space-y-2`}>
-                  {cards.map((inv) => (
-                    <div
-                      key={inv.id}
-                      draggable
-                      onDragStart={(e) => handleDragStart(e, inv.id)}
-                      className="bg-white rounded-lg border shadow-sm p-3 cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow"
-                    >
-                      <Link href={`/investors/${inv.id}`}>
-                        <h3 className="text-sm font-medium text-gray-900 hover:text-blue-600">{inv.firm_name}</h3>
-                      </Link>
-                      {inv.sector_focus && (
-                        <p className="text-xs text-gray-500 mt-1 line-clamp-1">{inv.sector_focus}</p>
-                      )}
-                      <div className="flex items-center gap-2 mt-2">
-                        {inv.connection_status && (
-                          <Badge variant="outline" className="text-xs">{inv.connection_status}</Badge>
-                        )}
-                        {inv.likelihood_score != null && inv.likelihood_score > 0 && (
-                          <span className="text-xs text-gray-400">Score: {inv.likelihood_score}</span>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                <div><label className="text-xs text-gray-500">Sector Focus</label><Input value={newSector} onChange={(e) => setNewSector(e.target.value)} /></div>
+                <Button onClick={createInvestor} className="w-full" disabled={!newFirm.trim()}>Create Investor</Button>
               </div>
-            );
-          })}
+            </DialogContent>
+          </Dialog>
         </div>
-      ) : (
-        <Card>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b bg-gray-50">
-                  <th className="text-left px-4 py-3 font-medium text-gray-500">Firm</th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-500">Type</th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-500">Geography</th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-500">Sector Focus</th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-500">Pipeline Status</th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-500">Connection</th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-500">Score</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map((inv) => (
-                  <tr key={inv.id} className="border-b hover:bg-gray-50">
-                    <td className="px-4 py-3">
-                      <Link href={`/investors/${inv.id}`} className="text-blue-600 hover:underline font-medium">{inv.firm_name}</Link>
-                    </td>
-                    <td className="px-4 py-3 text-gray-600">{inv.investor_type || "—"}</td>
-                    <td className="px-4 py-3 text-gray-600">{inv.geography || "—"}</td>
-                    <td className="px-4 py-3 text-gray-600 max-w-[200px] truncate">{inv.sector_focus || "—"}</td>
-                    <td className="px-4 py-3"><Badge variant="secondary">{inv.pipeline_status || "Prospect"}</Badge></td>
-                    <td className="px-4 py-3"><Badge variant="outline">{inv.connection_status || "—"}</Badge></td>
-                    <td className="px-4 py-3 text-gray-600">{inv.likelihood_score ?? "—"}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </Card>
+      </div>
+
+      {selected.size > 0 && (
+        <div className="flex items-center gap-3 mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+          <span className="text-sm font-medium text-blue-700">{selected.size} selected</span>
+          <Button size="sm" variant="outline" className="border-green-300 text-green-700 hover:bg-green-50" onClick={addToPipeline}>
+            <ArrowRight className="h-3 w-3 mr-1" /> Add to Pipeline
+          </Button>
+          <Button size="sm" variant="outline" className="border-orange-300 text-orange-700 hover:bg-orange-50" onClick={removeFromPipeline}>
+            <X className="h-3 w-3 mr-1" /> Remove from Pipeline
+          </Button>
+          <Dialog open={showBulk} onOpenChange={setShowBulk}>
+            <DialogTrigger asChild><Button size="sm" variant="outline">Bulk Update</Button></DialogTrigger>
+            <DialogContent>
+              <DialogHeader><DialogTitle>Bulk Update {selected.size} Investors</DialogTitle></DialogHeader>
+              <div className="space-y-3">
+                <div><label className="text-xs text-gray-500">Field</label><select className="w-full border rounded-md px-2 py-1.5 text-sm" value={bulkField} onChange={(e) => { setBulkField(e.target.value); setBulkValue(""); }}><option value="">Select...</option><option value="connection_status">Connection Status</option><option value="geography">Geography</option><option value="sector_focus">Sector Focus</option></select></div>
+                {bulkField === "connection_status" && <div><label className="text-xs text-gray-500">Value</label><select className="w-full border rounded-md px-2 py-1.5 text-sm" value={bulkValue} onChange={(e) => setBulkValue(e.target.value)}><option value="">—</option>{CONNECTION_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}</select></div>}
+                {bulkField && bulkField !== "connection_status" && <div><label className="text-xs text-gray-500">Value</label><Input value={bulkValue} onChange={(e) => setBulkValue(e.target.value)} /></div>}
+                <Button onClick={bulkUpdate} className="w-full" disabled={!bulkField}>Update {selected.size} Records</Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+          <Button size="sm" variant="destructive" onClick={deleteSelected}><Trash2 className="h-3 w-3 mr-1" /> Delete</Button>
+          <Button size="sm" variant="ghost" onClick={() => setSelected(new Set())}>Clear</Button>
+        </div>
       )}
+
+      <div className="flex gap-3 mb-4">
+        <div className="relative flex-1"><Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" /><Input placeholder="Search firms..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" /></div>
+        <Button variant={showFilters ? "default" : "outline"} onClick={() => setShowFilters(!showFilters)}>Filters</Button>
+      </div>
+
+      {showFilters && (
+        <Card className="mb-4"><div className="p-4"><div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div><label className="text-xs font-medium text-gray-500 mb-1 block">Connection Status</label><select className="w-full border rounded-md px-2 py-1.5 text-sm" value={filterConnection} onChange={(e) => setFilterConnection(e.target.value)}><option value="">All</option>{CONNECTION_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}</select></div>
+          <div><label className="text-xs font-medium text-gray-500 mb-1 block">Pipeline</label><select className="w-full border rounded-md px-2 py-1.5 text-sm" value={filterPipeline} onChange={(e) => setFilterPipeline(e.target.value as "all" | "in" | "not")}><option value="all">All</option><option value="in">In Pipeline</option><option value="not">Not in Pipeline</option></select></div>
+          <div className="flex items-end"><Button variant="ghost" size="sm" onClick={() => { setFilterConnection(""); setFilterPipeline("all"); }}><X className="h-3 w-3 mr-1" /> Clear</Button></div>
+        </div></div></Card>
+      )}
+
+      <Card>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b bg-gray-50">
+                <th className="w-10 px-3 py-3"><button onClick={toggleSelectAll}>{selected.size === filtered.length && filtered.length > 0 ? <CheckSquare className="h-4 w-4 text-blue-600" /> : <Square className="h-4 w-4 text-gray-300" />}</button></th>
+                <th className="text-left px-4 py-3 font-medium text-gray-500">Firm</th>
+                <th className="text-left px-4 py-3 font-medium text-gray-500">Type</th>
+                <th className="text-left px-4 py-3 font-medium text-gray-500">Geography</th>
+                <th className="text-left px-4 py-3 font-medium text-gray-500">Sector Focus</th>
+                <th className="text-left px-4 py-3 font-medium text-gray-500">Connection</th>
+                <th className="text-left px-4 py-3 font-medium text-gray-500">Pipeline</th>
+                <th className="text-left px-4 py-3 font-medium text-gray-500">Score</th>
+                <th className="text-left px-4 py-3 font-medium text-gray-500">Website</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map((inv) => (
+                <tr key={inv.id} className={`border-b hover:bg-gray-50 ${selected.has(inv.id) ? "bg-blue-50" : ""}`}>
+                  <td className="px-3 py-3"><button onClick={() => toggleSelect(inv.id)}>{selected.has(inv.id) ? <CheckSquare className="h-4 w-4 text-blue-600" /> : <Square className="h-4 w-4 text-gray-300" />}</button></td>
+                  <td className="px-4 py-2"><div className="flex items-center gap-2"><Link href={`/investors/${inv.id}`} className="text-blue-600 hover:underline shrink-0">↗</Link><EditableCell value={inv.firm_name} onSave={(v) => updateCell(inv.id, "firm_name", v)} /></div></td>
+                  <td className="px-4 py-2"><EditableCell value={inv.investor_type} onSave={(v) => updateCell(inv.id, "investor_type", v)} /></td>
+                  <td className="px-4 py-2"><EditableCell value={inv.geography} onSave={(v) => updateCell(inv.id, "geography", v)} /></td>
+                  <td className="px-4 py-2"><EditableCell value={inv.sector_focus} onSave={(v) => updateCell(inv.id, "sector_focus", v)} /></td>
+                  <td className="px-4 py-2"><EditableCell value={inv.connection_status} onSave={(v) => updateCell(inv.id, "connection_status", v)} type="select" options={CONNECTION_STATUSES} /></td>
+                  <td className="px-4 py-2">
+                    {inv.pipeline_status ? (
+                      <Badge variant="secondary" className="text-xs">{inv.pipeline_status}</Badge>
+                    ) : (
+                      <span className="text-gray-300 text-xs">—</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-2"><EditableCell value={inv.likelihood_score} onSave={(v) => updateCell(inv.id, "likelihood_score", v)} type="number" /></td>
+                  <td className="px-4 py-2"><EditableCell value={inv.website} onSave={(v) => updateCell(inv.id, "website", v)} /></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Card>
     </div>
   );
 }
