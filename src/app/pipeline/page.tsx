@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { EditableCell } from "@/components/EditableCell";
+import { Avatar } from "@/components/Avatar";
 import Link from "next/link";
 import { Search, List, Columns3, Trash2, CheckSquare, Square, X, Plus } from "lucide-react";
 
@@ -26,6 +27,7 @@ interface Investor {
   last_contact_date: string | null;
   next_action: string | null;
   website: string | null;
+  avatar_url: string | null;
 }
 
 const PIPELINE_STATUSES = ["Prospect", "Qualified", "Engaged", "First Meeting", "In Closing", "Closed", "Passed"];
@@ -203,6 +205,7 @@ export default function PipelinePage() {
                           onChange={() => { setAddSelected((prev) => { const n = new Set(prev); n.has(inv.id) ? n.delete(inv.id) : n.add(inv.id); return n; }); }}
                           className="rounded border-gray-300"
                         />
+                        <Avatar src={inv.avatar_url} name={inv.firm_name} size="sm" />
                         <div className="flex-1 min-w-0">
                           <div className="text-sm font-medium truncate">{inv.firm_name}</div>
                           <div className="text-xs text-gray-500 truncate">{[inv.investor_type, inv.geography, inv.sector_focus].filter(Boolean).join(" · ") || "No details"}</div>
@@ -279,7 +282,10 @@ export default function PipelinePage() {
                           <Trash2 className="h-3.5 w-3.5" />
                         </button>
                       </div>
-                      <Link href={`/investors/${inv.id}`}><h3 className="text-sm font-medium text-gray-900 hover:text-blue-600">{inv.firm_name}</h3></Link>
+                      <div className="flex items-center gap-2 mb-1">
+                        <Avatar src={inv.avatar_url} name={inv.firm_name} size="sm" />
+                        <Link href={`/investors/${inv.id}`}><h3 className="text-sm font-medium text-gray-900 hover:text-blue-600">{inv.firm_name}</h3></Link>
+                      </div>
                       {inv.sector_focus && <p className="text-xs text-gray-500 mt-1 line-clamp-1">{inv.sector_focus}</p>}
                       <div className="flex items-center gap-2 mt-2">
                         {inv.connection_status && <Badge variant="outline" className="text-xs">{inv.connection_status}</Badge>}
@@ -299,6 +305,7 @@ export default function PipelinePage() {
               <thead>
                 <tr className="border-b bg-gray-50">
                   <th className="w-10 px-3 py-3"><button onClick={toggleSelectAll}>{selected.size === filtered.length && filtered.length > 0 ? <CheckSquare className="h-4 w-4 text-blue-600" /> : <Square className="h-4 w-4 text-gray-300" />}</button></th>
+                  <th className="w-10 px-2 py-3"></th>
                   <th className="text-left px-4 py-3 font-medium text-gray-500">Firm</th>
                   <th className="text-left px-4 py-3 font-medium text-gray-500">Type</th>
                   <th className="text-left px-4 py-3 font-medium text-gray-500">Geography</th>
@@ -314,6 +321,7 @@ export default function PipelinePage() {
                 {filtered.map((inv) => (
                   <tr key={inv.id} className={`border-b hover:bg-gray-50 ${selected.has(inv.id) ? "bg-blue-50" : ""}`}>
                     <td className="px-3 py-3"><button onClick={() => toggleSelect(inv.id)}>{selected.has(inv.id) ? <CheckSquare className="h-4 w-4 text-blue-600" /> : <Square className="h-4 w-4 text-gray-300" />}</button></td>
+                    <td className="px-2 py-2"><Avatar src={inv.avatar_url} name={inv.firm_name} size="sm" /></td>
                     <td className="px-4 py-2"><div className="flex items-center gap-2"><Link href={`/investors/${inv.id}`} className="text-blue-600 hover:underline shrink-0">↗</Link><EditableCell value={inv.firm_name} onSave={(v) => updateCell(inv.id, "firm_name", v)} /></div></td>
                     <td className="px-4 py-2"><EditableCell value={inv.investor_type} onSave={(v) => updateCell(inv.id, "investor_type", v)} /></td>
                     <td className="px-4 py-2"><EditableCell value={inv.geography} onSave={(v) => updateCell(inv.id, "geography", v)} /></td>

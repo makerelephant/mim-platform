@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Avatar } from "@/components/Avatar";
 import { ArrowLeft, Save, ExternalLink, X } from "lucide-react";
 import Link from "next/link";
 
@@ -31,6 +32,7 @@ interface Investor {
   notes: string | null;
   last_contact_date: string | null;
   next_action: string | null;
+  avatar_url: string | null;
 }
 
 interface LinkedContact {
@@ -88,6 +90,7 @@ export default function InvestorDetail() {
       notes: editData.notes || null,
       last_contact_date: editData.last_contact_date || null,
       next_action: editData.next_action || null,
+      avatar_url: editData.avatar_url || null,
     }).eq("id", investor.id);
     if (!error) {
       const updated = { ...investor, ...editData, likelihood_score: editData.likelihood_score != null && String(editData.likelihood_score) !== "" ? Number(editData.likelihood_score) : null };
@@ -179,20 +182,23 @@ export default function InvestorDetail() {
       </Button>
 
       <div className="flex items-center justify-between mb-6">
-        <div>
-          {editing ? (
-            <Input
-              value={editData.firm_name || ""}
-              onChange={(e) => setField("firm_name", e.target.value)}
-              className="text-2xl font-bold h-auto py-1 px-2 -ml-2"
-            />
-          ) : (
-            <h1 className="text-2xl font-bold text-gray-900">{investor.firm_name}</h1>
-          )}
-          <div className="flex gap-2 mt-2">
-            <Badge variant="secondary">{investor.pipeline_status || "Not in Pipeline"}</Badge>
-            {investor.connection_status && <Badge variant="outline">{investor.connection_status}</Badge>}
-            {investor.investor_type && <Badge variant="outline">{investor.investor_type}</Badge>}
+        <div className="flex items-center gap-4">
+          <Avatar src={investor.avatar_url} name={investor.firm_name} size="lg" />
+          <div>
+            {editing ? (
+              <Input
+                value={editData.firm_name || ""}
+                onChange={(e) => setField("firm_name", e.target.value)}
+                className="text-2xl font-bold h-auto py-1 px-2 -ml-2"
+              />
+            ) : (
+              <h1 className="text-2xl font-bold text-gray-900">{investor.firm_name}</h1>
+            )}
+            <div className="flex gap-2 mt-2">
+              <Badge variant="secondary">{investor.pipeline_status || "Not in Pipeline"}</Badge>
+              {investor.connection_status && <Badge variant="outline">{investor.connection_status}</Badge>}
+              {investor.investor_type && <Badge variant="outline">{investor.investor_type}</Badge>}
+            </div>
           </div>
         </div>
         <div className="flex gap-2">
@@ -211,6 +217,15 @@ export default function InvestorDetail() {
           )}
         </div>
       </div>
+
+      {editing && (
+        <Card className="mb-6">
+          <CardHeader><CardTitle className="text-base">Avatar</CardTitle></CardHeader>
+          <CardContent>
+            <Field label="Avatar URL" field="avatar_url" type="url" />
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <Card>

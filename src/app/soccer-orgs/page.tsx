@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { EditableCell } from "@/components/EditableCell";
+import { Avatar } from "@/components/Avatar";
 import Link from "next/link";
 import { Search, X, Plus, Trash2, CheckSquare, Square } from "lucide-react";
 
@@ -21,6 +22,7 @@ interface SoccerOrg {
   merch_link: string | null;
   store_status: string | null;
   store_provider: string | null;
+  avatar_url: string | null;
   in_bays: boolean; in_cmysl: boolean; in_cysl: boolean; in_ecnl: boolean; in_ecysa: boolean;
   in_mysl: boolean; in_nashoba: boolean; in_necsl: boolean; in_roots: boolean; in_south_coast: boolean; in_south_shore: boolean;
 }
@@ -161,6 +163,7 @@ export default function SoccerOrgsPage() {
           <table className="w-full text-sm">
             <thead><tr className="border-b bg-gray-50">
               <th className="w-10 px-3 py-3"><button onClick={toggleSelectAll}>{selected.size === filtered.length && filtered.length > 0 ? <CheckSquare className="h-4 w-4 text-blue-600" /> : <Square className="h-4 w-4 text-gray-300" />}</button></th>
+              <th className="w-10 px-2 py-3"></th>
               <th className="text-left px-4 py-3 font-medium text-gray-500">Organization</th>
               <th className="text-left px-4 py-3 font-medium text-gray-500">Type</th>
               <th className="text-left px-4 py-3 font-medium text-gray-500">Structure</th>
@@ -171,6 +174,7 @@ export default function SoccerOrgsPage() {
               {filtered.map((o) => (
                 <tr key={o.id} className={`border-b hover:bg-gray-50 ${selected.has(o.id) ? "bg-blue-50" : ""}`}>
                   <td className="px-3 py-3"><button onClick={() => toggleSelect(o.id)}>{selected.has(o.id) ? <CheckSquare className="h-4 w-4 text-blue-600" /> : <Square className="h-4 w-4 text-gray-300" />}</button></td>
+                  <td className="px-2 py-2"><Avatar src={o.avatar_url} name={o.org_name} size="sm" /></td>
                   <td className="px-4 py-2"><div className="flex items-center gap-2"><Link href={`/soccer-orgs/${o.id}`} className="text-blue-600 hover:underline shrink-0">↗</Link><EditableCell value={o.org_name} onSave={(v) => updateCell(o.id, "org_name", v)} /></div></td>
                   <td className="px-4 py-2"><EditableCell value={o.org_type} onSave={(v) => updateCell(o.id, "org_type", v)} type="select" options={ORG_TYPES} /></td>
                   <td className="px-4 py-2"><EditableCell value={o.corporate_structure} onSave={(v) => updateCell(o.id, "corporate_structure", v)} type="select" options={STRUCTURES} /></td>

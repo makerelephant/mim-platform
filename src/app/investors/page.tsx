@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { EditableCell } from "@/components/EditableCell";
+import { Avatar } from "@/components/Avatar";
 import Link from "next/link";
 import { Search, Plus, Trash2, CheckSquare, Square, ArrowRight, X } from "lucide-react";
 
@@ -26,6 +27,7 @@ interface Investor {
   last_contact_date: string | null;
   next_action: string | null;
   website: string | null;
+  avatar_url: string | null;
 }
 
 const CONNECTION_STATUSES = ["Active", "Stale", "Need Introduction", "Warm Intro", "Cold"];
@@ -204,6 +206,7 @@ export default function InvestorsPage() {
             <thead>
               <tr className="border-b bg-gray-50">
                 <th className="w-10 px-3 py-3"><button onClick={toggleSelectAll}>{selected.size === filtered.length && filtered.length > 0 ? <CheckSquare className="h-4 w-4 text-blue-600" /> : <Square className="h-4 w-4 text-gray-300" />}</button></th>
+                <th className="w-10 px-2 py-3"></th>
                 <th className="text-left px-4 py-3 font-medium text-gray-500">Firm</th>
                 <th className="text-left px-4 py-3 font-medium text-gray-500">Type</th>
                 <th className="text-left px-4 py-3 font-medium text-gray-500">Geography</th>
@@ -218,6 +221,7 @@ export default function InvestorsPage() {
               {filtered.map((inv) => (
                 <tr key={inv.id} className={`border-b hover:bg-gray-50 ${selected.has(inv.id) ? "bg-blue-50" : ""}`}>
                   <td className="px-3 py-3"><button onClick={() => toggleSelect(inv.id)}>{selected.has(inv.id) ? <CheckSquare className="h-4 w-4 text-blue-600" /> : <Square className="h-4 w-4 text-gray-300" />}</button></td>
+                  <td className="px-2 py-2"><Avatar src={inv.avatar_url} name={inv.firm_name} size="sm" /></td>
                   <td className="px-4 py-2"><div className="flex items-center gap-2"><Link href={`/investors/${inv.id}`} className="text-blue-600 hover:underline shrink-0">↗</Link><EditableCell value={inv.firm_name} onSave={(v) => updateCell(inv.id, "firm_name", v)} /></div></td>
                   <td className="px-4 py-2"><EditableCell value={inv.investor_type} onSave={(v) => updateCell(inv.id, "investor_type", v)} /></td>
                   <td className="px-4 py-2"><EditableCell value={inv.geography} onSave={(v) => updateCell(inv.id, "geography", v)} /></td>

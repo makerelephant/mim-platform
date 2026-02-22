@@ -8,8 +8,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { EditableCell } from "@/components/EditableCell";
+import { Avatar } from "@/components/Avatar";
 import Link from "next/link";
-import { Search, X, ChevronUp, ChevronDown, Plus, Trash2, CheckSquare, Square } from "lucide-react";
+import { Search, X, ChevronUp, ChevronDown, Plus, Trash2, CheckSquare, Square, LayoutGrid, List } from "lucide-react";
 
 interface Contact {
   id: string;
@@ -21,6 +22,7 @@ interface Contact {
   primary_category: string | null;
   subcategory: string | null;
   region: string | null;
+  avatar_url: string | null;
 }
 
 type SortField = "name" | "segment" | "primary_category" | "region";
@@ -52,11 +54,12 @@ export default function ContactsPage() {
   const [bulkField, setBulkField] = useState("");
   const [bulkValue, setBulkValue] = useState("");
   const [showBulk, setShowBulk] = useState(false);
+  const [view, setView] = useState<"table" | "tiles">("table");
 
   const loadContacts = useCallback(async () => {
     const { data } = await supabase
       .from("contacts")
-      .select("id, name, email, phone, title, segment, primary_category, subcategory, region")
+      .select("id, name, email, phone, title, segment, primary_category, subcategory, region, avatar_url")
       .order("name");
     if (data) setContacts(data);
     setLoading(false);
@@ -156,25 +159,29 @@ export default function ContactsPage() {
           <h1 className="text-2xl font-bold text-gray-900">Contacts</h1>
           <p className="text-gray-500 text-sm mt-1">{filtered.length} of {contacts.length} contacts</p>
         </div>
-        <Dialog open={showNew} onOpenChange={setShowNew}>
-          <DialogTrigger asChild><Button><Plus className="h-4 w-4 mr-1" /> Add Contact</Button></DialogTrigger>
-          <DialogContent>
-            <DialogHeader><DialogTitle>New Contact</DialogTitle></DialogHeader>
-            <div className="space-y-3">
-              <div><label className="text-xs text-gray-500">Name *</label><Input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Full name" /></div>
-              <div className="grid grid-cols-2 gap-3">
-                <div><label className="text-xs text-gray-500">Email</label><Input value={newEmail} onChange={(e) => setNewEmail(e.target.value)} /></div>
-                <div><label className="text-xs text-gray-500">Phone</label><Input value={newPhone} onChange={(e) => setNewPhone(e.target.value)} /></div>
+        <div className="flex gap-2">
+          <Button variant={view === "tiles" ? "default" : "outline"} size="sm" onClick={() => setView("tiles")}><LayoutGrid className="h-4 w-4 mr-1" /> Tiles</Button>
+          <Button variant={view === "table" ? "default" : "outline"} size="sm" onClick={() => setView("table")}><List className="h-4 w-4 mr-1" /> Table</Button>
+          <Dialog open={showNew} onOpenChange={setShowNew}>
+            <DialogTrigger asChild><Button><Plus className="h-4 w-4 mr-1" /> Add Contact</Button></DialogTrigger>
+            <DialogContent>
+              <DialogHeader><DialogTitle>New Contact</DialogTitle></DialogHeader>
+              <div className="space-y-3">
+                <div><label className="text-xs text-gray-500">Name *</label><Input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Full name" /></div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div><label className="text-xs text-gray-500">Email</label><Input value={newEmail} onChange={(e) => setNewEmail(e.target.value)} /></div>
+                  <div><label className="text-xs text-gray-500">Phone</label><Input value={newPhone} onChange={(e) => setNewPhone(e.target.value)} /></div>
+                </div>
+                <div><label className="text-xs text-gray-500">Title</label><Input value={newTitle} onChange={(e) => setNewTitle(e.target.value)} /></div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div><label className="text-xs text-gray-500">Segment</label><select className="w-full border rounded-md px-2 py-1.5 text-sm" value={newSegment} onChange={(e) => setNewSegment(e.target.value)}><option value="">—</option>{SEGMENTS.map((s) => <option key={s} value={s}>{s}</option>)}</select></div>
+                  <div><label className="text-xs text-gray-500">Category</label><select className="w-full border rounded-md px-2 py-1.5 text-sm" value={newCategory} onChange={(e) => setNewCategory(e.target.value)}><option value="">—</option>{CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}</select></div>
+                </div>
+                <Button onClick={createContact} className="w-full" disabled={!newName.trim()}>Create Contact</Button>
               </div>
-              <div><label className="text-xs text-gray-500">Title</label><Input value={newTitle} onChange={(e) => setNewTitle(e.target.value)} /></div>
-              <div className="grid grid-cols-2 gap-3">
-                <div><label className="text-xs text-gray-500">Segment</label><select className="w-full border rounded-md px-2 py-1.5 text-sm" value={newSegment} onChange={(e) => setNewSegment(e.target.value)}><option value="">—</option>{SEGMENTS.map((s) => <option key={s} value={s}>{s}</option>)}</select></div>
-                <div><label className="text-xs text-gray-500">Category</label><select className="w-full border rounded-md px-2 py-1.5 text-sm" value={newCategory} onChange={(e) => setNewCategory(e.target.value)}><option value="">—</option>{CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}</select></div>
-              </div>
-              <Button onClick={createContact} className="w-full" disabled={!newName.trim()}>Create Contact</Button>
-            </div>
-          </DialogContent>
-        </Dialog>
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
 
       {selected.size > 0 && (
@@ -220,41 +227,64 @@ export default function ContactsPage() {
         </Card>
       )}
 
-      <Card>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b bg-gray-50">
-                <th className="w-10 px-3 py-3"><button onClick={toggleSelectAll}>{selected.size === filtered.length && filtered.length > 0 ? <CheckSquare className="h-4 w-4 text-blue-600" /> : <Square className="h-4 w-4 text-gray-300" />}</button></th>
-                <th className="text-left px-4 py-3 font-medium text-gray-500 cursor-pointer" onClick={() => toggleSort("name")}><span className="flex items-center gap-1">Name <SortIcon field="name" /></span></th>
-                <th className="text-left px-4 py-3 font-medium text-gray-500">Email</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-500">Phone</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-500">Title</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-500 cursor-pointer" onClick={() => toggleSort("segment")}><span className="flex items-center gap-1">Segment <SortIcon field="segment" /></span></th>
-                <th className="text-left px-4 py-3 font-medium text-gray-500 cursor-pointer" onClick={() => toggleSort("primary_category")}><span className="flex items-center gap-1">Category <SortIcon field="primary_category" /></span></th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((c) => (
-                <tr key={c.id} className={`border-b hover:bg-gray-50 ${selected.has(c.id) ? "bg-blue-50" : ""}`}>
-                  <td className="px-3 py-3"><button onClick={() => toggleSelect(c.id)}>{selected.has(c.id) ? <CheckSquare className="h-4 w-4 text-blue-600" /> : <Square className="h-4 w-4 text-gray-300" />}</button></td>
-                  <td className="px-4 py-2">
-                    <div className="flex items-center gap-2">
-                      <Link href={`/contacts/${c.id}`} className="text-blue-600 hover:underline font-medium shrink-0">↗</Link>
-                      <EditableCell value={c.name} onSave={(v) => updateCell(c.id, "name", v)} />
-                    </div>
-                  </td>
-                  <td className="px-4 py-2"><EditableCell value={c.email} onSave={(v) => updateCell(c.id, "email", v)} /></td>
-                  <td className="px-4 py-2"><EditableCell value={c.phone} onSave={(v) => updateCell(c.id, "phone", v)} /></td>
-                  <td className="px-4 py-2"><EditableCell value={c.title} onSave={(v) => updateCell(c.id, "title", v)} /></td>
-                  <td className="px-4 py-2"><EditableCell value={c.segment} onSave={(v) => updateCell(c.id, "segment", v)} type="select" options={SEGMENTS} /></td>
-                  <td className="px-4 py-2"><EditableCell value={c.primary_category} onSave={(v) => updateCell(c.id, "primary_category", v)} type="select" options={CATEGORIES} /></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      {view === "tiles" ? (
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+          {filtered.map((c) => (
+            <Link key={c.id} href={`/contacts/${c.id}`}>
+              <Card className="hover:shadow-md transition-shadow cursor-pointer h-full">
+                <CardContent className="p-4 flex flex-col items-center text-center gap-2">
+                  <Avatar src={c.avatar_url} name={c.name} size="lg" />
+                  <div className="min-w-0 w-full">
+                    <p className="text-sm font-medium text-gray-900 truncate">{c.name}</p>
+                    {c.email && <p className="text-xs text-gray-500 truncate">{c.email}</p>}
+                    {c.primary_category && (
+                      <Badge variant="secondary" className="text-xs mt-1">{c.primary_category}</Badge>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </Link>
+          ))}
         </div>
-      </Card>
+      ) : (
+        <Card>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b bg-gray-50">
+                  <th className="w-10 px-3 py-3"><button onClick={toggleSelectAll}>{selected.size === filtered.length && filtered.length > 0 ? <CheckSquare className="h-4 w-4 text-blue-600" /> : <Square className="h-4 w-4 text-gray-300" />}</button></th>
+                  <th className="w-10 px-2 py-3"></th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-500 cursor-pointer" onClick={() => toggleSort("name")}><span className="flex items-center gap-1">Name <SortIcon field="name" /></span></th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-500">Email</th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-500">Phone</th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-500">Title</th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-500 cursor-pointer" onClick={() => toggleSort("segment")}><span className="flex items-center gap-1">Segment <SortIcon field="segment" /></span></th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-500 cursor-pointer" onClick={() => toggleSort("primary_category")}><span className="flex items-center gap-1">Category <SortIcon field="primary_category" /></span></th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((c) => (
+                  <tr key={c.id} className={`border-b hover:bg-gray-50 ${selected.has(c.id) ? "bg-blue-50" : ""}`}>
+                    <td className="px-3 py-3"><button onClick={() => toggleSelect(c.id)}>{selected.has(c.id) ? <CheckSquare className="h-4 w-4 text-blue-600" /> : <Square className="h-4 w-4 text-gray-300" />}</button></td>
+                    <td className="px-2 py-2"><Avatar src={c.avatar_url} name={c.name} size="sm" /></td>
+                    <td className="px-4 py-2">
+                      <div className="flex items-center gap-2">
+                        <Link href={`/contacts/${c.id}`} className="text-blue-600 hover:underline font-medium shrink-0">↗</Link>
+                        <EditableCell value={c.name} onSave={(v) => updateCell(c.id, "name", v)} />
+                      </div>
+                    </td>
+                    <td className="px-4 py-2"><EditableCell value={c.email} onSave={(v) => updateCell(c.id, "email", v)} /></td>
+                    <td className="px-4 py-2"><EditableCell value={c.phone} onSave={(v) => updateCell(c.id, "phone", v)} /></td>
+                    <td className="px-4 py-2"><EditableCell value={c.title} onSave={(v) => updateCell(c.id, "title", v)} /></td>
+                    <td className="px-4 py-2"><EditableCell value={c.segment} onSave={(v) => updateCell(c.id, "segment", v)} type="select" options={SEGMENTS} /></td>
+                    <td className="px-4 py-2"><EditableCell value={c.primary_category} onSave={(v) => updateCell(c.id, "primary_category", v)} type="select" options={CATEGORIES} /></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      )}
     </div>
   );
 }
