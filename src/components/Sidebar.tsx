@@ -16,6 +16,7 @@ import {
   ChevronDown,
   ChevronRight,
   Globe,
+  MessageSquareWarning,
   type LucideIcon,
 } from "lucide-react";
 
@@ -57,6 +58,7 @@ const nav: NavEntry[] = [
       { href: "/market-map", label: "Market Map", icon: Map },
     ],
   },
+  { href: "/support-issues", label: "Support Issues", icon: MessageSquareWarning },
   { href: "/tasks", label: "Tasks", icon: CheckSquare },
   { href: "/activity", label: "Activity Log", icon: Activity },
 ];
