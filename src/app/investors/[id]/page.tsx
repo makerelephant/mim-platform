@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -44,14 +44,16 @@ interface LinkedContact {
 const PIPELINE_STATUSES = ["Prospect", "Qualified", "Engaged", "First Meeting", "In Closing", "Closed", "Passed"];
 const CONNECTION_STATUSES = ["Active", "Stale", "Need Introduction", "Warm Intro", "Cold"];
 
-/* ── Extracted field components (defined OUTSIDE the parent to avoid remount) ── */
+/*
+ * Field components use UNCONTROLLED inputs (defaultValue + onChange → ref).
+ * Typing updates a ref in the parent — no setState, no re-render, no DOM destruction.
+ */
 
 function DetailField({
   label,
   field,
   type = "text",
   editing,
-  editData,
   investor,
   setField,
 }: {
@@ -59,17 +61,21 @@ function DetailField({
   field: keyof Investor;
   type?: "text" | "textarea" | "number" | "date" | "url";
   editing: boolean;
-  editData: Partial<Investor>;
   investor: Investor;
   setField: (field: keyof Investor, value: string | number | null) => void;
 }) {
-  const val = editing ? editData[field] : investor[field];
   if (editing) {
+    const defVal = String(investor[field] ?? "");
     if (type === "textarea") {
       return (
         <div>
           {label && <label className="text-xs text-gray-500">{label}</label>}
-          <Textarea rows={3} value={String(val ?? "")} onChange={(e) => setField(field, e.target.value)} className="mt-0.5" />
+          <Textarea
+            rows={3}
+            defaultValue={defVal}
+            onChange={(e) => setField(field, e.target.value)}
+            className="mt-0.5"
+          />
         </div>
       );
     }
@@ -78,19 +84,33 @@ function DetailField({
         {label && <label className="text-xs text-gray-500">{label}</label>}
         <Input
           type={type === "number" ? "number" : type === "date" ? "date" : "text"}
-          value={String(val ?? "")}
-          onChange={(e) => setField(field, type === "number" ? (e.target.value ? Number(e.target.value) : null) : e.target.value)}
+          defaultValue={defVal}
+          onChange={(e) => {
+            const v = e.target.value;
+            setField(field, type === "number" ? (v ? Number(v) : null) : v);
+          }}
           className="mt-0.5"
         />
       </div>
     );
   }
+
+  const val = investor[field];
   const display = val != null && val !== "" ? String(val) : "—";
   return (
     <div>
       {label && <span className="text-xs text-gray-500">{label}</span>}
       {type === "url" && val ? (
-        <p className="text-sm"><a href={String(val).startsWith("http") ? String(val) : `https://${val}`} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">{String(val)}</a></p>
+        <p className="text-sm">
+          <a
+            href={String(val).startsWith("http") ? String(val) : `https://${val}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-blue-600 hover:underline"
+          >
+            {String(val)}
+          </a>
+        </p>
       ) : (
         <p className={`text-sm ${display === "—" ? "text-gray-300" : ""}`}>{display}</p>
       )}
@@ -103,7 +123,6 @@ function DetailSelect({
   field,
   options,
   editing,
-  editData,
   investor,
   setField,
 }: {
@@ -111,26 +130,28 @@ function DetailSelect({
   field: keyof Investor;
   options: string[];
   editing: boolean;
-  editData: Partial<Investor>;
   investor: Investor;
   setField: (field: keyof Investor, value: string | number | null) => void;
 }) {
-  const val = editing ? editData[field] : investor[field];
   if (editing) {
     return (
       <div>
         <label className="text-xs text-gray-500">{label}</label>
         <select
           className="w-full border rounded-md px-2 py-1.5 text-sm mt-0.5"
-          value={String(val ?? "")}
+          defaultValue={String(investor[field] ?? "")}
           onChange={(e) => setField(field, e.target.value || null)}
         >
           <option value="">—</option>
-          {options.map((s) => <option key={s} value={s}>{s}</option>)}
+          {options.map((s) => (
+            <option key={s} value={s}>{s}</option>
+          ))}
         </select>
       </div>
     );
   }
+
+  const val = investor[field];
   const display = val != null && val !== "" ? String(val) : "—";
   return (
     <div>
@@ -148,14 +169,18 @@ export default function InvestorDetail() {
   const [investor, setInvestor] = useState<Investor | null>(null);
   const [linkedContacts, setLinkedContacts] = useState<LinkedContact[]>([]);
   const [editing, setEditing] = useState(false);
-  const [editData, setEditData] = useState<Partial<Investor>>({});
   const [saving, setSaving] = useState(false);
+
+  // Edit data stored in a ref — mutations never trigger re-renders.
+  // This is the core fix: typing updates the ref silently, so the parent
+  // never re-renders and child components are never destroyed.
+  const editDataRef = useRef<Record<string, unknown>>({});
 
   useEffect(() => {
     async function load() {
       const id = params.id as string;
       const { data: inv } = await supabase.from("investors").select("*").eq("id", id).single();
-      if (inv) { setInvestor(inv); setEditData(inv); }
+      if (inv) setInvestor(inv);
 
       const { data: contacts } = await supabase
         .from("investor_contacts")
@@ -166,32 +191,51 @@ export default function InvestorDetail() {
     load();
   }, [params.id]);
 
+  // setField writes to the ref — no setState, no re-render
+  const setField = useCallback((field: keyof Investor, value: string | number | null) => {
+    editDataRef.current[field] = value;
+  }, []);
+
+  const startEditing = useCallback(() => {
+    if (investor) {
+      // Snapshot current investor data into the ref
+      editDataRef.current = { ...investor };
+      setEditing(true);
+    }
+  }, [investor]);
+
   const handleSave = async () => {
     if (!investor) return;
     setSaving(true);
+    const d = editDataRef.current;
     const { error } = await supabase.from("investors").update({
-      firm_name: editData.firm_name,
-      description: editData.description || null,
-      fund_type: editData.fund_type || null,
-      investor_type: editData.investor_type || null,
-      geography: editData.geography || null,
-      location: editData.location || null,
-      sector_focus: editData.sector_focus || null,
-      check_size: editData.check_size || null,
-      portfolio_url: editData.portfolio_url || null,
-      website: editData.website || null,
-      notable_investments: editData.notable_investments || null,
-      connection_status: editData.connection_status || null,
-      pipeline_status: editData.pipeline_status || null,
-      likelihood_score: editData.likelihood_score != null && String(editData.likelihood_score) !== "" ? Number(editData.likelihood_score) : null,
-      source: editData.source || null,
-      notes: editData.notes || null,
-      last_contact_date: editData.last_contact_date || null,
-      next_action: editData.next_action || null,
-      avatar_url: editData.avatar_url || null,
+      firm_name: (d.firm_name as string) || investor.firm_name,
+      description: (d.description as string) || null,
+      fund_type: (d.fund_type as string) || null,
+      investor_type: (d.investor_type as string) || null,
+      geography: (d.geography as string) || null,
+      location: (d.location as string) || null,
+      sector_focus: (d.sector_focus as string) || null,
+      check_size: (d.check_size as string) || null,
+      portfolio_url: (d.portfolio_url as string) || null,
+      website: (d.website as string) || null,
+      notable_investments: (d.notable_investments as string) || null,
+      connection_status: (d.connection_status as string) || null,
+      pipeline_status: (d.pipeline_status as string) || null,
+      likelihood_score: d.likelihood_score != null && String(d.likelihood_score) !== "" ? Number(d.likelihood_score) : null,
+      source: (d.source as string) || null,
+      notes: (d.notes as string) || null,
+      last_contact_date: (d.last_contact_date as string) || null,
+      next_action: (d.next_action as string) || null,
+      avatar_url: (d.avatar_url as string) || null,
     }).eq("id", investor.id);
+
     if (!error) {
-      const updated = { ...investor, ...editData, likelihood_score: editData.likelihood_score != null && String(editData.likelihood_score) !== "" ? Number(editData.likelihood_score) : null };
+      const updated = {
+        ...investor,
+        ...d,
+        likelihood_score: d.likelihood_score != null && String(d.likelihood_score) !== "" ? Number(d.likelihood_score) : null,
+      };
       setInvestor(updated as Investor);
       setEditing(false);
     }
@@ -199,20 +243,14 @@ export default function InvestorDetail() {
   };
 
   const handleCancel = () => {
-    if (investor) setEditData(investor);
     setEditing(false);
   };
-
-  const setField = useCallback((field: keyof Investor, value: string | number | null) => {
-    setEditData((prev) => ({ ...prev, [field]: value }));
-  }, []);
 
   if (!investor) {
     return <div className="p-8"><div className="animate-pulse h-64 bg-gray-200 rounded" /></div>;
   }
 
-  /* Shared props passed to every field */
-  const fp = { editing, editData, investor, setField };
+  const fp = { editing, investor, setField };
 
   return (
     <div className="p-8 max-w-4xl">
@@ -226,7 +264,7 @@ export default function InvestorDetail() {
           <div>
             {editing ? (
               <Input
-                value={editData.firm_name || ""}
+                defaultValue={investor.firm_name || ""}
                 onChange={(e) => setField("firm_name", e.target.value)}
                 className="text-2xl font-bold h-auto py-1 px-2 -ml-2"
               />
@@ -252,7 +290,7 @@ export default function InvestorDetail() {
               <Button onClick={handleSave} disabled={saving}><Save className="h-4 w-4 mr-1" /> Save</Button>
             </>
           ) : (
-            <Button variant="outline" onClick={() => setEditing(true)}>Edit</Button>
+            <Button variant="outline" onClick={startEditing}>Edit</Button>
           )}
         </div>
       </div>
