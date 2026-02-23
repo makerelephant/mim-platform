@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -43,6 +43,104 @@ interface LinkedContact {
 
 const PIPELINE_STATUSES = ["Prospect", "Qualified", "Engaged", "First Meeting", "In Closing", "Closed", "Passed"];
 const CONNECTION_STATUSES = ["Active", "Stale", "Need Introduction", "Warm Intro", "Cold"];
+
+/* ── Extracted field components (defined OUTSIDE the parent to avoid remount) ── */
+
+function DetailField({
+  label,
+  field,
+  type = "text",
+  editing,
+  editData,
+  investor,
+  setField,
+}: {
+  label: string;
+  field: keyof Investor;
+  type?: "text" | "textarea" | "number" | "date" | "url";
+  editing: boolean;
+  editData: Partial<Investor>;
+  investor: Investor;
+  setField: (field: keyof Investor, value: string | number | null) => void;
+}) {
+  const val = editing ? editData[field] : investor[field];
+  if (editing) {
+    if (type === "textarea") {
+      return (
+        <div>
+          {label && <label className="text-xs text-gray-500">{label}</label>}
+          <Textarea rows={3} value={String(val ?? "")} onChange={(e) => setField(field, e.target.value)} className="mt-0.5" />
+        </div>
+      );
+    }
+    return (
+      <div>
+        {label && <label className="text-xs text-gray-500">{label}</label>}
+        <Input
+          type={type === "number" ? "number" : type === "date" ? "date" : "text"}
+          value={String(val ?? "")}
+          onChange={(e) => setField(field, type === "number" ? (e.target.value ? Number(e.target.value) : null) : e.target.value)}
+          className="mt-0.5"
+        />
+      </div>
+    );
+  }
+  const display = val != null && val !== "" ? String(val) : "—";
+  return (
+    <div>
+      {label && <span className="text-xs text-gray-500">{label}</span>}
+      {type === "url" && val ? (
+        <p className="text-sm"><a href={String(val).startsWith("http") ? String(val) : `https://${val}`} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">{String(val)}</a></p>
+      ) : (
+        <p className={`text-sm ${display === "—" ? "text-gray-300" : ""}`}>{display}</p>
+      )}
+    </div>
+  );
+}
+
+function DetailSelect({
+  label,
+  field,
+  options,
+  editing,
+  editData,
+  investor,
+  setField,
+}: {
+  label: string;
+  field: keyof Investor;
+  options: string[];
+  editing: boolean;
+  editData: Partial<Investor>;
+  investor: Investor;
+  setField: (field: keyof Investor, value: string | number | null) => void;
+}) {
+  const val = editing ? editData[field] : investor[field];
+  if (editing) {
+    return (
+      <div>
+        <label className="text-xs text-gray-500">{label}</label>
+        <select
+          className="w-full border rounded-md px-2 py-1.5 text-sm mt-0.5"
+          value={String(val ?? "")}
+          onChange={(e) => setField(field, e.target.value || null)}
+        >
+          <option value="">—</option>
+          {options.map((s) => <option key={s} value={s}>{s}</option>)}
+        </select>
+      </div>
+    );
+  }
+  const display = val != null && val !== "" ? String(val) : "—";
+  return (
+    <div>
+      <span className="text-xs text-gray-500">{label}</span>
+      <p className={`text-sm ${display === "—" ? "text-gray-300" : ""}`}>{display}</p>
+    </div>
+  );
+}
+
+/* ── Main component ── */
 
 export default function InvestorDetail() {
   const params = useParams();
@@ -105,75 +203,16 @@ export default function InvestorDetail() {
     setEditing(false);
   };
 
-  const setField = (field: keyof Investor, value: string | number | null) => {
+  const setField = useCallback((field: keyof Investor, value: string | number | null) => {
     setEditData((prev) => ({ ...prev, [field]: value }));
-  };
+  }, []);
 
   if (!investor) {
     return <div className="p-8"><div className="animate-pulse h-64 bg-gray-200 rounded" /></div>;
   }
 
-  const Field = ({ label, field, type = "text" }: { label: string; field: keyof Investor; type?: "text" | "textarea" | "number" | "date" | "url" }) => {
-    const val = editing ? editData[field] : investor[field];
-    if (editing) {
-      if (type === "textarea") {
-        return (
-          <div>
-            <label className="text-xs text-gray-500">{label}</label>
-            <Textarea rows={3} value={String(val ?? "")} onChange={(e) => setField(field, e.target.value)} className="mt-0.5" />
-          </div>
-        );
-      }
-      return (
-        <div>
-          <label className="text-xs text-gray-500">{label}</label>
-          <Input
-            type={type === "number" ? "number" : type === "date" ? "date" : "text"}
-            value={String(val ?? "")}
-            onChange={(e) => setField(field, type === "number" ? (e.target.value ? Number(e.target.value) : null) : e.target.value)}
-            className="mt-0.5"
-          />
-        </div>
-      );
-    }
-    const display = val != null && val !== "" ? String(val) : "—";
-    return (
-      <div>
-        <span className="text-xs text-gray-500">{label}</span>
-        {type === "url" && val ? (
-          <p className="text-sm"><a href={String(val).startsWith("http") ? String(val) : `https://${val}`} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">{String(val)}</a></p>
-        ) : (
-          <p className={`text-sm ${display === "—" ? "text-gray-300" : ""}`}>{display}</p>
-        )}
-      </div>
-    );
-  };
-
-  const SelectField = ({ label, field, options }: { label: string; field: keyof Investor; options: string[] }) => {
-    const val = editing ? editData[field] : investor[field];
-    if (editing) {
-      return (
-        <div>
-          <label className="text-xs text-gray-500">{label}</label>
-          <select
-            className="w-full border rounded-md px-2 py-1.5 text-sm mt-0.5"
-            value={String(val ?? "")}
-            onChange={(e) => setField(field, e.target.value || null)}
-          >
-            <option value="">—</option>
-            {options.map((s) => <option key={s} value={s}>{s}</option>)}
-          </select>
-        </div>
-      );
-    }
-    const display = val != null && val !== "" ? String(val) : "—";
-    return (
-      <div>
-        <span className="text-xs text-gray-500">{label}</span>
-        <p className={`text-sm ${display === "—" ? "text-gray-300" : ""}`}>{display}</p>
-      </div>
-    );
-  };
+  /* Shared props passed to every field */
+  const fp = { editing, editData, investor, setField };
 
   return (
     <div className="p-8 max-w-4xl">
@@ -222,7 +261,7 @@ export default function InvestorDetail() {
         <Card className="mb-6">
           <CardHeader><CardTitle className="text-base">Avatar</CardTitle></CardHeader>
           <CardContent>
-            <Field label="Avatar URL" field="avatar_url" type="url" />
+            <DetailField label="Avatar URL" field="avatar_url" type="url" {...fp} />
           </CardContent>
         </Card>
       )}
@@ -231,15 +270,15 @@ export default function InvestorDetail() {
         <Card>
           <CardHeader><CardTitle className="text-base">Firm Details</CardTitle></CardHeader>
           <CardContent className="space-y-3 text-sm">
-            <Field label="Investor Type" field="investor_type" />
-            <Field label="Fund Type" field="fund_type" />
-            <Field label="Geography" field="geography" />
-            <Field label="Location" field="location" />
-            <Field label="Sector Focus" field="sector_focus" />
-            <Field label="Check Size" field="check_size" />
-            <Field label="Notable Investments" field="notable_investments" type="textarea" />
-            <Field label="Likelihood Score" field="likelihood_score" type="number" />
-            <Field label="Source" field="source" />
+            <DetailField label="Investor Type" field="investor_type" {...fp} />
+            <DetailField label="Fund Type" field="fund_type" {...fp} />
+            <DetailField label="Geography" field="geography" {...fp} />
+            <DetailField label="Location" field="location" {...fp} />
+            <DetailField label="Sector Focus" field="sector_focus" {...fp} />
+            <DetailField label="Check Size" field="check_size" {...fp} />
+            <DetailField label="Notable Investments" field="notable_investments" type="textarea" {...fp} />
+            <DetailField label="Likelihood Score" field="likelihood_score" type="number" {...fp} />
+            <DetailField label="Source" field="source" {...fp} />
           </CardContent>
         </Card>
 
@@ -247,32 +286,32 @@ export default function InvestorDetail() {
           <Card>
             <CardHeader><CardTitle className="text-base">Pipeline & Status</CardTitle></CardHeader>
             <CardContent className="space-y-3">
-              <SelectField label="Pipeline Status" field="pipeline_status" options={PIPELINE_STATUSES} />
-              <SelectField label="Connection Status" field="connection_status" options={CONNECTION_STATUSES} />
-              <Field label="Last Contact Date" field="last_contact_date" type="date" />
-              <Field label="Next Action" field="next_action" />
+              <DetailSelect label="Pipeline Status" field="pipeline_status" options={PIPELINE_STATUSES} {...fp} />
+              <DetailSelect label="Connection Status" field="connection_status" options={CONNECTION_STATUSES} {...fp} />
+              <DetailField label="Last Contact Date" field="last_contact_date" type="date" {...fp} />
+              <DetailField label="Next Action" field="next_action" {...fp} />
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader><CardTitle className="text-base">Links</CardTitle></CardHeader>
             <CardContent className="space-y-3">
-              <Field label="Website" field="website" type="url" />
-              <Field label="Portfolio URL" field="portfolio_url" type="url" />
+              <DetailField label="Website" field="website" type="url" {...fp} />
+              <DetailField label="Portfolio URL" field="portfolio_url" type="url" {...fp} />
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader><CardTitle className="text-base">Description</CardTitle></CardHeader>
             <CardContent>
-              <Field label="" field="description" type="textarea" />
+              <DetailField label="" field="description" type="textarea" {...fp} />
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader><CardTitle className="text-base">Notes</CardTitle></CardHeader>
             <CardContent>
-              <Field label="" field="notes" type="textarea" />
+              <DetailField label="" field="notes" type="textarea" {...fp} />
             </CardContent>
           </Card>
         </div>
