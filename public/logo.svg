@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 280 40" fill="none">
+  <!-- Stripe/motion icon - 4 rounded diagonal bars -->
+  <g transform="rotate(-15, 20, 20)">
+    <rect x="2" y="4" width="5" height="32" rx="2.5" fill="#B0C8E0"/>
+    <rect x="10" y="4" width="5" height="32" rx="2.5" fill="#B0C8E0"/>
+    <rect x="18" y="4" width="5" height="32" rx="2.5" fill="#B0C8E0"/>
+    <rect x="26" y="4" width="5" height="32" rx="2.5" fill="#B0C8E0"/>
+  </g>
+  <!-- Text: Every Step Together. -->
+  <text x="52" y="29" font-family="system-ui, -apple-system, 'Segoe UI', Helvetica, sans-serif" font-size="21" font-weight="800" fill="#B0C8E0" letter-spacing="-0.3">Every Step Together.</text>
+</svg>

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
@@ -91,9 +92,8 @@ export function Sidebar() {
 
   return (
     <aside className="w-64 bg-gray-900 text-white flex flex-col shrink-0">
-      <div className="p-6 border-b border-gray-700">
-        <h1 className="text-xl font-bold tracking-tight">MiM Platform</h1>
-        <p className="text-xs text-gray-400 mt-1">Made in Motion</p>
+      <div className="px-4 py-5 border-b border-gray-700">
+        <Image src="/logo.png" alt="Every Step Together" width={220} height={22} priority />
       </div>
       <nav className="flex-1 py-4 space-y-0.5 px-3 overflow-y-auto">
         {nav.map((entry) => {
