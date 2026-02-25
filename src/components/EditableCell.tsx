@@ -82,7 +82,7 @@ export function EditableCell({ value, onSave, type = "text", options, className 
   return (
     <span
       onClick={() => { setEditValue(String(value ?? "")); setEditing(true); }}
-      className={`cursor-pointer hover:bg-blue-50 rounded px-1 py-0.5 -mx-1 transition-colors inline-block min-w-[2rem] ${value == null || value === "" ? "text-gray-300" : ""} ${className}`}
+      className={`cursor-pointer hover:bg-blue-50 rounded px-1 py-0.5 -mx-1 transition-colors block truncate min-w-[2rem] ${value == null || value === "" ? "text-gray-300" : ""} ${className}`}
       title="Click to edit"
     >
       {display}

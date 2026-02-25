@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, ExternalLink } from "lucide-react";
+import { CorrespondenceSection } from "@/components/CorrespondenceSection";
 import Link from "next/link";
 
 interface SoccerOrg {
@@ -19,6 +20,21 @@ interface SoccerOrg {
   merch_link: string | null;
   store_status: string | null;
   store_provider: string | null;
+  players: number | null;
+  travel_teams: number | null;
+  dues_per_season: number | null;
+  dues_revenue: number | null;
+  uniform_cost: number | null;
+  total_revenue: number | null;
+  gross_revenue: number | null;
+  total_costs: number | null;
+  yearly_cost_player: number | null;
+  primary_contact: string | null;
+  outreach_status: string | null;
+  last_outreach_date: string | null;
+  outreach_notes: string | null;
+  partner_status: string | null;
+  partner_since: string | null;
   in_bays: boolean;
   in_cmysl: boolean;
   in_cysl: boolean;
@@ -84,6 +100,7 @@ export default function SoccerOrgDetail() {
           <div className="flex gap-2 mt-2">
             {org.org_type && <Badge variant="secondary">{org.org_type}</Badge>}
             {org.corporate_structure && <Badge variant="outline">{org.corporate_structure}</Badge>}
+            {org.partner_status && <Badge className="bg-green-100 text-green-800">{org.partner_status}</Badge>}
           </div>
         </div>
         {org.website && (
@@ -106,7 +123,6 @@ export default function SoccerOrgDetail() {
                 <a href={org.merch_link} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline block text-sm">{org.merch_link}</a>
               </div>
             )}
-            {org.notes && <div><span className="text-xs text-gray-500">Notes</span><p className="whitespace-pre-wrap">{org.notes}</p></div>}
           </CardContent>
         </Card>
 
@@ -142,6 +158,52 @@ export default function SoccerOrgDetail() {
             </CardContent>
           </Card>
         </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+        <Card>
+          <CardHeader><CardTitle className="text-base">Program Financials</CardTitle></CardHeader>
+          <CardContent className="space-y-2 text-sm">
+            <div className="grid grid-cols-2 gap-3">
+              <div><span className="text-xs text-gray-500">Players</span><p>{org.players ?? "---"}</p></div>
+              <div><span className="text-xs text-gray-500">Travel Teams</span><p>{org.travel_teams ?? "---"}</p></div>
+              <div><span className="text-xs text-gray-500">Dues / Season</span><p>{org.dues_per_season ? `$${Number(org.dues_per_season).toLocaleString()}` : "---"}</p></div>
+              <div><span className="text-xs text-gray-500">Uniform Cost</span><p>{org.uniform_cost ? `$${Number(org.uniform_cost).toLocaleString()}` : "---"}</p></div>
+              <div><span className="text-xs text-gray-500">Total Revenue</span><p>{org.total_revenue ? `$${Number(org.total_revenue).toLocaleString()}` : "---"}</p></div>
+              <div><span className="text-xs text-gray-500">Dues Revenue</span><p>{org.dues_revenue ? `$${Number(org.dues_revenue).toLocaleString()}` : "---"}</p></div>
+              <div><span className="text-xs text-gray-500">Total Costs</span><p>{org.total_costs ? `$${Number(org.total_costs).toLocaleString()}` : "---"}</p></div>
+              <div><span className="text-xs text-gray-500">Yearly Cost / Player</span><p>{org.yearly_cost_player ? `$${Number(org.yearly_cost_player).toLocaleString()}` : "---"}</p></div>
+            </div>
+            {org.primary_contact && <div className="pt-2 border-t"><span className="text-xs text-gray-500">Primary Contact</span><p>{org.primary_contact}</p></div>}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader><CardTitle className="text-base">Outreach Tracking</CardTitle></CardHeader>
+          <CardContent className="space-y-3 text-sm">
+            <div><span className="text-xs text-gray-500">Outreach Status</span><p>{org.outreach_status || "Not Contacted"}</p></div>
+            <div><span className="text-xs text-gray-500">Last Outreach Date</span><p>{org.last_outreach_date || "---"}</p></div>
+            {org.outreach_notes && <div><span className="text-xs text-gray-500">Outreach Notes</span><p className="whitespace-pre-wrap">{org.outreach_notes}</p></div>}
+            {org.partner_status && (
+              <div className="pt-2 border-t">
+                <span className="text-xs text-gray-500">Partner Status</span>
+                <p className="font-medium text-green-700">{org.partner_status}</p>
+                {org.partner_since && <p className="text-xs text-gray-400 mt-0.5">Since {org.partner_since}</p>}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card className="mt-6">
+        <CardHeader><CardTitle className="text-base">Notes</CardTitle></CardHeader>
+        <CardContent>
+          <p className="text-sm text-gray-600 whitespace-pre-wrap">{org.notes || "No notes yet."}</p>
+        </CardContent>
+      </Card>
+
+      <div className="mt-6">
+        <CorrespondenceSection entityType="soccer_orgs" entityId={params.id as string} />
       </div>
     </div>
   );

@@ -5,13 +5,14 @@ import { supabase } from "@/lib/supabase";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { Users, TrendingUp, Map, CheckSquare, Plus, Activity } from "lucide-react";
+import { Users, TrendingUp, Building2, Handshake, CheckSquare, Plus, Activity } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 
 interface Stats {
   contacts: number;
   investors: number;
-  programs: number;
+  communities: number;
+  partners: number;
   openTasks: number;
 }
 
@@ -24,7 +25,7 @@ interface ActivityEntry {
 }
 
 export default function Dashboard() {
-  const [stats, setStats] = useState<Stats>({ contacts: 0, investors: 0, programs: 0, openTasks: 0 });
+  const [stats, setStats] = useState<Stats>({ contacts: 0, investors: 0, communities: 0, partners: 0, openTasks: 0 });
   const [activities, setActivities] = useState<ActivityEntry[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -33,13 +34,15 @@ export default function Dashboard() {
       const [
         { count: contacts },
         { count: investors },
-        { count: programs },
+        { count: communities },
+        { count: partners },
         { count: openTasks },
         { data: activityData },
       ] = await Promise.all([
         supabase.from("contacts").select("*", { count: "exact", head: true }),
         supabase.from("investors").select("*", { count: "exact", head: true }),
-        supabase.from("market_map").select("*", { count: "exact", head: true }),
+        supabase.from("soccer_orgs").select("*", { count: "exact", head: true }),
+        supabase.from("soccer_orgs").select("*", { count: "exact", head: true }).not("partner_status", "is", null),
         supabase.from("tasks").select("*", { count: "exact", head: true }).in("status", ["todo", "in_progress"]),
         supabase.from("activity_log").select("*").order("created_at", { ascending: false }).limit(20),
       ]);
@@ -47,7 +50,8 @@ export default function Dashboard() {
       setStats({
         contacts: contacts ?? 0,
         investors: investors ?? 0,
-        programs: programs ?? 0,
+        communities: communities ?? 0,
+        partners: partners ?? 0,
         openTasks: openTasks ?? 0,
       });
       setActivities(activityData ?? []);
@@ -59,7 +63,8 @@ export default function Dashboard() {
   const cards = [
     { label: "Contacts", value: stats.contacts, icon: Users, href: "/contacts", color: "text-blue-600" },
     { label: "Investors", value: stats.investors, icon: TrendingUp, href: "/investors", color: "text-green-600" },
-    { label: "Market Map Programs", value: stats.programs, icon: Map, href: "/market-map", color: "text-orange-600" },
+    { label: "Communities", value: stats.communities, icon: Building2, href: "/soccer-orgs", color: "text-orange-600" },
+    { label: "Channel Partners", value: stats.partners, icon: Handshake, href: "/channel-partners", color: "text-emerald-600" },
     { label: "Open Tasks", value: stats.openTasks, icon: CheckSquare, href: "/tasks", color: "text-purple-600" },
   ];
 
@@ -99,7 +104,7 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-8">
         {cards.map(({ label, value, icon: Icon, href, color }) => (
           <Link key={label} href={href}>
             <Card className="hover:shadow-md transition-shadow cursor-pointer">

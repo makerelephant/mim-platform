@@ -9,8 +9,22 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { EditableCell } from "@/components/EditableCell";
 import { Avatar } from "@/components/Avatar";
+import { useResizableColumns } from "@/hooks/useResizableColumns";
+import { timeAgo } from "@/lib/timeAgo";
 import Link from "next/link";
-import { Search, X, Plus, Trash2, CheckSquare, Square } from "lucide-react";
+import { labels } from "@/config/labels";
+import { Search, X, Plus, Trash2, CheckSquare, Square, ChevronUp, ChevronDown } from "lucide-react";
+
+const TABLE_COLS = [
+  { key: "org_name", label: "Organization", width: 180 },
+  { key: "org_type", label: "Type", width: 120 },
+  { key: "leagues", label: "Leagues", width: 160 },
+  { key: "players", label: "Players", width: 70 },
+  { key: "outreach_status", label: "Outreach", width: 110 },
+  { key: "partner_status", label: "Partner", width: 110 },
+  { key: "website", label: "Website", width: 130 },
+  { key: "updated_at", label: "Updated", width: 95 },
+];
 
 interface SoccerOrg {
   id: string;
@@ -23,9 +37,18 @@ interface SoccerOrg {
   store_status: string | null;
   store_provider: string | null;
   avatar_url: string | null;
+  players: number | null;
+  outreach_status: string | null;
+  partner_status: string | null;
+  primary_contact: string | null;
+  total_revenue: number | null;
   in_bays: boolean; in_cmysl: boolean; in_cysl: boolean; in_ecnl: boolean; in_ecysa: boolean;
   in_mysl: boolean; in_nashoba: boolean; in_necsl: boolean; in_roots: boolean; in_south_coast: boolean; in_south_shore: boolean;
+  updated_at: string | null;
 }
+
+type SortField = "org_name" | "updated_at";
+type SortDir = "asc" | "desc";
 
 const LEAGUE_FIELDS = [
   { key: "in_cmysl", label: "CMYSL" }, { key: "in_cysl", label: "CYSL" }, { key: "in_ecnl", label: "ECNL" },
@@ -52,6 +75,20 @@ export default function SoccerOrgsPage() {
   const [showBulk, setShowBulk] = useState(false);
   const [bulkField, setBulkField] = useState("");
   const [bulkValue, setBulkValue] = useState("");
+  const [sortField, setSortField] = useState<SortField>("updated_at");
+  const [sortDir, setSortDir] = useState<SortDir>("desc");
+
+  const { colWidths, startResize, totalWidth } = useResizableColumns(TABLE_COLS);
+
+  const toggleSort = (field: SortField) => {
+    if (sortField === field) setSortDir(sortDir === "asc" ? "desc" : "asc");
+    else { setSortField(field); setSortDir(field === "updated_at" ? "desc" : "asc"); }
+  };
+
+  const SortIcon = ({ field }: { field: SortField }) => {
+    if (sortField !== field) return null;
+    return sortDir === "asc" ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />;
+  };
 
   const load = useCallback(async () => {
     const { data } = await supabase.from("soccer_orgs").select("*").order("org_name");
@@ -63,7 +100,7 @@ export default function SoccerOrgsPage() {
 
   const updateCell = async (id: string, field: string, value: string) => {
     const { error } = await supabase.from("soccer_orgs").update({ [field]: value || null }).eq("id", id);
-    if (!error) setOrgs((prev) => prev.map((o) => (o.id === id ? { ...o, [field]: value || null } : o)));
+    if (!error) setOrgs((prev) => prev.map((o) => (o.id === id ? { ...o, [field]: value || null, updated_at: new Date().toISOString() } : o)));
   };
 
   const createOrg = async () => {
@@ -100,6 +137,15 @@ export default function SoccerOrgsPage() {
     if (filterStructure && o.corporate_structure !== filterStructure) return false;
     if (filterLeague) { const key = `in_${filterLeague.toLowerCase().replace(/ /g, "_")}` as keyof SoccerOrg; if (!o[key]) return false; }
     return true;
+  }).sort((a, b) => {
+    if (sortField === "updated_at") {
+      const aT = a.updated_at ? new Date(a.updated_at).getTime() : 0;
+      const bT = b.updated_at ? new Date(b.updated_at).getTime() : 0;
+      return sortDir === "asc" ? aT - bT : bT - aT;
+    }
+    const aVal = (a[sortField] || "").toLowerCase();
+    const bVal = (b[sortField] || "").toLowerCase();
+    return sortDir === "asc" ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
   });
 
   if (loading) return <div className="p-8"><div className="animate-pulse h-64 bg-gray-200 rounded" /></div>;
@@ -107,9 +153,9 @@ export default function SoccerOrgsPage() {
   return (
     <div className="p-8">
       <div className="flex items-center justify-between mb-6">
-        <div><h1 className="text-2xl font-bold text-gray-900">Soccer Organizations</h1><p className="text-gray-500 text-sm mt-1">{filtered.length} of {orgs.length} organizations</p></div>
+        <div><h1 className="text-2xl font-bold text-gray-900">{labels.soccerOrgsPageTitle}</h1><p className="text-gray-500 text-sm mt-1">{filtered.length} of {orgs.length} communities</p></div>
         <Dialog open={showNew} onOpenChange={setShowNew}>
-          <DialogTrigger asChild><Button><Plus className="h-4 w-4 mr-1" /> Add Org</Button></DialogTrigger>
+          <DialogTrigger asChild><Button><Plus className="h-4 w-4 mr-1" /> Add Community</Button></DialogTrigger>
           <DialogContent>
             <DialogHeader><DialogTitle>New Organization</DialogTitle></DialogHeader>
             <div className="space-y-3">
@@ -160,26 +206,39 @@ export default function SoccerOrgsPage() {
 
       <Card>
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="text-sm" style={{ tableLayout: "fixed", width: 40 + 40 + totalWidth }}>
+            <colgroup>
+              <col style={{ width: 40 }} />
+              <col style={{ width: 40 }} />
+              {TABLE_COLS.map((c) => <col key={c.key} style={{ width: colWidths[c.key] }} />)}
+            </colgroup>
             <thead><tr className="border-b bg-gray-50">
-              <th className="w-10 px-3 py-3"><button onClick={toggleSelectAll}>{selected.size === filtered.length && filtered.length > 0 ? <CheckSquare className="h-4 w-4 text-blue-600" /> : <Square className="h-4 w-4 text-gray-300" />}</button></th>
-              <th className="w-10 px-2 py-3"></th>
-              <th className="text-left px-4 py-3 font-medium text-gray-500">Organization</th>
-              <th className="text-left px-4 py-3 font-medium text-gray-500">Type</th>
-              <th className="text-left px-4 py-3 font-medium text-gray-500">Structure</th>
-              <th className="text-left px-4 py-3 font-medium text-gray-500">Website</th>
-              <th className="text-left px-4 py-3 font-medium text-gray-500">Leagues</th>
+              <th className="px-3 py-3"><button onClick={toggleSelectAll}>{selected.size === filtered.length && filtered.length > 0 ? <CheckSquare className="h-4 w-4 text-blue-600" /> : <Square className="h-4 w-4 text-gray-300" />}</button></th>
+              <th className="px-2 py-3"></th>
+              {TABLE_COLS.map((c) => {
+                const sortable = c.key === "org_name" || c.key === "updated_at";
+                const sf = sortable ? (c.key as SortField) : null;
+                return (
+                  <th key={c.key} className={`text-left px-4 py-3 font-medium text-gray-500 relative ${sortable ? "cursor-pointer" : ""}`} onClick={sf ? () => toggleSort(sf) : undefined}>
+                    <span className="flex items-center gap-1">{c.label} {sf && <SortIcon field={sf} />}</span>
+                    <div className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-400 active:bg-blue-500" onMouseDown={(e) => startResize(c.key, e)} />
+                  </th>
+                );
+              })}
             </tr></thead>
             <tbody>
               {filtered.map((o) => (
                 <tr key={o.id} className={`border-b hover:bg-gray-50 ${selected.has(o.id) ? "bg-blue-50" : ""}`}>
                   <td className="px-3 py-3"><button onClick={() => toggleSelect(o.id)}>{selected.has(o.id) ? <CheckSquare className="h-4 w-4 text-blue-600" /> : <Square className="h-4 w-4 text-gray-300" />}</button></td>
                   <td className="px-2 py-2"><Avatar src={o.avatar_url} name={o.org_name} size="sm" /></td>
-                  <td className="px-4 py-2"><div className="flex items-center gap-2"><Link href={`/soccer-orgs/${o.id}`} className="text-blue-600 hover:underline shrink-0">↗</Link><EditableCell value={o.org_name} onSave={(v) => updateCell(o.id, "org_name", v)} /></div></td>
-                  <td className="px-4 py-2"><EditableCell value={o.org_type} onSave={(v) => updateCell(o.id, "org_type", v)} type="select" options={ORG_TYPES} /></td>
-                  <td className="px-4 py-2"><EditableCell value={o.corporate_structure} onSave={(v) => updateCell(o.id, "corporate_structure", v)} type="select" options={STRUCTURES} /></td>
-                  <td className="px-4 py-2"><EditableCell value={o.website} onSave={(v) => updateCell(o.id, "website", v)} /></td>
-                  <td className="px-4 py-3"><div className="flex flex-wrap gap-1">{getLeagues(o).map((l) => <Badge key={l} variant="outline" className="text-xs">{l}</Badge>)}</div></td>
+                  <td className="px-4 py-2 overflow-hidden"><div className="flex items-center gap-2"><Link href={`/soccer-orgs/${o.id}`} className="text-blue-600 hover:underline shrink-0">&#8599;</Link><EditableCell value={o.org_name} onSave={(v) => updateCell(o.id, "org_name", v)} /></div></td>
+                  <td className="px-4 py-2 overflow-hidden"><EditableCell value={o.org_type} onSave={(v) => updateCell(o.id, "org_type", v)} type="select" options={ORG_TYPES} /></td>
+                  <td className="px-4 py-2 overflow-hidden"><div className="flex flex-wrap gap-1">{getLeagues(o).map((l) => <Badge key={l} variant="outline" className="text-xs">{l}</Badge>)}</div></td>
+                  <td className="px-4 py-2 overflow-hidden text-gray-600 text-xs">{o.players ?? "---"}</td>
+                  <td className="px-4 py-2 overflow-hidden">{o.outreach_status && o.outreach_status !== "Not Contacted" ? <Badge variant="secondary" className="text-xs">{o.outreach_status}</Badge> : <span className="text-xs text-gray-300">---</span>}</td>
+                  <td className="px-4 py-2 overflow-hidden">{o.partner_status ? <Badge className="text-xs bg-green-100 text-green-800">{o.partner_status}</Badge> : <span className="text-xs text-gray-300">---</span>}</td>
+                  <td className="px-4 py-2 overflow-hidden"><EditableCell value={o.website} onSave={(v) => updateCell(o.id, "website", v)} /></td>
+                  <td className="px-4 py-2 overflow-hidden text-gray-400 text-xs whitespace-nowrap">{timeAgo(o.updated_at)}</td>
                 </tr>
               ))}
             </tbody>

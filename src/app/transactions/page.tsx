@@ -8,8 +8,23 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { EditableCell } from "@/components/EditableCell";
+import { useResizableColumns } from "@/hooks/useResizableColumns";
+import { labels } from "@/config/labels";
+import { timeAgo } from "@/lib/timeAgo";
 import Link from "next/link";
-import { Search, X, Plus, Trash2, CheckSquare, Square } from "lucide-react";
+import { Search, X, Plus, Trash2, CheckSquare, Square, ChevronUp, ChevronDown } from "lucide-react";
+
+const TABLE_COLS = [
+  { key: "company", label: "Company", width: 160 },
+  { key: "amount", label: "Amount", width: 100, align: "right" as const },
+  { key: "type", label: "Type", width: 110 },
+  { key: "sector", label: "Sector", width: 120 },
+  { key: "sport", label: "Sport", width: 100 },
+  { key: "date", label: "Date", width: 100 },
+  { key: "geography", label: "Geography", width: 110 },
+  { key: "stage", label: "Stage", width: 100 },
+  { key: "updated_at", label: "Updated", width: 95 },
+];
 
 interface Transaction {
   id: string;
@@ -25,7 +40,11 @@ interface Transaction {
   transaction_type: string | null;
   annual_revenue: number | null;
   press_link: string | null;
+  updated_at: string | null;
 }
+
+type SortField = "company" | "updated_at";
+type SortDir = "asc" | "desc";
 
 const TRANSACTION_TYPES = ["Acquisition", "Fundraise", "Merger", "IPO", "Investment", "Partnership"];
 const STAGES = ["Seed", "Series A", "Series B", "Series C", "Growth", "Late Stage", "Pre-IPO"];
@@ -47,6 +66,20 @@ export default function TransactionsPage() {
   const [showBulk, setShowBulk] = useState(false);
   const [bulkField, setBulkField] = useState("");
   const [bulkValue, setBulkValue] = useState("");
+  const [sortField, setSortField] = useState<SortField>("updated_at");
+  const [sortDir, setSortDir] = useState<SortDir>("desc");
+
+  const { colWidths, startResize, totalWidth } = useResizableColumns(TABLE_COLS);
+
+  const toggleSort = (field: SortField) => {
+    if (sortField === field) setSortDir(sortDir === "asc" ? "desc" : "asc");
+    else { setSortField(field); setSortDir(field === "updated_at" ? "desc" : "asc"); }
+  };
+
+  const SortIcon = ({ field }: { field: SortField }) => {
+    if (sortField !== field) return null;
+    return sortDir === "asc" ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />;
+  };
 
   const load = useCallback(async () => {
     const { data } = await supabase.from("transactions").select("*").order("investment_date", { ascending: false, nullsFirst: false });
@@ -59,7 +92,7 @@ export default function TransactionsPage() {
   const updateCell = async (id: string, field: string, value: string) => {
     const dbValue = field === "amount" || field === "annual_revenue" ? (value ? Number(value) : null) : (value || null);
     const { error } = await supabase.from("transactions").update({ [field]: dbValue }).eq("id", id);
-    if (!error) setTransactions((prev) => prev.map((t) => (t.id === id ? { ...t, [field]: dbValue } : t)));
+    if (!error) setTransactions((prev) => prev.map((t) => (t.id === id ? { ...t, [field]: dbValue, updated_at: new Date().toISOString() } : t)));
   };
 
   const createTransaction = async () => {
@@ -108,6 +141,15 @@ export default function TransactionsPage() {
     if (filterType && t.transaction_type !== filterType) return false;
     if (filterSport && t.sport !== filterSport) return false;
     return true;
+  }).sort((a, b) => {
+    if (sortField === "updated_at") {
+      const aT = a.updated_at ? new Date(a.updated_at).getTime() : 0;
+      const bT = b.updated_at ? new Date(b.updated_at).getTime() : 0;
+      return sortDir === "asc" ? aT - bT : bT - aT;
+    }
+    const aVal = (a[sortField] || "").toLowerCase();
+    const bVal = (b[sortField] || "").toLowerCase();
+    return sortDir === "asc" ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
   });
 
   const totalAmount = filtered.reduce((sum, t) => sum + (t.amount || 0), 0);
@@ -118,7 +160,7 @@ export default function TransactionsPage() {
     <div className="p-8">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Market Transactions</h1>
+          <h1 className="text-2xl font-bold text-gray-900">{labels.transactionsPageTitle}</h1>
           <p className="text-gray-500 text-sm mt-1">{filtered.length} of {transactions.length} deals · ${(totalAmount / 1000000).toFixed(0)}M total</p>
         </div>
         <Dialog open={showNew} onOpenChange={setShowNew}>
@@ -185,30 +227,37 @@ export default function TransactionsPage() {
 
       <Card>
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="text-sm" style={{ tableLayout: "fixed", width: 40 + totalWidth }}>
+            <colgroup>
+              <col style={{ width: 40 }} />
+              {TABLE_COLS.map((c) => <col key={c.key} style={{ width: colWidths[c.key] }} />)}
+            </colgroup>
             <thead><tr className="border-b bg-gray-50">
-              <th className="w-10 px-3 py-3"><button onClick={toggleSelectAll}>{selected.size === filtered.length && filtered.length > 0 ? <CheckSquare className="h-4 w-4 text-blue-600" /> : <Square className="h-4 w-4 text-gray-300" />}</button></th>
-              <th className="text-left px-4 py-3 font-medium text-gray-500">Company</th>
-              <th className="text-right px-4 py-3 font-medium text-gray-500">Amount</th>
-              <th className="text-left px-4 py-3 font-medium text-gray-500">Type</th>
-              <th className="text-left px-4 py-3 font-medium text-gray-500">Sector</th>
-              <th className="text-left px-4 py-3 font-medium text-gray-500">Sport</th>
-              <th className="text-left px-4 py-3 font-medium text-gray-500">Date</th>
-              <th className="text-left px-4 py-3 font-medium text-gray-500">Geography</th>
-              <th className="text-left px-4 py-3 font-medium text-gray-500">Stage</th>
+              <th className="px-3 py-3"><button onClick={toggleSelectAll}>{selected.size === filtered.length && filtered.length > 0 ? <CheckSquare className="h-4 w-4 text-blue-600" /> : <Square className="h-4 w-4 text-gray-300" />}</button></th>
+              {TABLE_COLS.map((c) => {
+                const sortable = c.key === "company" || c.key === "updated_at";
+                const sf = sortable ? (c.key as SortField) : null;
+                return (
+                  <th key={c.key} className={`${c.align === "right" ? "text-right" : "text-left"} px-4 py-3 font-medium text-gray-500 relative ${sortable ? "cursor-pointer" : ""}`} onClick={sf ? () => toggleSort(sf) : undefined}>
+                    <span className="flex items-center gap-1">{c.label} {sf && <SortIcon field={sf} />}</span>
+                    <div className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-400 active:bg-blue-500" onMouseDown={(e) => startResize(c.key, e)} />
+                  </th>
+                );
+              })}
             </tr></thead>
             <tbody>
               {filtered.map((t) => (
                 <tr key={t.id} className={`border-b hover:bg-gray-50 ${selected.has(t.id) ? "bg-blue-50" : ""}`}>
                   <td className="px-3 py-3"><button onClick={() => toggleSelect(t.id)}>{selected.has(t.id) ? <CheckSquare className="h-4 w-4 text-blue-600" /> : <Square className="h-4 w-4 text-gray-300" />}</button></td>
-                  <td className="px-4 py-2"><div className="flex items-center gap-2"><Link href={`/transactions/${t.id}`} className="text-blue-600 hover:underline shrink-0">↗</Link><EditableCell value={t.company} onSave={(v) => updateCell(t.id, "company", v)} /></div></td>
-                  <td className="px-4 py-2 text-right"><EditableCell value={t.amount} onSave={(v) => updateCell(t.id, "amount", v)} type="number" /></td>
-                  <td className="px-4 py-2"><EditableCell value={t.transaction_type} onSave={(v) => updateCell(t.id, "transaction_type", v)} type="select" options={TRANSACTION_TYPES} /></td>
-                  <td className="px-4 py-2"><EditableCell value={t.sector} onSave={(v) => updateCell(t.id, "sector", v)} /></td>
-                  <td className="px-4 py-2"><EditableCell value={t.sport} onSave={(v) => updateCell(t.id, "sport", v)} type="select" options={SPORTS} /></td>
-                  <td className="px-4 py-2"><EditableCell value={t.investment_date} onSave={(v) => updateCell(t.id, "investment_date", v)} type="date" /></td>
-                  <td className="px-4 py-2"><EditableCell value={t.geography} onSave={(v) => updateCell(t.id, "geography", v)} /></td>
-                  <td className="px-4 py-2"><EditableCell value={t.investment_stage} onSave={(v) => updateCell(t.id, "investment_stage", v)} type="select" options={STAGES} /></td>
+                  <td className="px-4 py-2 overflow-hidden"><div className="flex items-center gap-2"><Link href={`/transactions/${t.id}`} className="text-blue-600 hover:underline shrink-0">↗</Link><EditableCell value={t.company} onSave={(v) => updateCell(t.id, "company", v)} /></div></td>
+                  <td className="px-4 py-2 overflow-hidden text-right"><EditableCell value={t.amount} onSave={(v) => updateCell(t.id, "amount", v)} type="number" /></td>
+                  <td className="px-4 py-2 overflow-hidden"><EditableCell value={t.transaction_type} onSave={(v) => updateCell(t.id, "transaction_type", v)} type="select" options={TRANSACTION_TYPES} /></td>
+                  <td className="px-4 py-2 overflow-hidden"><EditableCell value={t.sector} onSave={(v) => updateCell(t.id, "sector", v)} /></td>
+                  <td className="px-4 py-2 overflow-hidden"><EditableCell value={t.sport} onSave={(v) => updateCell(t.id, "sport", v)} type="select" options={SPORTS} /></td>
+                  <td className="px-4 py-2 overflow-hidden"><EditableCell value={t.investment_date} onSave={(v) => updateCell(t.id, "investment_date", v)} type="date" /></td>
+                  <td className="px-4 py-2 overflow-hidden"><EditableCell value={t.geography} onSave={(v) => updateCell(t.id, "geography", v)} /></td>
+                  <td className="px-4 py-2 overflow-hidden"><EditableCell value={t.investment_stage} onSave={(v) => updateCell(t.id, "investment_stage", v)} type="select" options={STAGES} /></td>
+                  <td className="px-4 py-2 overflow-hidden text-gray-400 text-xs whitespace-nowrap">{timeAgo(t.updated_at)}</td>
                 </tr>
               ))}
             </tbody>

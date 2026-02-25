@@ -9,8 +9,11 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar } from "@/components/Avatar";
-import { ArrowLeft, Save, ExternalLink, X } from "lucide-react";
+import { EntityLinker } from "@/components/EntityLinker";
+import { CorrespondenceSection } from "@/components/CorrespondenceSection";
+import { ArrowLeft, Save, ExternalLink, X, Upload, Trash2, Users } from "lucide-react";
 import Link from "next/link";
+import Image from "next/image";
 
 interface Investor {
   id: string;
@@ -161,6 +164,95 @@ function DetailSelect({
   );
 }
 
+/* ── Avatar upload component ── */
+
+function AvatarUpload({
+  currentUrl,
+  name,
+  onUpload,
+}: {
+  currentUrl: string | null;
+  name: string;
+  onUpload: (dataUrl: string | null) => void;
+}) {
+  const [preview, setPreview] = useState<string | null>(currentUrl);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = document.createElement("img");
+      img.onload = () => {
+        // Resize to 200x200 max
+        const size = 200;
+        const canvas = document.createElement("canvas");
+        const scale = Math.min(size / img.width, size / img.height, 1);
+        canvas.width = img.width * scale;
+        canvas.height = img.height * scale;
+        const ctx = canvas.getContext("2d")!;
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        const dataUrl = canvas.toDataURL("image/jpeg", 0.85);
+        setPreview(dataUrl);
+        onUpload(dataUrl);
+      };
+      img.src = reader.result as string;
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleRemove = () => {
+    setPreview(null);
+    onUpload(null);
+    if (fileRef.current) fileRef.current.value = "";
+  };
+
+  return (
+    <div className="flex items-center gap-4">
+      <div className="relative h-20 w-20 rounded-full overflow-hidden bg-gray-100 border-2 border-dashed border-gray-300 flex items-center justify-center shrink-0">
+        {preview ? (
+          <Image src={preview} alt={name} fill className="object-cover" unoptimized />
+        ) : (
+          <span className="text-2xl font-bold text-gray-400">
+            {name?.charAt(0)?.toUpperCase() || "?"}
+          </span>
+        )}
+      </div>
+      <div className="flex flex-col gap-2">
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/*"
+          onChange={handleFile}
+          className="hidden"
+        />
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => fileRef.current?.click()}
+        >
+          <Upload className="h-3.5 w-3.5 mr-1" />
+          {preview ? "Change Photo" : "Upload Photo"}
+        </Button>
+        {preview && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="text-red-500 hover:text-red-700"
+            onClick={handleRemove}
+          >
+            <Trash2 className="h-3.5 w-3.5 mr-1" /> Remove
+          </Button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 /* ── Main component ── */
 
 export default function InvestorDetail() {
@@ -171,25 +263,50 @@ export default function InvestorDetail() {
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
 
+  const investorId = params.id as string;
+
   // Edit data stored in a ref — mutations never trigger re-renders.
   // This is the core fix: typing updates the ref silently, so the parent
   // never re-renders and child components are never destroyed.
   const editDataRef = useRef<Record<string, unknown>>({});
 
+  const loadLinks = useCallback(async () => {
+    const { data: contacts } = await supabase
+      .from("investor_contacts")
+      .select("contact_id, role, contacts(id, name, email, title)")
+      .eq("investor_id", investorId);
+    if (contacts) setLinkedContacts(contacts as unknown as LinkedContact[]);
+  }, [investorId]);
+
   useEffect(() => {
     async function load() {
-      const id = params.id as string;
-      const { data: inv } = await supabase.from("investors").select("*").eq("id", id).single();
+      const { data: inv } = await supabase.from("investors").select("*").eq("id", investorId).single();
       if (inv) setInvestor(inv);
-
-      const { data: contacts } = await supabase
-        .from("investor_contacts")
-        .select("contact_id, role, contacts(id, name, email, title)")
-        .eq("investor_id", id);
-      if (contacts) setLinkedContacts(contacts as unknown as LinkedContact[]);
     }
     load();
-  }, [params.id]);
+    loadLinks();
+  }, [investorId, loadLinks]);
+
+  // --- Contact link / unlink handlers ---
+
+  const searchContacts = useCallback(async (q: string) => {
+    const { data } = await supabase
+      .from("contacts")
+      .select("id, name, email, organization")
+      .ilike("name", `%${q}%`)
+      .limit(10);
+    return (data || []).map((c) => ({ id: c.id, label: c.name, sub: c.organization || c.email || undefined }));
+  }, []);
+
+  const linkContact = useCallback(async (contactId: string) => {
+    await supabase.from("investor_contacts").insert({ investor_id: investorId, contact_id: contactId });
+    await loadLinks();
+  }, [investorId, loadLinks]);
+
+  const unlinkContact = useCallback(async (contactId: string) => {
+    await supabase.from("investor_contacts").delete().eq("investor_id", investorId).eq("contact_id", contactId);
+    await loadLinks();
+  }, [investorId, loadLinks]);
 
   // setField writes to the ref — no setState, no re-render
   const setField = useCallback((field: keyof Investor, value: string | number | null) => {
@@ -299,7 +416,11 @@ export default function InvestorDetail() {
         <Card className="mb-6">
           <CardHeader><CardTitle className="text-base">Avatar</CardTitle></CardHeader>
           <CardContent>
-            <DetailField label="Avatar URL" field="avatar_url" type="url" {...fp} />
+            <AvatarUpload
+              currentUrl={investor.avatar_url}
+              name={investor.firm_name}
+              onUpload={(dataUrl) => setField("avatar_url", dataUrl)}
+            />
           </CardContent>
         </Card>
       )}
@@ -355,26 +476,28 @@ export default function InvestorDetail() {
         </div>
       </div>
 
+      <div className="mt-6">
+        <CorrespondenceSection entityType="investors" entityId={investorId} />
+      </div>
+
       <Card className="mt-6">
-        <CardHeader><CardTitle className="text-base">Linked Contacts</CardTitle></CardHeader>
-        <CardContent>
-          {linkedContacts.length === 0 ? (
-            <p className="text-sm text-gray-400">No linked contacts</p>
-          ) : (
-            <div className="space-y-2">
-              {linkedContacts.map((lc) => (
-                <div key={lc.contact_id} className="flex items-center justify-between py-1">
-                  <Link href={`/contacts/${lc.contacts.id}`} className="text-sm text-blue-600 hover:underline">
-                    {lc.contacts.name}
-                  </Link>
-                  <div className="flex items-center gap-2">
-                    {lc.contacts.email && <span className="text-xs text-gray-400">{lc.contacts.email}</span>}
-                    {lc.role && <Badge variant="outline" className="text-xs">{lc.role}</Badge>}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+        <CardContent className="pt-5">
+          <EntityLinker
+            title="Contacts"
+            icon={<Users className="h-4 w-4" />}
+            items={linkedContacts.map((lc) => ({
+              id: lc.contacts.id,
+              label: lc.contacts.name,
+              sub: lc.contacts.email || lc.contacts.title || undefined,
+              href: `/contacts/${lc.contacts.id}`,
+              role: lc.role,
+              linkId: lc.contact_id,
+            }))}
+            onLink={linkContact}
+            onUnlink={unlinkContact}
+            onSearch={searchContacts}
+            existingIds={new Set(linkedContacts.map((lc) => lc.contact_id))}
+          />
         </CardContent>
       </Card>
     </div>

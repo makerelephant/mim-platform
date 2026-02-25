@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { EditableCell } from "@/components/EditableCell";
+import { labels } from "@/config/labels";
 import { Search, Plus, Trash2, CheckSquare, Square, X, Clock, AlertCircle, CheckCircle2, XCircle } from "lucide-react";
 
 interface SupportIssue {
@@ -151,7 +152,7 @@ export default function SupportIssuesPage() {
     <div className="p-8">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Support Issues</h1>
+          <h1 className="text-2xl font-bold text-gray-900">{labels.supportIssuesPageTitle}</h1>
           <p className="text-gray-500 text-sm mt-1">
             {filtered.length} of {issues.length} issues · {openCount} open · {inProgressCount} in progress
           </p>

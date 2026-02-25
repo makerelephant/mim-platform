@@ -9,8 +9,23 @@ import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { EditableCell } from "@/components/EditableCell";
 import { Avatar } from "@/components/Avatar";
+import { useResizableColumns } from "@/hooks/useResizableColumns";
+import { labels } from "@/config/labels";
+import { timeAgo } from "@/lib/timeAgo";
 import Link from "next/link";
-import { Search, Plus, Trash2, CheckSquare, Square, ArrowRight, X } from "lucide-react";
+import { Search, Plus, Trash2, CheckSquare, Square, ArrowRight, X, ChevronUp, ChevronDown } from "lucide-react";
+
+const TABLE_COLS = [
+  { key: "firm", label: "Firm", width: 170 },
+  { key: "type", label: "Type", width: 120 },
+  { key: "geography", label: "Geography", width: 120 },
+  { key: "sector", label: "Sector Focus", width: 130 },
+  { key: "connection", label: "Connection", width: 110 },
+  { key: "pipeline", label: "Pipeline", width: 100 },
+  { key: "score", label: "Score", width: 70 },
+  { key: "website", label: "Website", width: 130 },
+  { key: "updated_at", label: "Updated", width: 95 },
+];
 
 interface Investor {
   id: string;
@@ -28,7 +43,11 @@ interface Investor {
   next_action: string | null;
   website: string | null;
   avatar_url: string | null;
+  updated_at: string | null;
 }
+
+type SortField = "firm_name" | "updated_at";
+type SortDir = "asc" | "desc";
 
 const CONNECTION_STATUSES = ["Active", "Stale", "Need Introduction", "Warm Intro", "Cold"];
 const PIPELINE_STATUSES = ["Prospect", "Qualified", "Engaged", "First Meeting", "In Closing", "Closed", "Passed"];
@@ -49,6 +68,20 @@ export default function InvestorsPage() {
   const [showBulk, setShowBulk] = useState(false);
   const [bulkField, setBulkField] = useState("");
   const [bulkValue, setBulkValue] = useState("");
+  const [sortField, setSortField] = useState<SortField>("updated_at");
+  const [sortDir, setSortDir] = useState<SortDir>("desc");
+
+  const { colWidths, startResize, totalWidth } = useResizableColumns(TABLE_COLS);
+
+  const toggleSort = (field: SortField) => {
+    if (sortField === field) setSortDir(sortDir === "asc" ? "desc" : "asc");
+    else { setSortField(field); setSortDir(field === "updated_at" ? "desc" : "asc"); }
+  };
+
+  const SortIcon = ({ field }: { field: SortField }) => {
+    if (sortField !== field) return null;
+    return sortDir === "asc" ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />;
+  };
 
   const load = useCallback(async () => {
     const { data } = await supabase.from("investors").select("*").order("firm_name");
@@ -60,7 +93,7 @@ export default function InvestorsPage() {
 
   const updateCell = async (id: string, field: string, value: string) => {
     const { error } = await supabase.from("investors").update({ [field]: value || null }).eq("id", id);
-    if (!error) setInvestors((prev) => prev.map((inv) => (inv.id === id ? { ...inv, [field]: value || null } : inv)));
+    if (!error) setInvestors((prev) => prev.map((inv) => (inv.id === id ? { ...inv, [field]: value || null, updated_at: new Date().toISOString() } : inv)));
   };
 
   const createInvestor = async () => {
@@ -124,6 +157,15 @@ export default function InvestorsPage() {
     if (filterPipeline === "in" && !inv.pipeline_status) return false;
     if (filterPipeline === "not" && inv.pipeline_status) return false;
     return true;
+  }).sort((a, b) => {
+    if (sortField === "updated_at") {
+      const aT = a.updated_at ? new Date(a.updated_at).getTime() : 0;
+      const bT = b.updated_at ? new Date(b.updated_at).getTime() : 0;
+      return sortDir === "asc" ? aT - bT : bT - aT;
+    }
+    const aVal = (a[sortField] || "").toLowerCase();
+    const bVal = (b[sortField] || "").toLowerCase();
+    return sortDir === "asc" ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
   });
 
   const inPipelineCount = investors.filter((inv) => inv.pipeline_status).length;
@@ -134,7 +176,7 @@ export default function InvestorsPage() {
     <div className="p-8">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Investors</h1>
+          <h1 className="text-2xl font-bold text-gray-900">{labels.investorsPageTitle}</h1>
           <p className="text-gray-500 text-sm mt-1">
             {filtered.length} of {investors.length} firms · {inPipelineCount} in pipeline
           </p>
@@ -202,19 +244,26 @@ export default function InvestorsPage() {
 
       <Card>
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="text-sm" style={{ tableLayout: "fixed", width: 40 + 40 + totalWidth }}>
+            <colgroup>
+              <col style={{ width: 40 }} />
+              <col style={{ width: 40 }} />
+              {TABLE_COLS.map((c) => <col key={c.key} style={{ width: colWidths[c.key] }} />)}
+            </colgroup>
             <thead>
               <tr className="border-b bg-gray-50">
-                <th className="w-10 px-3 py-3"><button onClick={toggleSelectAll}>{selected.size === filtered.length && filtered.length > 0 ? <CheckSquare className="h-4 w-4 text-blue-600" /> : <Square className="h-4 w-4 text-gray-300" />}</button></th>
-                <th className="w-10 px-2 py-3"></th>
-                <th className="text-left px-4 py-3 font-medium text-gray-500">Firm</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-500">Type</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-500">Geography</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-500">Sector Focus</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-500">Connection</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-500">Pipeline</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-500">Score</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-500">Website</th>
+                <th className="px-3 py-3"><button onClick={toggleSelectAll}>{selected.size === filtered.length && filtered.length > 0 ? <CheckSquare className="h-4 w-4 text-blue-600" /> : <Square className="h-4 w-4 text-gray-300" />}</button></th>
+                <th className="px-2 py-3"></th>
+                {TABLE_COLS.map((c) => {
+                  const sortable = c.key === "firm" || c.key === "updated_at";
+                  const sf = c.key === "firm" ? "firm_name" : c.key === "updated_at" ? "updated_at" : null;
+                  return (
+                    <th key={c.key} className={`text-left px-4 py-3 font-medium text-gray-500 relative ${sortable ? "cursor-pointer" : ""}`} onClick={sortable && sf ? () => toggleSort(sf as SortField) : undefined}>
+                      <span className="flex items-center gap-1">{c.label} {sf && <SortIcon field={sf as SortField} />}</span>
+                      <div className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-400 active:bg-blue-500" onMouseDown={(e) => startResize(c.key, e)} />
+                    </th>
+                  );
+                })}
               </tr>
             </thead>
             <tbody>
@@ -222,20 +271,21 @@ export default function InvestorsPage() {
                 <tr key={inv.id} className={`border-b hover:bg-gray-50 ${selected.has(inv.id) ? "bg-blue-50" : ""}`}>
                   <td className="px-3 py-3"><button onClick={() => toggleSelect(inv.id)}>{selected.has(inv.id) ? <CheckSquare className="h-4 w-4 text-blue-600" /> : <Square className="h-4 w-4 text-gray-300" />}</button></td>
                   <td className="px-2 py-2"><Avatar src={inv.avatar_url} name={inv.firm_name} size="sm" /></td>
-                  <td className="px-4 py-2"><div className="flex items-center gap-2"><Link href={`/investors/${inv.id}`} className="text-blue-600 hover:underline shrink-0">↗</Link><EditableCell value={inv.firm_name} onSave={(v) => updateCell(inv.id, "firm_name", v)} /></div></td>
-                  <td className="px-4 py-2"><EditableCell value={inv.investor_type} onSave={(v) => updateCell(inv.id, "investor_type", v)} /></td>
-                  <td className="px-4 py-2"><EditableCell value={inv.geography} onSave={(v) => updateCell(inv.id, "geography", v)} /></td>
-                  <td className="px-4 py-2"><EditableCell value={inv.sector_focus} onSave={(v) => updateCell(inv.id, "sector_focus", v)} /></td>
-                  <td className="px-4 py-2"><EditableCell value={inv.connection_status} onSave={(v) => updateCell(inv.id, "connection_status", v)} type="select" options={CONNECTION_STATUSES} /></td>
-                  <td className="px-4 py-2">
+                  <td className="px-4 py-2 overflow-hidden"><div className="flex items-center gap-2"><Link href={`/investors/${inv.id}`} className="text-blue-600 hover:underline shrink-0">↗</Link><EditableCell value={inv.firm_name} onSave={(v) => updateCell(inv.id, "firm_name", v)} /></div></td>
+                  <td className="px-4 py-2 overflow-hidden"><EditableCell value={inv.investor_type} onSave={(v) => updateCell(inv.id, "investor_type", v)} /></td>
+                  <td className="px-4 py-2 overflow-hidden"><EditableCell value={inv.geography} onSave={(v) => updateCell(inv.id, "geography", v)} /></td>
+                  <td className="px-4 py-2 overflow-hidden"><EditableCell value={inv.sector_focus} onSave={(v) => updateCell(inv.id, "sector_focus", v)} /></td>
+                  <td className="px-4 py-2 overflow-hidden"><EditableCell value={inv.connection_status} onSave={(v) => updateCell(inv.id, "connection_status", v)} type="select" options={CONNECTION_STATUSES} /></td>
+                  <td className="px-4 py-2 overflow-hidden">
                     {inv.pipeline_status ? (
                       <Badge variant="secondary" className="text-xs">{inv.pipeline_status}</Badge>
                     ) : (
                       <span className="text-gray-300 text-xs">—</span>
                     )}
                   </td>
-                  <td className="px-4 py-2"><EditableCell value={inv.likelihood_score} onSave={(v) => updateCell(inv.id, "likelihood_score", v)} type="number" /></td>
-                  <td className="px-4 py-2"><EditableCell value={inv.website} onSave={(v) => updateCell(inv.id, "website", v)} /></td>
+                  <td className="px-4 py-2 overflow-hidden"><EditableCell value={inv.likelihood_score} onSave={(v) => updateCell(inv.id, "likelihood_score", v)} type="number" /></td>
+                  <td className="px-4 py-2 overflow-hidden"><EditableCell value={inv.website} onSave={(v) => updateCell(inv.id, "website", v)} /></td>
+                  <td className="px-4 py-2 overflow-hidden text-gray-400 text-xs whitespace-nowrap">{timeAgo(inv.updated_at)}</td>
                 </tr>
               ))}
             </tbody>

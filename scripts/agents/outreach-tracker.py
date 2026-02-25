@@ -1,6 +1,6 @@
 """
-Market Map Outreach Tracker
-Tracks which soccer programs have been contacted and flags high-value opportunities.
+Community Outreach Tracker
+Tracks which soccer communities have been contacted and flags high-value opportunities.
 
 Prerequisites:
   pip install supabase
@@ -22,7 +22,7 @@ MIN_PLAYERS_HIGH_VALUE = 300
 
 def run():
     """Main agent run."""
-    print(f"[{AGENT_NAME}] Scanning market map for outreach opportunities...")
+    print(f"[{AGENT_NAME}] Scanning communities for outreach opportunities...")
 
     if not SUPABASE_KEY:
         print("ERROR: Set SUPABASE_SERVICE_KEY environment variable")
@@ -41,29 +41,29 @@ def run():
     records_updated = 0
 
     try:
-        # Fetch all programs
-        programs = sb.table("market_map").select(
-            "id, program_name, league, players, merch_link, outreach_status, primary_contact"
+        # Fetch all communities
+        communities = sb.table("soccer_orgs").select(
+            "id, org_name, players, merch_link, outreach_status, primary_contact"
         ).execute()
 
-        for prog in programs.data:
+        for org in communities.data:
             records_processed += 1
 
-            # Flag high-value uncontacted programs
+            # Flag high-value uncontacted communities
             is_high_value = (
-                (prog.get("players") or 0) >= MIN_PLAYERS_HIGH_VALUE and
-                prog.get("outreach_status") == "Not Contacted"
+                (org.get("players") or 0) >= MIN_PLAYERS_HIGH_VALUE and
+                org.get("outreach_status") == "Not Contacted"
             )
 
             has_merch_opportunity = (
-                prog.get("merch_link") is not None and
-                prog.get("outreach_status") == "Not Contacted"
+                org.get("merch_link") is not None and
+                org.get("outreach_status") == "Not Contacted"
             )
 
             if is_high_value or has_merch_opportunity:
                 reasons = []
                 if is_high_value:
-                    reasons.append(f"{prog['players']} players")
+                    reasons.append(f"{org['players']} players")
                 if has_merch_opportunity:
                     reasons.append("has merch link")
 
@@ -71,10 +71,10 @@ def run():
 
                 # Create outreach task
                 sb.table("tasks").insert({
-                    "title": f"Reach out to {prog['program_name']} ({prog['league']}) — {reason_str}",
-                    "description": f"High-value program: {reason_str}. Contact: {prog.get('primary_contact', 'unknown')}",
-                    "entity_type": "market_map",
-                    "entity_id": prog["id"],
+                    "title": f"Reach out to {org['org_name']} — {reason_str}",
+                    "description": f"High-value community: {reason_str}. Contact: {org.get('primary_contact', 'unknown')}",
+                    "entity_type": "soccer_orgs",
+                    "entity_id": org["id"],
                     "priority": "high" if is_high_value else "medium",
                     "source": AGENT_NAME,
                 }).execute()
@@ -83,13 +83,13 @@ def run():
                 sb.table("activity_log").insert({
                     "agent_name": AGENT_NAME,
                     "action_type": "outreach_opportunity_flagged",
-                    "entity_type": "market_map",
-                    "entity_id": prog["id"],
-                    "summary": f"Flagged {prog['program_name']} for outreach — {reason_str}",
+                    "entity_type": "soccer_orgs",
+                    "entity_id": org["id"],
+                    "summary": f"Flagged {org['org_name']} for outreach — {reason_str}",
                 }).execute()
 
                 records_updated += 1
-                print(f"  Flagged: {prog['program_name']} ({reason_str})")
+                print(f"  Flagged: {org['org_name']} ({reason_str})")
 
         # Complete run
         if run_id:

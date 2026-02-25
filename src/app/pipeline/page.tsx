@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { EditableCell } from "@/components/EditableCell";
 import { Avatar } from "@/components/Avatar";
 import Link from "next/link";
+import { labels } from "@/config/labels";
 import { Search, List, Columns3, Trash2, CheckSquare, Square, X, Plus } from "lucide-react";
 
 interface Investor {
@@ -174,7 +175,7 @@ export default function PipelinePage() {
     <div className="p-8">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Investor Pipeline</h1>
+          <h1 className="text-2xl font-bold text-gray-900">{labels.pipelinePageTitle}</h1>
           <p className="text-gray-500 text-sm mt-1">{investors.length} firms in pipeline · {notInPipeline.length} not yet added</p>
         </div>
         <div className="flex gap-2">

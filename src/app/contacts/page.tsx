@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { supabase } from "@/lib/supabase";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -10,11 +10,14 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { EditableCell } from "@/components/EditableCell";
 import { Avatar } from "@/components/Avatar";
 import Link from "next/link";
+import { labels } from "@/config/labels";
+import { timeAgo } from "@/lib/timeAgo";
 import { Search, X, ChevronUp, ChevronDown, Plus, Trash2, CheckSquare, Square, LayoutGrid, List } from "lucide-react";
 
 interface Contact {
   id: string;
   name: string;
+  organization: string | null;
   email: string | null;
   phone: string | null;
   title: string | null;
@@ -23,9 +26,10 @@ interface Contact {
   subcategory: string | null;
   region: string | null;
   avatar_url: string | null;
+  updated_at: string | null;
 }
 
-type SortField = "name" | "segment" | "primary_category" | "region";
+type SortField = "name" | "segment" | "primary_category" | "region" | "updated_at";
 type SortDir = "asc" | "desc";
 
 const SEGMENTS = ["Youth Soccer", "Investor", "Employee", "Vendor", "Partner", "Other"];
@@ -40,8 +44,8 @@ export default function ContactsPage() {
   const [filterRegion, setFilterRegion] = useState("");
   const [filterHasEmail, setFilterHasEmail] = useState(false);
   const [filterHasPhone, setFilterHasPhone] = useState(false);
-  const [sortField, setSortField] = useState<SortField>("name");
-  const [sortDir, setSortDir] = useState<SortDir>("asc");
+  const [sortField, setSortField] = useState<SortField>("updated_at");
+  const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [showFilters, setShowFilters] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [showNew, setShowNew] = useState(false);
@@ -50,16 +54,46 @@ export default function ContactsPage() {
   const [newPhone, setNewPhone] = useState("");
   const [newTitle, setNewTitle] = useState("");
   const [newSegment, setNewSegment] = useState("");
+  const [newOrg, setNewOrg] = useState("");
   const [newCategory, setNewCategory] = useState("");
   const [bulkField, setBulkField] = useState("");
   const [bulkValue, setBulkValue] = useState("");
   const [showBulk, setShowBulk] = useState(false);
   const [view, setView] = useState<"table" | "tiles">("table");
 
+  // Column resize state
+  const COL_KEYS = ["name", "organization", "email", "phone", "title", "segment", "category", "updated_at"] as const;
+  const DEFAULT_WIDTHS: Record<string, number> = {
+    name: 160, organization: 140, email: 170, phone: 110, title: 130, segment: 110, category: 110, updated_at: 95,
+  };
+  const [colWidths, setColWidths] = useState<Record<string, number>>(DEFAULT_WIDTHS);
+  const dragRef = useRef<{ col: string; startX: number; startW: number } | null>(null);
+
+  useEffect(() => {
+    const onMouseMove = (e: MouseEvent) => {
+      if (!dragRef.current) return;
+      const diff = e.clientX - dragRef.current.startX;
+      const newW = Math.max(60, dragRef.current.startW + diff);
+      setColWidths((prev) => ({ ...prev, [dragRef.current!.col]: newW }));
+    };
+    const onMouseUp = () => { dragRef.current = null; document.body.style.cursor = ""; document.body.style.userSelect = ""; };
+    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("mouseup", onMouseUp);
+    return () => { window.removeEventListener("mousemove", onMouseMove); window.removeEventListener("mouseup", onMouseUp); };
+  }, []);
+
+  const startResize = (col: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragRef.current = { col, startX: e.clientX, startW: colWidths[col] };
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+  };
+
   const loadContacts = useCallback(async () => {
     const { data } = await supabase
       .from("contacts")
-      .select("id, name, email, phone, title, segment, primary_category, subcategory, region, avatar_url")
+      .select("id, name, organization, email, phone, title, segment, primary_category, subcategory, region, avatar_url, updated_at")
       .order("name");
     if (data) setContacts(data);
     setLoading(false);
@@ -70,20 +104,20 @@ export default function ContactsPage() {
   const updateCell = async (id: string, field: string, value: string) => {
     const { error } = await supabase.from("contacts").update({ [field]: value || null }).eq("id", id);
     if (!error) {
-      setContacts((prev) => prev.map((c) => (c.id === id ? { ...c, [field]: value || null } : c)));
+      setContacts((prev) => prev.map((c) => (c.id === id ? { ...c, [field]: value || null, updated_at: new Date().toISOString() } : c)));
     }
   };
 
   const createContact = async () => {
     if (!newName.trim()) return;
     const { data, error } = await supabase.from("contacts").insert({
-      name: newName, email: newEmail || null, phone: newPhone || null,
+      name: newName, organization: newOrg || null, email: newEmail || null, phone: newPhone || null,
       title: newTitle || null, segment: newSegment || null,
       primary_category: newCategory || null, source: "manual",
     }).select().single();
     if (!error && data) {
       setContacts((prev) => [...prev, data]);
-      setNewName(""); setNewEmail(""); setNewPhone(""); setNewTitle(""); setNewSegment(""); setNewCategory("");
+      setNewName(""); setNewOrg(""); setNewEmail(""); setNewPhone(""); setNewTitle(""); setNewSegment(""); setNewCategory("");
       setShowNew(false);
     }
   };
@@ -132,7 +166,7 @@ export default function ContactsPage() {
 
   const filtered = contacts
     .filter((c) => {
-      if (search) { const s = search.toLowerCase(); if (!c.name?.toLowerCase().includes(s) && !c.email?.toLowerCase().includes(s) && !c.title?.toLowerCase().includes(s)) return false; }
+      if (search) { const s = search.toLowerCase(); if (!c.name?.toLowerCase().includes(s) && !c.organization?.toLowerCase().includes(s) && !c.email?.toLowerCase().includes(s) && !c.title?.toLowerCase().includes(s)) return false; }
       if (filterSegment && c.segment !== filterSegment) return false;
       if (filterCategory && c.primary_category !== filterCategory) return false;
       if (filterRegion && c.region !== filterRegion) return false;
@@ -141,6 +175,11 @@ export default function ContactsPage() {
       return true;
     })
     .sort((a, b) => {
+      if (sortField === "updated_at") {
+        const aT = a.updated_at ? new Date(a.updated_at).getTime() : 0;
+        const bT = b.updated_at ? new Date(b.updated_at).getTime() : 0;
+        return sortDir === "asc" ? aT - bT : bT - aT;
+      }
       const aVal = (a[sortField] || "").toLowerCase();
       const bVal = (b[sortField] || "").toLowerCase();
       return sortDir === "asc" ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
@@ -156,7 +195,7 @@ export default function ContactsPage() {
     <div className="p-8">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Contacts</h1>
+          <h1 className="text-2xl font-bold text-gray-900">{labels.contactsPageTitle}</h1>
           <p className="text-gray-500 text-sm mt-1">{filtered.length} of {contacts.length} contacts</p>
         </div>
         <div className="flex gap-2">
@@ -168,6 +207,7 @@ export default function ContactsPage() {
               <DialogHeader><DialogTitle>New Contact</DialogTitle></DialogHeader>
               <div className="space-y-3">
                 <div><label className="text-xs text-gray-500">Name *</label><Input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Full name" /></div>
+                <div><label className="text-xs text-gray-500">Organization</label><Input value={newOrg} onChange={(e) => setNewOrg(e.target.value)} placeholder="Company or org name" /></div>
                 <div className="grid grid-cols-2 gap-3">
                   <div><label className="text-xs text-gray-500">Email</label><Input value={newEmail} onChange={(e) => setNewEmail(e.target.value)} /></div>
                   <div><label className="text-xs text-gray-500">Phone</label><Input value={newPhone} onChange={(e) => setNewPhone(e.target.value)} /></div>
@@ -192,7 +232,7 @@ export default function ContactsPage() {
             <DialogContent>
               <DialogHeader><DialogTitle>Bulk Update {selected.size} Contacts</DialogTitle></DialogHeader>
               <div className="space-y-3">
-                <div><label className="text-xs text-gray-500">Field to update</label><select className="w-full border rounded-md px-2 py-1.5 text-sm" value={bulkField} onChange={(e) => { setBulkField(e.target.value); setBulkValue(""); }}><option value="">Select field...</option><option value="segment">Segment</option><option value="primary_category">Category</option><option value="region">Region</option><option value="title">Title</option></select></div>
+                <div><label className="text-xs text-gray-500">Field to update</label><select className="w-full border rounded-md px-2 py-1.5 text-sm" value={bulkField} onChange={(e) => { setBulkField(e.target.value); setBulkValue(""); }}><option value="">Select field...</option><option value="organization">Organization</option><option value="segment">Segment</option><option value="primary_category">Category</option><option value="region">Region</option><option value="title">Title</option></select></div>
                 {bulkField === "segment" && <div><label className="text-xs text-gray-500">New value</label><select className="w-full border rounded-md px-2 py-1.5 text-sm" value={bulkValue} onChange={(e) => setBulkValue(e.target.value)}><option value="">—</option>{SEGMENTS.map((s) => <option key={s} value={s}>{s}</option>)}</select></div>}
                 {bulkField === "primary_category" && <div><label className="text-xs text-gray-500">New value</label><select className="w-full border rounded-md px-2 py-1.5 text-sm" value={bulkValue} onChange={(e) => setBulkValue(e.target.value)}><option value="">—</option>{CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}</select></div>}
                 {bulkField && bulkField !== "segment" && bulkField !== "primary_category" && <div><label className="text-xs text-gray-500">New value</label><Input value={bulkValue} onChange={(e) => setBulkValue(e.target.value)} /></div>}
@@ -208,7 +248,7 @@ export default function ContactsPage() {
       <div className="flex gap-3 mb-4">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-          <Input placeholder="Search by name, email, or title..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
+          <Input placeholder="Search by name, organization, email, or title..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
         </div>
         <Button variant={showFilters ? "default" : "outline"} onClick={() => setShowFilters(!showFilters)}>Filters {activeFilters > 0 && `(${activeFilters})`}</Button>
       </div>
@@ -249,17 +289,48 @@ export default function ContactsPage() {
       ) : (
         <Card>
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="text-sm" style={{ tableLayout: "fixed", width: 40 + 40 + COL_KEYS.reduce((s, k) => s + colWidths[k], 0) }}>
+              <colgroup>
+                <col style={{ width: 40 }} />
+                <col style={{ width: 40 }} />
+                {COL_KEYS.map((k) => <col key={k} style={{ width: colWidths[k] }} />)}
+              </colgroup>
               <thead>
                 <tr className="border-b bg-gray-50">
-                  <th className="w-10 px-3 py-3"><button onClick={toggleSelectAll}>{selected.size === filtered.length && filtered.length > 0 ? <CheckSquare className="h-4 w-4 text-blue-600" /> : <Square className="h-4 w-4 text-gray-300" />}</button></th>
-                  <th className="w-10 px-2 py-3"></th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-500 cursor-pointer" onClick={() => toggleSort("name")}><span className="flex items-center gap-1">Name <SortIcon field="name" /></span></th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-500">Email</th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-500">Phone</th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-500">Title</th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-500 cursor-pointer" onClick={() => toggleSort("segment")}><span className="flex items-center gap-1">Segment <SortIcon field="segment" /></span></th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-500 cursor-pointer" onClick={() => toggleSort("primary_category")}><span className="flex items-center gap-1">Category <SortIcon field="primary_category" /></span></th>
+                  <th className="px-3 py-3"><button onClick={toggleSelectAll}>{selected.size === filtered.length && filtered.length > 0 ? <CheckSquare className="h-4 w-4 text-blue-600" /> : <Square className="h-4 w-4 text-gray-300" />}</button></th>
+                  <th className="px-2 py-3"></th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-500 relative cursor-pointer" onClick={() => toggleSort("name")}>
+                    <span className="flex items-center gap-1">Name <SortIcon field="name" /></span>
+                    <div className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-400 active:bg-blue-500" onMouseDown={(e) => startResize("name", e)} />
+                  </th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-500 relative">
+                    Organization
+                    <div className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-400 active:bg-blue-500" onMouseDown={(e) => startResize("organization", e)} />
+                  </th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-500 relative">
+                    Email
+                    <div className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-400 active:bg-blue-500" onMouseDown={(e) => startResize("email", e)} />
+                  </th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-500 relative">
+                    Phone
+                    <div className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-400 active:bg-blue-500" onMouseDown={(e) => startResize("phone", e)} />
+                  </th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-500 relative">
+                    Title
+                    <div className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-400 active:bg-blue-500" onMouseDown={(e) => startResize("title", e)} />
+                  </th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-500 relative cursor-pointer" onClick={() => toggleSort("segment")}>
+                    <span className="flex items-center gap-1">Segment <SortIcon field="segment" /></span>
+                    <div className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-400 active:bg-blue-500" onMouseDown={(e) => startResize("segment", e)} />
+                  </th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-500 relative cursor-pointer" onClick={() => toggleSort("primary_category")}>
+                    <span className="flex items-center gap-1">Category <SortIcon field="primary_category" /></span>
+                    <div className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-400 active:bg-blue-500" onMouseDown={(e) => startResize("category", e)} />
+                  </th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-500 relative cursor-pointer" onClick={() => toggleSort("updated_at")}>
+                    <span className="flex items-center gap-1">Updated <SortIcon field="updated_at" /></span>
+                    <div className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-400 active:bg-blue-500" onMouseDown={(e) => startResize("updated_at", e)} />
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -267,17 +338,19 @@ export default function ContactsPage() {
                   <tr key={c.id} className={`border-b hover:bg-gray-50 ${selected.has(c.id) ? "bg-blue-50" : ""}`}>
                     <td className="px-3 py-3"><button onClick={() => toggleSelect(c.id)}>{selected.has(c.id) ? <CheckSquare className="h-4 w-4 text-blue-600" /> : <Square className="h-4 w-4 text-gray-300" />}</button></td>
                     <td className="px-2 py-2"><Avatar src={c.avatar_url} name={c.name} size="sm" /></td>
-                    <td className="px-4 py-2">
+                    <td className="px-4 py-2 overflow-hidden">
                       <div className="flex items-center gap-2">
                         <Link href={`/contacts/${c.id}`} className="text-blue-600 hover:underline font-medium shrink-0">↗</Link>
                         <EditableCell value={c.name} onSave={(v) => updateCell(c.id, "name", v)} />
                       </div>
                     </td>
-                    <td className="px-4 py-2"><EditableCell value={c.email} onSave={(v) => updateCell(c.id, "email", v)} /></td>
-                    <td className="px-4 py-2"><EditableCell value={c.phone} onSave={(v) => updateCell(c.id, "phone", v)} /></td>
-                    <td className="px-4 py-2"><EditableCell value={c.title} onSave={(v) => updateCell(c.id, "title", v)} /></td>
-                    <td className="px-4 py-2"><EditableCell value={c.segment} onSave={(v) => updateCell(c.id, "segment", v)} type="select" options={SEGMENTS} /></td>
-                    <td className="px-4 py-2"><EditableCell value={c.primary_category} onSave={(v) => updateCell(c.id, "primary_category", v)} type="select" options={CATEGORIES} /></td>
+                    <td className="px-4 py-2 overflow-hidden"><EditableCell value={c.organization} onSave={(v) => updateCell(c.id, "organization", v)} /></td>
+                    <td className="px-4 py-2 overflow-hidden"><EditableCell value={c.email} onSave={(v) => updateCell(c.id, "email", v)} /></td>
+                    <td className="px-4 py-2 overflow-hidden"><EditableCell value={c.phone} onSave={(v) => updateCell(c.id, "phone", v)} /></td>
+                    <td className="px-4 py-2 overflow-hidden"><EditableCell value={c.title} onSave={(v) => updateCell(c.id, "title", v)} /></td>
+                    <td className="px-4 py-2 overflow-hidden"><EditableCell value={c.segment} onSave={(v) => updateCell(c.id, "segment", v)} type="select" options={SEGMENTS} /></td>
+                    <td className="px-4 py-2 overflow-hidden"><EditableCell value={c.primary_category} onSave={(v) => updateCell(c.id, "primary_category", v)} type="select" options={CATEGORIES} /></td>
+                    <td className="px-4 py-2 overflow-hidden text-gray-400 text-xs whitespace-nowrap">{timeAgo(c.updated_at)}</td>
                   </tr>
                 ))}
               </tbody>
