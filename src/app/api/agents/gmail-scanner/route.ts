@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { exec } from "child_process";
-import path from "path";
+import { createClient } from "@supabase/supabase-js";
+import { runGmailScanner } from "@/lib/gmail-scanner";
 
 export const maxDuration = 120; // Allow up to 2 minutes for scanner
 
@@ -9,53 +9,42 @@ export async function POST(request: Request) {
     const body = await request.json().catch(() => ({}));
     const scanHours = body.scanHours || 24;
 
-    // Path to the agents directory
-    const agentsDir = path.resolve(process.cwd(), "scripts/agents");
-    const envFile = path.join(agentsDir, ".env");
+    // Validate required env vars
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY;
 
-    // Build the command — load .env and run the scanner
-    const cmd = [
-      `cd "${agentsDir}"`,
-      // Source the .env file to load environment variables
-      `export $(grep -v '^#' "${envFile}" | xargs)`,
-      `export SCAN_HOURS=${scanHours}`,
-      `python3 gmail-scanner.py`,
-    ].join(" && ");
+    if (!supabaseUrl || !supabaseServiceKey) {
+      return NextResponse.json(
+        { success: false, error: "Missing SUPABASE_URL or SUPABASE_SERVICE_KEY env vars" },
+        { status: 500 },
+      );
+    }
 
-    return new Promise<NextResponse>((resolve) => {
-      exec(cmd, { timeout: 110000 }, (error, stdout, stderr) => {
-        if (error) {
-          console.error("Scanner error:", error.message);
-          console.error("stderr:", stderr);
-          resolve(
-            NextResponse.json(
-              {
-                success: false,
-                error: error.message,
-                output: stdout,
-                stderr: stderr,
-              },
-              { status: 500 }
-            )
-          );
-          return;
-        }
+    if (!process.env.GOOGLE_TOKEN) {
+      return NextResponse.json(
+        { success: false, error: "Missing GOOGLE_TOKEN env var. Base64-encode your token.json and set it." },
+        { status: 500 },
+      );
+    }
 
-        // Parse output for stats
-        const lines = stdout.split("\n");
-        const processedMatch = lines.find((l) => l.includes("Completed"));
-        const stats = {
-          output: stdout,
-          summary: processedMatch || "Scanner completed",
-        };
+    if (!process.env.ANTHROPIC_API_KEY) {
+      return NextResponse.json(
+        { success: false, error: "Missing ANTHROPIC_API_KEY env var" },
+        { status: 500 },
+      );
+    }
 
-        resolve(NextResponse.json({ success: true, ...stats }));
-      });
-    });
+    // Create a service-role Supabase client for this request
+    const sb = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Run the scanner
+    const result = await runGmailScanner(sb, scanHours);
+
+    return NextResponse.json(result, { status: result.success ? 200 : 500 });
   } catch (err) {
     return NextResponse.json(
       { success: false, error: String(err) },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

@@ -56,7 +56,16 @@ export default function ActivityPage() {
   const [filterEntity, setFilterEntity] = useState("");
   const [search, setSearch] = useState("");
   const [scannerRunning, setScannerRunning] = useState(false);
-  const [scannerResult, setScannerResult] = useState<{ success: boolean; output?: string; error?: string } | null>(null);
+  const [scannerResult, setScannerResult] = useState<{
+    success: boolean;
+    messagesFound?: number;
+    processed?: number;
+    tasksCreated?: number;
+    skippedDupes?: number;
+    log?: string[];
+    error?: string;
+    output?: string; // legacy fallback
+  } | null>(null);
   const [scanHours, setScanHours] = useState("24");
 
   useEffect(() => {
@@ -149,7 +158,20 @@ export default function ActivityPage() {
           {scannerResult && (
             <div className={`mt-3 p-3 rounded-lg text-sm ${scannerResult.success ? "bg-green-50 text-green-800" : "bg-red-50 text-red-800"}`}>
               {scannerResult.success ? (
-                <pre className="whitespace-pre-wrap font-mono text-xs">{scannerResult.output}</pre>
+                <div>
+                  <div className="flex gap-4 mb-2 font-medium">
+                    <span>📧 {scannerResult.messagesFound ?? 0} messages found</span>
+                    <span>✅ {scannerResult.processed ?? 0} processed</span>
+                    <span>📋 {scannerResult.tasksCreated ?? 0} tasks created</span>
+                    {(scannerResult.skippedDupes ?? 0) > 0 && <span>⏭️ {scannerResult.skippedDupes} duplicates skipped</span>}
+                  </div>
+                  {scannerResult.log && scannerResult.log.length > 0 && (
+                    <details className="mt-1">
+                      <summary className="cursor-pointer text-xs text-green-600">Show log ({scannerResult.log.length} lines)</summary>
+                      <pre className="whitespace-pre-wrap font-mono text-xs mt-1 max-h-48 overflow-y-auto">{scannerResult.log.join("\n")}</pre>
+                    </details>
+                  )}
+                </div>
               ) : (
                 <p>Error: {scannerResult.error}</p>
               )}
