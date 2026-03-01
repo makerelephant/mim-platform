@@ -38,6 +38,7 @@ const AGENT_COLORS: Record<string, string> = {
   "investor-enrich": "bg-purple-100 text-purple-700",
   "stale-detector": "bg-yellow-100 text-yellow-700",
   "outreach-tracker": "bg-green-100 text-green-700",
+  "weekly-report": "bg-teal-100 text-teal-700",
   manual: "bg-blue-100 text-blue-700",
   system: "bg-gray-100 text-gray-700",
 };

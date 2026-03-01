@@ -5,6 +5,8 @@
 
 import Anthropic from "@anthropic-ai/sdk";
 import { SupabaseClient } from "@supabase/supabase-js";
+import { runGmailScanner } from "./gmail-scanner";
+import { runSlackScanner } from "./slack-scanner";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -21,20 +23,21 @@ export interface ReportResult {
   error?: string;
 }
 
+interface CorrespondenceRow {
+  subject: string; direction: string; entity_type: string | null;
+  sender_email: string; sender_name: string | null; email_date: string | null;
+  source: string | null;
+}
+
 interface GatheredData {
-  // Tasks
   tasksCreated: Array<{ title: string; priority: string; status: string; entity_type: string | null; source: string; created_at: string }>;
   tasksCompleted: Array<{ title: string; priority: string; entity_type: string | null; created_at: string }>;
   tasksOpen: Array<{ title: string; priority: string; status: string; entity_type: string | null; created_at: string }>;
-  // Correspondence
-  emails: Array<{ subject: string; direction: string; entity_type: string | null; sender_email: string; sender_name: string | null; email_date: string | null }>;
-  // Contacts
+  emails: CorrespondenceRow[];
+  slackMessages: CorrespondenceRow[];
   newContacts: Array<{ name: string; email: string | null; source: string | null; primary_category: string | null; created_at: string }>;
-  // Investors
   investorUpdates: Array<{ firm_name: string; stage: string | null; updated_at: string }>;
-  // Communities
   communityUpdates: Array<{ org_name: string; partner_status: string | null; updated_at: string }>;
-  // Activity log
   agentActivity: Array<{ agent_name: string; action_type: string; summary: string; entity_type: string | null; created_at: string }>;
 }
 
@@ -94,6 +97,7 @@ async function gatherData(
     { data: tasksCompleted },
     { data: tasksOpen },
     { data: emails },
+    { data: slackMessages },
     { data: newContacts },
     { data: investorUpdates },
     { data: communityUpdates },
@@ -117,11 +121,20 @@ async function gatherData(
       .in("status", ["todo", "in_progress"])
       .order("priority", { ascending: true })
       .limit(30),
-    // Correspondence in period
+    // Email correspondence in period
     sb.from("correspondence")
-      .select("subject, direction, entity_type, sender_email, sender_name, email_date")
+      .select("subject, direction, entity_type, sender_email, sender_name, email_date, source")
       .gte("created_at", startISO)
       .lt("created_at", endISO)
+      .or("source.eq.gmail,source.is.null")
+      .order("created_at", { ascending: false })
+      .limit(100),
+    // Slack correspondence in period
+    sb.from("correspondence")
+      .select("subject, direction, entity_type, sender_email, sender_name, email_date, source")
+      .gte("created_at", startISO)
+      .lt("created_at", endISO)
+      .eq("source", "slack")
       .order("created_at", { ascending: false })
       .limit(100),
     // New contacts
@@ -153,6 +166,7 @@ async function gatherData(
     tasksCompleted: tasksCompleted || [],
     tasksOpen: tasksOpen || [],
     emails: emails || [],
+    slackMessages: slackMessages || [],
     newContacts: newContacts || [],
     investorUpdates: investorUpdates || [],
     communityUpdates: communityUpdates || [],
@@ -193,6 +207,15 @@ function buildDataContext(data: GatheredData): string {
   if (data.emails.length > 0) {
     for (const e of data.emails.slice(0, 40)) {
       sections.push(`- ${e.direction}: "${e.subject}" from ${e.sender_name || e.sender_email} (silo: ${e.entity_type || "general"})`);
+    }
+  } else {
+    sections.push("None");
+  }
+
+  sections.push(`\n## SLACK ACTIVITY (${data.slackMessages.length})`);
+  if (data.slackMessages.length > 0) {
+    for (const s of data.slackMessages.slice(0, 40)) {
+      sections.push(`- ${s.subject}: "${(s.sender_name || s.sender_email || "unknown")}" — ${(s.entity_type || "general")}`);
     }
   } else {
     sections.push("None");
@@ -285,9 +308,38 @@ export async function runWeeklyReport(
     const title = `${periodLabel(periodType)} Updates for ${dateRange} from Mark Slater`;
     addLog(`Period: ${formatDate(start)} → ${formatDate(end)} (${periodType})`);
 
+    // ── Pre-scan: run email + slack scanners to import fresh data ──
+    const scanHoursForPeriod = periodType === "day" ? 24 : periodType === "week" ? 168 : 744;
+
+    // Run email scanner (skip if no GOOGLE_TOKEN)
+    if (process.env.GOOGLE_TOKEN) {
+      try {
+        addLog("Running email scanner pre-scan...");
+        const emailResult = await runGmailScanner(sb, scanHoursForPeriod);
+        addLog(`Email pre-scan: ${emailResult.messagesFound} found, ${emailResult.processed} processed, ${emailResult.tasksCreated} tasks`);
+      } catch (err) {
+        addLog(`Email pre-scan skipped: ${err instanceof Error ? err.message : String(err)}`);
+      }
+    } else {
+      addLog("Email pre-scan skipped (no GOOGLE_TOKEN)");
+    }
+
+    // Run Slack scanner (skip if no SLACK_BOT_TOKEN)
+    if (process.env.SLACK_BOT_TOKEN) {
+      try {
+        addLog("Running Slack scanner pre-scan...");
+        const slackResult = await runSlackScanner(sb, scanHoursForPeriod);
+        addLog(`Slack pre-scan: ${slackResult.messagesFound} found, ${slackResult.processed} processed, ${slackResult.tasksCreated} tasks`);
+      } catch (err) {
+        addLog(`Slack pre-scan skipped: ${err instanceof Error ? err.message : String(err)}`);
+      }
+    } else {
+      addLog("Slack pre-scan skipped (no SLACK_BOT_TOKEN)");
+    }
+
     // ── Gather data ──
     const data = await gatherData(sb, startISO, endISO);
-    addLog(`Gathered: ${data.tasksCreated.length} tasks created, ${data.tasksCompleted.length} completed, ${data.emails.length} emails, ${data.newContacts.length} new contacts`);
+    addLog(`Gathered: ${data.tasksCreated.length} tasks created, ${data.tasksCompleted.length} completed, ${data.emails.length} emails, ${data.slackMessages.length} slack messages, ${data.newContacts.length} new contacts`);
 
     const dataContext = buildDataContext(data);
 
