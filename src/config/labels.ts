@@ -59,6 +59,13 @@ export const labels = {
   taskNotes: "Notes",
   taskDetails: "Task Details",
   taskSourceInfo: "Source",
+
+  /* ── Batch A additions ── */
+  taskScanButton: "Scan for new Tasks",
+  taskLastScanned: "Last scanned",
+  taskRelatedTasks: "Related Tasks",
+  taskStar: "Star",
+  contactLastInteraction: "Last Interaction",
 };
 
 export type Labels = typeof labels;

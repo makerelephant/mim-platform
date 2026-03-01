@@ -23,7 +23,9 @@ import {
   Users,
   TrendingUp,
   Building2,
+  Star,
 } from "lucide-react";
+import Link from "next/link";
 
 /* ── Types ── */
 
@@ -44,9 +46,18 @@ interface Task {
   goal_relevance_note: string | null;
   gmail_thread_id: string | null;
   gmail_message_id: string | null;
+  is_starred: boolean;
   sort_order: number;
   created_at: string;
   updated_at: string;
+}
+
+interface RelatedTask {
+  id: string;
+  title: string;
+  status: string;
+  priority: string;
+  created_at: string;
 }
 
 interface LinkedContact {
@@ -209,6 +220,7 @@ export default function TaskDetail() {
   const params = useParams();
   const router = useRouter();
   const [task, setTask] = useState<Task | null>(null);
+  const [relatedTasks, setRelatedTasks] = useState<RelatedTask[]>([]);
   const [linkedContacts, setLinkedContacts] = useState<LinkedContact[]>([]);
   const [linkedInvestors, setLinkedInvestors] = useState<LinkedInvestor[]>([]);
   const [linkedSoccerOrgs, setLinkedSoccerOrgs] = useState<LinkedSoccerOrg[]>([]);
@@ -240,14 +252,43 @@ export default function TaskDetail() {
     if (orgRes.data) setLinkedSoccerOrgs(orgRes.data as unknown as LinkedSoccerOrg[]);
   }, [taskId]);
 
+  const loadRelatedTasks = useCallback(async (threadId: string | null) => {
+    if (!threadId) {
+      setRelatedTasks([]);
+      return;
+    }
+    const { data } = await supabase
+      .from("tasks")
+      .select("id, title, status, priority, created_at")
+      .eq("gmail_thread_id", threadId)
+      .neq("id", taskId)
+      .order("created_at", { ascending: false });
+    if (data) setRelatedTasks(data);
+  }, [taskId]);
+
   useEffect(() => {
     async function load() {
       const { data } = await supabase.from("tasks").select("*").eq("id", taskId).single();
-      if (data) setTask(data);
+      if (data) {
+        setTask(data);
+        loadRelatedTasks(data.gmail_thread_id);
+      }
     }
     load();
     loadLinks();
-  }, [taskId, loadLinks]);
+  }, [taskId, loadLinks, loadRelatedTasks]);
+
+  /* ── Star toggle ── */
+
+  const toggleStar = async () => {
+    if (!task) return;
+    const newStarred = !task.is_starred;
+    setTask((prev) => prev ? { ...prev, is_starred: newStarred } : prev);
+    const { error } = await supabase.from("tasks").update({ is_starred: newStarred }).eq("id", task.id);
+    if (error) {
+      setTask((prev) => prev ? { ...prev, is_starred: !newStarred } : prev);
+    }
+  };
 
   /* ── Entity link/unlink handlers ── */
 
@@ -356,16 +397,24 @@ export default function TaskDetail() {
 
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
-        <div>
-          {editing ? (
-            <Input
-              defaultValue={task.title}
-              onChange={(e) => setField("title", e.target.value)}
-              className="text-2xl font-bold h-auto py-1 px-2 -ml-2"
-            />
-          ) : (
-            <h1 className="text-2xl font-bold text-gray-900">{task.title}</h1>
-          )}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            {/* Star toggle */}
+            <button onClick={toggleStar} className="shrink-0" title={task.is_starred ? "Unstar" : "Star"}>
+              <Star
+                className={`h-5 w-5 ${task.is_starred ? "fill-yellow-400 text-yellow-400" : "text-gray-300 hover:text-yellow-400"}`}
+              />
+            </button>
+            {editing ? (
+              <Input
+                defaultValue={task.title}
+                onChange={(e) => setField("title", e.target.value)}
+                className="text-2xl font-bold h-auto py-1 px-2 flex-1"
+              />
+            ) : (
+              <h1 className="text-2xl font-bold text-gray-900">{task.title}</h1>
+            )}
+          </div>
           <div className="flex gap-2 mt-2 flex-wrap">
             <Badge className="flex items-center gap-1">
               {STATUS_ICONS[task.status]}
@@ -436,7 +485,7 @@ export default function TaskDetail() {
               {!editing && (
                 <div>
                   <span className="text-xs text-gray-500">Created</span>
-                  <p className="text-sm">{new Date(task.created_at).toLocaleDateString()}</p>
+                  <p className="text-sm">{new Date(task.created_at).toLocaleString()}</p>
                 </div>
               )}
             </CardContent>
@@ -456,6 +505,29 @@ export default function TaskDetail() {
       {task.entity_type && task.entity_id && (
         <div className="mt-6">
           <CorrespondenceSection entityType={task.entity_type} entityId={task.entity_id} />
+        </div>
+      )}
+
+      {/* Related Tasks (from same Gmail thread) */}
+      {relatedTasks.length > 0 && (
+        <div className="mt-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">{labels.taskRelatedTasks}</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {relatedTasks.map((rt) => (
+                <Link key={rt.id} href={`/tasks/${rt.id}`}>
+                  <div className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 cursor-pointer">
+                    <span className="shrink-0">{STATUS_ICONS[rt.status]}</span>
+                    <span className="text-sm text-gray-900 flex-1 truncate">{rt.title}</span>
+                    <Badge className={`${PRIORITY_COLORS[rt.priority]} text-xs`}>{rt.priority}</Badge>
+                    <span className="text-xs text-gray-400">{new Date(rt.created_at).toLocaleDateString()}</span>
+                  </div>
+                </Link>
+              ))}
+            </CardContent>
+          </Card>
         </div>
       )}
 

@@ -58,6 +58,7 @@ export interface ScannerResult {
   processed: number;
   tasksCreated: number;
   skippedDupes: number;
+  contactsCreated: number;
   log: string[];
   error?: string;
 }
@@ -475,6 +476,7 @@ export async function runGmailScanner(
 
   let runId: string | null = null;
   let tasksCreated = 0;
+  let contactsCreated = 0;
 
   try {
     // ── Start agent run ──
@@ -595,6 +597,69 @@ export async function runGmailScanner(
 
       // ── Resolve entities ──
       const allMatches = resolver.resolveMultiple(allParticipantEmails);
+
+      // Auto-create contact for unresolved sender (skip user's own emails)
+      if (allMatches.length === 0 && !USER_EMAILS.has(fromEmail)) {
+        // Check if contact already exists by email
+        const { data: existingByEmail } = await sb
+          .from("contacts")
+          .select("id")
+          .eq("email", fromEmail)
+          .limit(1);
+
+        let existingContactId: string | null = null;
+
+        if (existingByEmail && existingByEmail.length > 0) {
+          existingContactId = existingByEmail[0].id;
+        } else {
+          // Also check contact_emails junction
+          const { data: existingByJunction } = await sb
+            .from("contact_emails")
+            .select("contact_id")
+            .eq("email", fromEmail)
+            .limit(1);
+
+          if (existingByJunction && existingByJunction.length > 0) {
+            existingContactId = existingByJunction[0].contact_id;
+          }
+        }
+
+        if (!existingContactId) {
+          // Create new contact
+          const senderDisplayName = fromName || fromEmail.split("@")[0];
+          const { data: newContact } = await sb.from("contacts").insert({
+            name: senderDisplayName,
+            email: fromEmail,
+            primary_category: "uncategorized",
+            source: "gmail-scanner",
+          }).select("id").single();
+
+          if (newContact) {
+            existingContactId = newContact.id;
+            // Also create contact_emails junction entry
+            await sb.from("contact_emails").insert({
+              contact_id: newContact.id,
+              email: fromEmail,
+            });
+            contactsCreated++;
+            addLog(`  Auto-created contact: ${senderDisplayName} <${fromEmail}>`);
+          }
+        }
+
+        // Add the contact as a match so classification can proceed
+        if (existingContactId) {
+          allMatches.push({
+            entity_type: "contacts",
+            entity_id: existingContactId,
+            entity_name: fromName || fromEmail,
+            match_method: "auto_created",
+            confidence: 0.5,
+          });
+        } else {
+          continue; // Still couldn't resolve — skip
+        }
+      }
+
       if (allMatches.length === 0) continue; // No known entities — skip
 
       // ── Classify ──
@@ -694,12 +759,15 @@ export async function runGmailScanner(
 
     addLog(`Completed — processed: ${recordsProcessed}, updated: ${recordsUpdated}, skipped dupes: ${skippedDupes}`);
 
+    addLog(`Contacts auto-created: ${contactsCreated}`);
+
     return {
       success: true,
       messagesFound: messages.length,
       processed: recordsUpdated,
       tasksCreated,
       skippedDupes,
+      contactsCreated,
       log,
     };
   } catch (e) {
@@ -723,6 +791,7 @@ export async function runGmailScanner(
       processed: 0,
       tasksCreated: 0,
       skippedDupes: 0,
+      contactsCreated: 0,
       log,
       error: errMsg,
     };

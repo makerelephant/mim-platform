@@ -29,7 +29,7 @@ interface Contact {
   updated_at: string | null;
 }
 
-type SortField = "name" | "segment" | "primary_category" | "region" | "updated_at";
+type SortField = "name" | "segment" | "primary_category" | "region" | "last_interaction";
 type SortDir = "asc" | "desc";
 
 const SEGMENTS = ["Youth Soccer", "Investor", "Employee", "Vendor", "Partner", "Other"];
@@ -44,7 +44,7 @@ export default function ContactsPage() {
   const [filterRegion, setFilterRegion] = useState("");
   const [filterHasEmail, setFilterHasEmail] = useState(false);
   const [filterHasPhone, setFilterHasPhone] = useState(false);
-  const [sortField, setSortField] = useState<SortField>("updated_at");
+  const [sortField, setSortField] = useState<SortField>("last_interaction");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [showFilters, setShowFilters] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -61,10 +61,15 @@ export default function ContactsPage() {
   const [showBulk, setShowBulk] = useState(false);
   const [view, setView] = useState<"table" | "tiles">("table");
 
+  // Last interaction map: contactId -> latest date string
+  const [interactionMap, setInteractionMap] = useState<Map<string, string>>(new Map());
+  // Org enhancement map: contactId -> org name from junction tables
+  const [junctionOrgMap, setJunctionOrgMap] = useState<Map<string, string>>(new Map());
+
   // Column resize state
-  const COL_KEYS = ["name", "organization", "email", "phone", "title", "segment", "category", "updated_at"] as const;
+  const COL_KEYS = ["name", "organization", "email", "phone", "title", "segment", "category", "last_interaction"] as const;
   const DEFAULT_WIDTHS: Record<string, number> = {
-    name: 160, organization: 140, email: 170, phone: 110, title: 130, segment: 110, category: 110, updated_at: 95,
+    name: 160, organization: 140, email: 170, phone: 110, title: 130, segment: 110, category: 110, last_interaction: 110,
   };
   const [colWidths, setColWidths] = useState<Record<string, number>>(DEFAULT_WIDTHS);
   const dragRef = useRef<{ col: string; startX: number; startW: number } | null>(null);
@@ -95,9 +100,77 @@ export default function ContactsPage() {
       .from("contacts")
       .select("id, name, organization, email, phone, title, segment, primary_category, subcategory, region, avatar_url, updated_at")
       .order("name");
-    if (data) setContacts(data);
+    if (data) {
+      setContacts(data);
+      // Load last interaction and org junction data
+      const contactIds = data.map((c: Contact) => c.id);
+      await Promise.all([
+        loadLastInteractions(contactIds),
+        loadJunctionOrgs(contactIds),
+      ]);
+    }
     setLoading(false);
   }, []);
+
+  // Load latest correspondence date per contact
+  const loadLastInteractions = async (contactIds: string[]) => {
+    if (contactIds.length === 0) return;
+    const { data: interactions } = await supabase
+      .from("correspondence")
+      .select("entity_id, date")
+      .eq("entity_type", "contacts")
+      .in("entity_id", contactIds)
+      .order("date", { ascending: false });
+
+    if (interactions) {
+      const map = new Map<string, string>();
+      for (const row of interactions) {
+        // Take first occurrence per entity_id (most recent since sorted DESC)
+        if (row.entity_id && row.date && !map.has(row.entity_id)) {
+          map.set(row.entity_id, row.date);
+        }
+      }
+      setInteractionMap(map);
+    }
+  };
+
+  // Load org names from junction tables for contacts with empty org
+  const loadJunctionOrgs = async (contactIds: string[]) => {
+    if (contactIds.length === 0) return;
+    const map = new Map<string, string>();
+
+    // Soccer org contacts
+    const { data: soccerLinks } = await supabase
+      .from("soccer_org_contacts")
+      .select("contact_id, soccer_orgs(org_name)")
+      .in("contact_id", contactIds);
+
+    if (soccerLinks) {
+      for (const link of soccerLinks) {
+        const org = link.soccer_orgs as unknown as { org_name: string } | null;
+        if (org?.org_name && link.contact_id && !map.has(link.contact_id)) {
+          map.set(link.contact_id, org.org_name);
+        }
+      }
+    }
+
+    // Investor contacts
+    const { data: investorLinks } = await supabase
+      .from("investor_contacts")
+      .select("contact_id, investors(firm_name)")
+      .in("contact_id", contactIds);
+
+    if (investorLinks) {
+      for (const link of investorLinks) {
+        const inv = link.investors as unknown as { firm_name: string } | null;
+        if (inv?.firm_name && link.contact_id && !map.has(link.contact_id)) {
+          map.set(link.contact_id, inv.firm_name);
+        }
+      }
+    }
+
+    setJunctionOrgMap(map);
+  };
 
   useEffect(() => { loadContacts(); }, [loadContacts]);
 
@@ -161,6 +234,11 @@ export default function ContactsPage() {
     return sortDir === "asc" ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />;
   };
 
+  // Helper to get display org: own org or junction org
+  const getDisplayOrg = (c: Contact): string | null => {
+    return c.organization || junctionOrgMap.get(c.id) || null;
+  };
+
   const segments = [...new Set(contacts.map((c) => c.segment).filter(Boolean))] as string[];
   const categories = [...new Set(contacts.map((c) => c.primary_category).filter(Boolean))] as string[];
 
@@ -175,9 +253,9 @@ export default function ContactsPage() {
       return true;
     })
     .sort((a, b) => {
-      if (sortField === "updated_at") {
-        const aT = a.updated_at ? new Date(a.updated_at).getTime() : 0;
-        const bT = b.updated_at ? new Date(b.updated_at).getTime() : 0;
+      if (sortField === "last_interaction") {
+        const aT = interactionMap.get(a.id) ? new Date(interactionMap.get(a.id)!).getTime() : 0;
+        const bT = interactionMap.get(b.id) ? new Date(interactionMap.get(b.id)!).getTime() : 0;
         return sortDir === "asc" ? aT - bT : bT - aT;
       }
       const aVal = (a[sortField] || "").toLowerCase();
@@ -327,32 +405,47 @@ export default function ContactsPage() {
                     <span className="flex items-center gap-1">Category <SortIcon field="primary_category" /></span>
                     <div className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-400 active:bg-blue-500" onMouseDown={(e) => startResize("category", e)} />
                   </th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-500 relative cursor-pointer" onClick={() => toggleSort("updated_at")}>
-                    <span className="flex items-center gap-1">Updated <SortIcon field="updated_at" /></span>
-                    <div className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-400 active:bg-blue-500" onMouseDown={(e) => startResize("updated_at", e)} />
+                  <th className="text-left px-4 py-3 font-medium text-gray-500 relative cursor-pointer" onClick={() => toggleSort("last_interaction")}>
+                    <span className="flex items-center gap-1">{labels.contactLastInteraction} <SortIcon field="last_interaction" /></span>
+                    <div className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-400 active:bg-blue-500" onMouseDown={(e) => startResize("last_interaction", e)} />
                   </th>
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((c) => (
-                  <tr key={c.id} className={`border-b hover:bg-gray-50 ${selected.has(c.id) ? "bg-blue-50" : ""}`}>
-                    <td className="px-3 py-3"><button onClick={() => toggleSelect(c.id)}>{selected.has(c.id) ? <CheckSquare className="h-4 w-4 text-blue-600" /> : <Square className="h-4 w-4 text-gray-300" />}</button></td>
-                    <td className="px-2 py-2"><Avatar src={c.avatar_url} name={c.name} size="sm" /></td>
-                    <td className="px-4 py-2 overflow-hidden">
-                      <div className="flex items-center gap-2">
-                        <Link href={`/contacts/${c.id}`} className="text-blue-600 hover:underline font-medium shrink-0">↗</Link>
-                        <EditableCell value={c.name} onSave={(v) => updateCell(c.id, "name", v)} />
-                      </div>
-                    </td>
-                    <td className="px-4 py-2 overflow-hidden"><EditableCell value={c.organization} onSave={(v) => updateCell(c.id, "organization", v)} /></td>
-                    <td className="px-4 py-2 overflow-hidden"><EditableCell value={c.email} onSave={(v) => updateCell(c.id, "email", v)} /></td>
-                    <td className="px-4 py-2 overflow-hidden"><EditableCell value={c.phone} onSave={(v) => updateCell(c.id, "phone", v)} /></td>
-                    <td className="px-4 py-2 overflow-hidden"><EditableCell value={c.title} onSave={(v) => updateCell(c.id, "title", v)} /></td>
-                    <td className="px-4 py-2 overflow-hidden"><EditableCell value={c.segment} onSave={(v) => updateCell(c.id, "segment", v)} type="select" options={SEGMENTS} /></td>
-                    <td className="px-4 py-2 overflow-hidden"><EditableCell value={c.primary_category} onSave={(v) => updateCell(c.id, "primary_category", v)} type="select" options={CATEGORIES} /></td>
-                    <td className="px-4 py-2 overflow-hidden text-gray-400 text-xs whitespace-nowrap">{timeAgo(c.updated_at)}</td>
-                  </tr>
-                ))}
+                {filtered.map((c) => {
+                  const displayOrg = getDisplayOrg(c);
+                  const isJunctionOrg = !c.organization && junctionOrgMap.has(c.id);
+                  const lastInteraction = interactionMap.get(c.id);
+                  return (
+                    <tr key={c.id} className={`border-b hover:bg-gray-50 ${selected.has(c.id) ? "bg-blue-50" : ""}`}>
+                      <td className="px-3 py-3"><button onClick={() => toggleSelect(c.id)}>{selected.has(c.id) ? <CheckSquare className="h-4 w-4 text-blue-600" /> : <Square className="h-4 w-4 text-gray-300" />}</button></td>
+                      <td className="px-2 py-2"><Avatar src={c.avatar_url} name={c.name} size="sm" /></td>
+                      <td className="px-4 py-2 overflow-hidden">
+                        <div className="flex items-center gap-2">
+                          <Link href={`/contacts/${c.id}`} className="text-blue-600 hover:underline font-medium shrink-0">↗</Link>
+                          <EditableCell value={c.name} onSave={(v) => updateCell(c.id, "name", v)} />
+                        </div>
+                      </td>
+                      <td className="px-4 py-2 overflow-hidden">
+                        {c.organization ? (
+                          <EditableCell value={c.organization} onSave={(v) => updateCell(c.id, "organization", v)} />
+                        ) : isJunctionOrg ? (
+                          <span className="text-xs text-gray-400 italic">{displayOrg}</span>
+                        ) : (
+                          <EditableCell value={null} onSave={(v) => updateCell(c.id, "organization", v)} />
+                        )}
+                      </td>
+                      <td className="px-4 py-2 overflow-hidden"><EditableCell value={c.email} onSave={(v) => updateCell(c.id, "email", v)} /></td>
+                      <td className="px-4 py-2 overflow-hidden"><EditableCell value={c.phone} onSave={(v) => updateCell(c.id, "phone", v)} /></td>
+                      <td className="px-4 py-2 overflow-hidden"><EditableCell value={c.title} onSave={(v) => updateCell(c.id, "title", v)} /></td>
+                      <td className="px-4 py-2 overflow-hidden"><EditableCell value={c.segment} onSave={(v) => updateCell(c.id, "segment", v)} type="select" options={SEGMENTS} /></td>
+                      <td className="px-4 py-2 overflow-hidden"><EditableCell value={c.primary_category} onSave={(v) => updateCell(c.id, "primary_category", v)} type="select" options={CATEGORIES} /></td>
+                      <td className="px-4 py-2 overflow-hidden text-gray-400 text-xs whitespace-nowrap">
+                        {lastInteraction ? timeAgo(lastInteraction) : "—"}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
