@@ -66,6 +66,15 @@ export const labels = {
   taskRelatedTasks: "Related Tasks",
   taskStar: "Star",
   contactLastInteraction: "Last Interaction",
+
+  /* ── Applications / Agents ── */
+  applications: "Applications",
+  applicationsPageTitle: "Applications",
+  agentDescription: "Description",
+  agentSystemPrompt: "System Prompt",
+  agentConfig: "Configuration",
+  agentRecentRuns: "Recent Runs",
+  agentMonitoredEmails: "Monitored Emails",
 };
 
 export type Labels = typeof labels;

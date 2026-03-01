@@ -129,7 +129,7 @@ export default function ActivityPage() {
       <Card className="mb-6">
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">
-            <Mail className="h-4 w-4" /> Gmail Scanner
+            <Mail className="h-4 w-4" /> Email
           </CardTitle>
         </CardHeader>
         <CardContent>

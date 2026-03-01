@@ -63,13 +63,16 @@ export interface ScannerResult {
   error?: string;
 }
 
-// ─── Constants ──────────────────────────────────────────────────────────────
+// ─── Constants (defaults — overridden by agents table when available) ───────
 
-const USER_EMAILS = new Set([
+const DEFAULT_USER_EMAILS = [
   "mark@madeinmotion.co",
   "mark@mim.co",
   "markslater9@gmail.com",
-]);
+];
+
+const DEFAULT_MODEL = "claude-sonnet-4-5-20250929";
+const DEFAULT_MAX_TOKENS = 1200;
 
 const FREE_EMAIL_DOMAINS = new Set([
   "gmail.com", "yahoo.com", "outlook.com", "hotmail.com",
@@ -329,6 +332,11 @@ async function classifyMessage(
   anthropic: Anthropic,
   message: { subject: string; body: string; from: string },
   resolvedEntities: EntityMatch[],
+  opts: { systemPrompt: string; model: string; maxTokens: number } = {
+    systemPrompt: CLASSIFIER_SYSTEM_PROMPT,
+    model: DEFAULT_MODEL,
+    maxTokens: DEFAULT_MAX_TOKENS,
+  },
 ): Promise<ClassificationResult> {
   // Build entity context
   let entityContext: string;
@@ -346,9 +354,9 @@ async function classifyMessage(
 
   try {
     const response = await anthropic.messages.create({
-      model: "claude-sonnet-4-5-20250929",
-      max_tokens: 1200,
-      system: CLASSIFIER_SYSTEM_PROMPT,
+      model: opts.model,
+      max_tokens: opts.maxTokens,
+      system: opts.systemPrompt,
       messages: [{ role: "user", content: userPrompt }],
     });
 
@@ -426,8 +434,8 @@ function parseEmailList(headerValue: string): string[] {
   return headerValue.split(",").filter((e) => e.trim()).map((e) => extractEmailAddress(e.trim()));
 }
 
-function determineDirection(fromEmail: string): string {
-  return USER_EMAILS.has(fromEmail) ? "outbound" : "inbound";
+function determineDirection(fromEmail: string, userEmails: Set<string>): string {
+  return userEmails.has(fromEmail) ? "outbound" : "inbound";
 }
 
 function getMessageBody(payload: Record<string, unknown>): string {
@@ -469,8 +477,9 @@ function getMessageBody(payload: Record<string, unknown>): string {
 
 export async function runGmailScanner(
   sb: SupabaseClient,
-  scanHours: number = 24,
+  scanHoursParam: number = 24,
 ): Promise<ScannerResult> {
+  let scanHours = scanHoursParam;
   const log: string[] = [];
   const addLog = (msg: string) => { log.push(msg); console.log(`[gmail-scanner] ${msg}`); };
 
@@ -521,6 +530,34 @@ export async function runGmailScanner(
 
     // ── Anthropic client ──
     const anthropic = new Anthropic({ apiKey: anthropicKey });
+
+    // ── Load agent config from DB (fall back to defaults) ──
+    let agentSystemPrompt = CLASSIFIER_SYSTEM_PROMPT;
+    let agentModel = DEFAULT_MODEL;
+    let agentMaxTokens = DEFAULT_MAX_TOKENS;
+    let userEmailsList = DEFAULT_USER_EMAILS;
+
+    const { data: agentRow } = await sb
+      .from("agents")
+      .select("system_prompt, config")
+      .eq("slug", "gmail-scanner")
+      .single();
+
+    if (agentRow) {
+      if (agentRow.system_prompt) agentSystemPrompt = agentRow.system_prompt;
+      const cfg = agentRow.config as Record<string, unknown> | null;
+      if (cfg) {
+        if (typeof cfg.model === "string") agentModel = cfg.model;
+        if (typeof cfg.max_tokens === "number") agentMaxTokens = cfg.max_tokens;
+        if (typeof cfg.scan_hours === "number") scanHours = cfg.scan_hours;
+        if (Array.isArray(cfg.monitored_emails)) userEmailsList = cfg.monitored_emails as string[];
+      }
+      addLog("Loaded config from agents table");
+    } else {
+      addLog("No agent record found — using defaults");
+    }
+
+    const userEmails = new Set(userEmailsList.map((e) => e.toLowerCase().trim()));
 
     // ── Entity resolver ──
     const resolver = new EntityResolver(sb);
@@ -599,7 +636,7 @@ export async function runGmailScanner(
       const allMatches = resolver.resolveMultiple(allParticipantEmails);
 
       // Auto-create contact for unresolved sender (skip user's own emails)
-      if (allMatches.length === 0 && !USER_EMAILS.has(fromEmail)) {
+      if (allMatches.length === 0 && !userEmails.has(fromEmail)) {
         // Check if contact already exists by email
         const { data: existingByEmail } = await sb
           .from("contacts")
@@ -667,10 +704,11 @@ export async function runGmailScanner(
         anthropic,
         { subject: details.subject, body: details.body, from: details.from },
         allMatches,
+        { systemPrompt: agentSystemPrompt, model: agentModel, maxTokens: agentMaxTokens },
       );
 
       // ── Direction & date ──
-      const direction = determineDirection(fromEmail);
+      const direction = determineDirection(fromEmail, userEmails);
       let emailDate: string | null = null;
       if (details.internal_date) {
         try {

@@ -22,6 +22,7 @@ import {
   Newspaper,
   BookOpen,
   Send,
+  Bot,
   type LucideIcon,
 } from "lucide-react";
 
@@ -119,8 +120,9 @@ const sidebarConfig: SidebarConfig = {
     },
     {
       label: labels.superApplications,
-      entries: [],
-      comingSoon: true,
+      entries: [
+        { href: "/applications", label: labels.applications, icon: Bot },
+      ],
     },
   ],
 };
