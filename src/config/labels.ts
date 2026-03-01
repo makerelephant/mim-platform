@@ -75,6 +75,11 @@ export const labels = {
   agentConfig: "Configuration",
   agentRecentRuns: "Recent Runs",
   agentMonitoredEmails: "Monitored Emails",
+
+  /* ── Periodic Updates / Reports ── */
+  periodicUpdates: "Periodic Updates",
+  runWeeklyReport: "Run Weekly Report",
+  reportTitle: "Updates for",
 };
 
 export type Labels = typeof labels;
