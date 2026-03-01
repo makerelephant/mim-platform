@@ -284,7 +284,7 @@ export async function runSlackScanner(
     addLog(`Started run ${runId}`);
 
     // ── Validate env ──
-    const slackToken = process.env.SLACK_BOT_TOKEN;
+    const slackToken = process.env.SLACK_BOT_TOKEN?.trim();
     const anthropicKey = process.env.ANTHROPIC_API_KEY;
 
     if (!slackToken) throw new Error("SLACK_BOT_TOKEN environment variable not set.");
