@@ -7,6 +7,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { SupabaseClient } from "@supabase/supabase-js";
 import { runGmailScanner } from "./gmail-scanner";
 import { runSlackScanner } from "./slack-scanner";
+import { runSheetsScanner } from "./sheets-scanner";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -204,9 +205,11 @@ function buildDataContext(data: GatheredData): string {
   }
 
   sections.push(`\n## EMAIL CORRESPONDENCE (${data.emails.length})`);
+  sections.push("(direction: outbound = Mark sent it, inbound = Mark received it)");
   if (data.emails.length > 0) {
     for (const e of data.emails.slice(0, 40)) {
-      sections.push(`- ${e.direction}: "${e.subject}" from ${e.sender_name || e.sender_email} (silo: ${e.entity_type || "general"})`);
+      const dirLabel = e.direction === "outbound" ? "SENT BY MARK" : "RECEIVED";
+      sections.push(`- [${dirLabel}] "${e.subject}" — ${e.sender_name || e.sender_email} (silo: ${e.entity_type || "general"})`);
     }
   } else {
     sections.push("None");
@@ -248,14 +251,9 @@ function buildDataContext(data: GatheredData): string {
     sections.push("None");
   }
 
-  sections.push(`\n## AGENT ACTIVITY SUMMARY (${data.agentActivity.length} entries)`);
-  if (data.agentActivity.length > 0) {
-    for (const a of data.agentActivity.slice(0, 30)) {
-      sections.push(`- [${a.agent_name}] ${a.summary}`);
-    }
-  } else {
-    sections.push("None");
-  }
+  // NOTE: Agent activity (CRM operations like "scanned emails", "added contacts")
+  // is intentionally excluded from report context — it's operational noise, not
+  // executive-level content. Only real business data feeds the report.
 
   return sections.join("\n");
 }
@@ -305,7 +303,13 @@ export async function runWeeklyReport(
     const startISO = start.toISOString();
     const endISO = end.toISOString();
     const dateRange = formatDateRange(start, end, periodType);
-    const title = `${periodLabel(periodType)} Updates for ${dateRange} from Mark Slater`;
+    // Title: "Weekly Business Review (WBR): Week ending February 28, 2026"
+    const endDateLabel = new Date(end.getTime() - 86400000).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+    const title = periodType === "day"
+      ? `Daily Business Review: ${endDateLabel}`
+      : periodType === "week"
+        ? `Weekly Business Review (WBR): Week ending ${endDateLabel}`
+        : `Monthly Business Review: Month ending ${endDateLabel}`;
     addLog(`Period: ${formatDate(start)} → ${formatDate(end)} (${periodType})`);
 
     // ── Pre-scan: run email + slack scanners to import fresh data ──
@@ -337,6 +341,17 @@ export async function runWeeklyReport(
       addLog("Slack pre-scan skipped (no SLACK_BOT_TOKEN)");
     }
 
+    // Run Google Sheets scanner pre-scan
+    if (process.env.GOOGLE_TOKEN) {
+      try {
+        addLog("Running Sheets scanner pre-scan...");
+        const sheetsResult = await runSheetsScanner();
+        addLog(`Sheets pre-scan: ${sheetsResult.totalRows} rows, ${sheetsResult.recordsCreated} created, ${sheetsResult.recordsUpdated} updated`);
+      } catch (err) {
+        addLog(`Sheets pre-scan skipped: ${err instanceof Error ? err.message : String(err)}`);
+      }
+    }
+
     // ── Gather data ──
     const data = await gatherData(sb, startISO, endISO);
     addLog(`Gathered: ${data.tasksCreated.length} tasks created, ${data.tasksCompleted.length} completed, ${data.emails.length} emails, ${data.slackMessages.length} slack messages, ${data.newContacts.length} new contacts`);
@@ -346,36 +361,48 @@ export async function runWeeklyReport(
     // ── Call Claude ──
     const anthropic = new Anthropic({ apiKey: anthropicKey });
 
-    const systemPrompt = `You are a professional business report writer for Made in Motion (MiM), a sports merchandise company.
+    const systemPrompt = `You are a professional business report writer producing a Weekly Business Review for Mark Slater, CEO of Made in Motion (MiM), a sports merchandise company.
 
-You will receive structured CRM data covering a specific time period. Your job is to produce a polished, publishable update report in markdown format.
+You will receive structured CRM data covering a specific time period. Your job is to produce a polished, publishable executive update in markdown format.
 
-The report MUST follow this exact structure:
+## CRITICAL ATTRIBUTION RULE
 
-# ${title}
+This report reflects **Mark Slater's personal accomplishments and activities ONLY**. Apply a strict attribution filter:
+
+- **INCLUDE** only items where there is 70%+ conviction that the activity is directly associated with Mark's efforts, decisions, or direct involvement.
+- **EXCLUDE** items where Mark is merely CC'd, in the information flow as CEO, or passively receiving updates. Just because Mark sees something (emails, notifications, system alerts) does NOT mean it's his accomplishment.
+- **EXCLUDE** automated system activities: CRM record counts (e.g., "11 new contacts added to database"), coupon tracking, promotion codes, app store approval notifications, system-generated alerts. These are operational noise, not executive accomplishments.
+- **EXCLUDE** other people's work that Mark simply received updates about. If someone else did the work, it's not Mark's update.
+
+**Attribution test:** For each item ask — "Did Mark directly initiate, drive, negotiate, close, or produce this outcome?" If the answer is no, do not include it.
+
+## REPORT STRUCTURE
+
+Start directly with the first section (no title — it's added separately):
 
 ## Accomplished & Completed
-Items that were definitively completed, resolved, or accomplished during this period. These are wins and closed items. Group by business category.
+Items that Mark definitively completed, closed, or achieved during this period. Real wins only. Group by business category.
 
 ## In Progress & Ongoing
-Activities undertaken that don't yet have a definitive outcome — meetings scheduled, deals in negotiation, outreach sent, follow-ups pending. Group by business category.
+Activities Mark is actively driving that don't yet have a definitive outcome — meetings he scheduled, deals he's negotiating, outreach he sent, follow-ups he's pursuing. Group by business category.
 
 ## FYI & Miscellaneous
-Simple informational updates for context — new contacts added, newsletters received, automated notifications, minor updates. Keep this brief.
+Brief informational items relevant to Mark's awareness. Keep this to genuinely important context only — NOT CRM statistics, system alerts, or operational noise.
 
 ---
 
-**Business categories to use:** Investors, Partners, Business, Admin, Communications, Product & Tech
+**Business categories:** Investors, Partners, Business, Admin, Communications, Product & Tech
 
-**Guidelines:**
-- Write in a professional, concise tone suitable for a business update
-- Use bullet points within each category
-- Include specific names, firms, and details from the data
-- If a category has no activity, omit it (don't show empty sections)
-- Prioritize high-impact items first within each section
-- Keep the total report length reasonable (aim for 1-2 pages when printed)
-- Do NOT include raw data dumps — synthesize and summarize
-- Do NOT add a header or title — I will add that separately
+**Writing guidelines:**
+- Professional, concise tone suitable for board-level readership
+- Bullet points within each category, specific names and firms
+- Omit empty categories entirely
+- Prioritize high-impact items first
+- 1-2 pages when printed — quality over quantity
+- Synthesize and summarize — no raw data dumps
+- If an email thread is about someone else's work (e.g., coupon setup by a teammate), do NOT include it
+- Outbound emails FROM Mark are strong attribution signals
+- Inbound emails TO Mark are only relevant if they require his specific action
 - Start directly with "## Accomplished & Completed"`;
 
     const response = await anthropic.messages.create({

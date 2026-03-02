@@ -45,7 +45,9 @@ type PeriodType = "day" | "week" | "month";
 // ─── Simple Markdown Renderer ───────────────────────────────────────────────
 
 function renderMarkdown(md: string): string {
-  let html = md
+  // Strip the top-level title (# ...) since we render it in the header
+  let cleaned = md.replace(/^# .+\n*/m, "");
+  let html = cleaned
     // Headers
     .replace(/^### (.+)$/gm, '<h3 class="text-base font-semibold text-gray-800 mt-5 mb-2">$1</h3>')
     .replace(/^## (.+)$/gm, '<h2 class="text-lg font-bold text-gray-900 mt-6 mb-3 pb-1 border-b">$1</h2>')
@@ -79,7 +81,10 @@ function exportToPDF(report: Report) {
       <title>${report.title}</title>
       <style>
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 40px; color: #1a1a1a; max-width: 800px; margin: 0 auto; }
-        h1 { font-size: 22px; font-weight: 700; margin-bottom: 8px; color: #111; }
+        .report-header { display: flex; align-items: center; gap: 16px; margin-bottom: 24px; padding-bottom: 16px; border-bottom: 2px solid #e5e7eb; }
+        .report-header img { height: 40px; width: auto; }
+        .report-header .header-text h1 { font-size: 20px; font-weight: 700; margin: 0 0 4px 0; color: #111; }
+        .report-header .header-text .author { font-size: 13px; color: #9ca3af; margin: 0; }
         h2 { font-size: 17px; font-weight: 700; margin-top: 28px; margin-bottom: 12px; padding-bottom: 6px; border-bottom: 1px solid #e5e7eb; color: #111; }
         h3 { font-size: 14px; font-weight: 600; margin-top: 20px; margin-bottom: 8px; color: #333; }
         p { font-size: 13px; line-height: 1.6; color: #374151; margin-bottom: 8px; }
@@ -93,6 +98,13 @@ function exportToPDF(report: Report) {
       </style>
     </head>
     <body>
+      <div class="report-header">
+        <img src="/mim-logo.png" alt="MiM" />
+        <div class="header-text">
+          <h1>${report.title}</h1>
+          <p class="author">Mark Slater</p>
+        </div>
+      </div>
       <div class="meta">Generated ${new Date(report.created_at).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" })}</div>
       ${renderMarkdownForPrint(report.markdown_content)}
     </body>
@@ -109,7 +121,9 @@ function exportToPDF(report: Report) {
 }
 
 function renderMarkdownForPrint(md: string): string {
-  return md
+  // Strip the top-level title since it's in the header
+  const cleaned = md.replace(/^# .+\n*/m, "");
+  return cleaned
     .replace(/^### (.+)$/gm, '<h3>$1</h3>')
     .replace(/^## (.+)$/gm, '<h2>$1</h2>')
     .replace(/^# (.+)$/gm, '<h1>$1</h1>')
@@ -356,6 +370,15 @@ export default function Dashboard() {
                     {/* Expanded report content */}
                     {isExpanded && (
                       <div className="border-t px-6 py-6 bg-white">
+                        {/* Report header with logo */}
+                        <div className="flex items-center gap-4 mb-6 pb-4 border-b-2 border-gray-200">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src="/mim-logo.png" alt="MiM" className="h-10 w-auto" />
+                          <div>
+                            <h2 className="text-lg font-bold text-gray-900 m-0">{report.title}</h2>
+                            <p className="text-sm text-gray-400 m-0">Mark Slater</p>
+                          </div>
+                        </div>
                         <div
                           className="prose prose-sm max-w-none"
                           dangerouslySetInnerHTML={{ __html: renderMarkdown(report.markdown_content) }}
