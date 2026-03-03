@@ -298,12 +298,17 @@ export default function SoccerOrgDetail() {
       yearly_cost_player: num("yearly_cost_player"),
     }).eq("id", org.id);
 
-    if (!error) {
+    if (error) {
+      console.error("Save failed:", error);
+      alert(`Save failed: ${error.message}`);
+    } else {
       const updated = { ...org, ...d };
       // Normalize numeric fields
       for (const k of ["players", "travel_teams", "dues_per_season", "dues_revenue", "uniform_cost", "total_revenue", "gross_revenue", "total_costs", "yearly_cost_player"]) {
         (updated as Record<string, unknown>)[k] = num(k);
       }
+      // Normalize org_type to always be an array
+      updated.org_type = orgTypeArray;
       setOrg(updated as SoccerOrg);
       setEditing(false);
     }
@@ -339,7 +344,7 @@ export default function SoccerOrgDetail() {
               <h1 className="text-2xl font-bold text-gray-900">{org.name}</h1>
             )}
             <div className="flex gap-2 mt-2 flex-wrap">
-              {org.org_type?.map((t) => <Badge key={t} variant="secondary">{t}</Badge>)}
+              {(Array.isArray(org.org_type) ? org.org_type : (org.org_type ? [org.org_type] : [])).map((t) => <Badge key={t} variant="secondary">{t}</Badge>)}
               {org.corporate_structure && <Badge variant="outline">{org.corporate_structure}</Badge>}
               {org.partner_status && <Badge className="bg-green-100 text-green-800 border-0">{org.partner_status}</Badge>}
             </div>
