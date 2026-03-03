@@ -96,10 +96,11 @@ export default function ChannelPartnersPage() {
   useEffect(() => { load(); }, [load]);
 
   const updateCell = async (id: string, field: string, value: string) => {
-    const { error } = await supabase.from("organizations").update({ [field]: value || null }).eq("id", id);
+    const dbValue = field === "org_type" ? (value ? [value] : []) : (value || null);
+    const { error } = await supabase.from("organizations").update({ [field]: dbValue }).eq("id", id);
     if (!error) {
-      setCommunities((prev) => prev.map((c) => (c.id === id ? { ...c, [field]: value || null } : c)));
-      setAllCommunities((prev) => prev.map((c) => (c.id === id ? { ...c, [field]: value || null } : c)));
+      setCommunities((prev) => prev.map((c) => (c.id === id ? { ...c, [field]: dbValue } : c)));
+      setAllCommunities((prev) => prev.map((c) => (c.id === id ? { ...c, [field]: dbValue } : c)));
     }
   };
 

@@ -12,6 +12,7 @@ import { Avatar } from "@/components/Avatar";
 import { useResizableColumns } from "@/hooks/useResizableColumns";
 import Link from "next/link";
 import { labels } from "@/config/labels";
+import { ORG_TYPE_OPTIONS } from "@/config/organization-constants";
 import { Search, X, Plus, Trash2, CheckSquare, Square, ChevronUp, ChevronDown } from "lucide-react";
 
 const TABLE_COLS = [
@@ -55,7 +56,7 @@ const LEAGUE_FIELDS = [
   { key: "in_necsl", label: "NECSL" }, { key: "in_roots", label: "Roots" }, { key: "in_south_coast", label: "South Coast" }, { key: "in_south_shore", label: "South Shore" },
 ] as const;
 
-const ORG_TYPES = ["Soccer Program Or Club", "Soccer League"];
+const ORG_TYPES = [...ORG_TYPE_OPTIONS];
 const STRUCTURES = ["501c3", "LLC", "Corporation", "Partnership"];
 
 export default function SoccerOrgsPage() {
@@ -117,14 +118,16 @@ export default function SoccerOrgsPage() {
   useEffect(() => { load(); }, [load]);
 
   const updateCell = async (id: string, field: string, value: string) => {
-    const { error } = await supabase.from("organizations").update({ [field]: value || null }).eq("id", id);
-    if (!error) setOrgs((prev) => prev.map((o) => (o.id === id ? { ...o, [field]: value || null, updated_at: new Date().toISOString() } : o)));
+    // org_type is a TEXT[] column — wrap the value in an array
+    const dbValue = field === "org_type" ? (value ? [value] : []) : (value || null);
+    const { error } = await supabase.from("organizations").update({ [field]: dbValue }).eq("id", id);
+    if (!error) setOrgs((prev) => prev.map((o) => (o.id === id ? { ...o, [field]: dbValue, updated_at: new Date().toISOString() } : o)));
   };
 
   const createOrg = async () => {
     if (!newName.trim()) return;
     const { data, error } = await supabase.from("organizations").insert({
-      name: newName, org_category: "Youth Soccer", org_type: ["Customer"],
+      name: newName, org_category: "Youth Soccer", org_type: newType ? [newType] : ["Customer"],
       website: newWebsite || null,
     }).select().single();
     if (!error && data) { setOrgs((prev) => [...prev, data]); setNewName(""); setNewType(""); setNewWebsite(""); setShowNew(false); }
@@ -139,8 +142,9 @@ export default function SoccerOrgsPage() {
   const bulkUpdate = async () => {
     if (!bulkField || selected.size === 0) return;
     const ids = Array.from(selected);
-    const { error } = await supabase.from("organizations").update({ [bulkField]: bulkValue || null }).in("id", ids);
-    if (!error) { setOrgs((prev) => prev.map((o) => selected.has(o.id) ? { ...o, [bulkField]: bulkValue || null } : o)); setSelected(new Set()); setShowBulk(false); }
+    const dbValue = bulkField === "org_type" ? (bulkValue ? [bulkValue] : []) : (bulkValue || null);
+    const { error } = await supabase.from("organizations").update({ [bulkField]: dbValue }).in("id", ids);
+    if (!error) { setOrgs((prev) => prev.map((o) => selected.has(o.id) ? { ...o, [bulkField]: dbValue } : o)); setSelected(new Set()); setShowBulk(false); }
   };
 
   const toggleSelect = (id: string) => { setSelected((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; }); };
