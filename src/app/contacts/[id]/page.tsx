@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { EntityLinker } from "@/components/EntityLinker";
 import { CorrespondenceSection } from "@/components/CorrespondenceSection";
-import { ArrowLeft, Save, Building2, TrendingUp } from "lucide-react";
+import { ArrowLeft, Save, Building2 } from "lucide-react";
 import Link from "next/link";
 
 interface Contact {
@@ -30,24 +30,17 @@ interface Contact {
   source: string | null;
 }
 
-interface LinkedInvestor {
-  investor_id: string;
+interface LinkedOrganization {
+  organization_id: string;
   role: string | null;
-  investors: { id: string; firm_name: string; pipeline_status: string | null };
-}
-
-interface LinkedOrg {
-  soccer_org_id: string;
-  role: string | null;
-  soccer_orgs: { id: string; org_name: string; org_type: string | null };
+  organizations: { id: string; name: string; org_category: string | null; source_table: string | null };
 }
 
 export default function ContactDetail() {
   const params = useParams();
   const router = useRouter();
   const [contact, setContact] = useState<Contact | null>(null);
-  const [linkedInvestors, setLinkedInvestors] = useState<LinkedInvestor[]>([]);
-  const [linkedOrgs, setLinkedOrgs] = useState<LinkedOrg[]>([]);
+  const [linkedOrgs, setLinkedOrgs] = useState<LinkedOrganization[]>([]);
   const [editing, setEditing] = useState(false);
   const [editData, setEditData] = useState<Partial<Contact>>({});
   const [saving, setSaving] = useState(false);
@@ -55,17 +48,11 @@ export default function ContactDetail() {
   const contactId = params.id as string;
 
   const loadLinks = useCallback(async () => {
-    const { data: inv } = await supabase
-      .from("investor_contacts")
-      .select("investor_id, role, investors(id, firm_name, pipeline_status)")
-      .eq("contact_id", contactId);
-    if (inv) setLinkedInvestors(inv as unknown as LinkedInvestor[]);
-
     const { data: orgs } = await supabase
-      .from("soccer_org_contacts")
-      .select("soccer_org_id, role, soccer_orgs(id, org_name, org_type)")
+      .from("organization_contacts")
+      .select("organization_id, role, organizations(id, name, org_category, source_table)")
       .eq("contact_id", contactId);
-    if (orgs) setLinkedOrgs(orgs as unknown as LinkedOrg[]);
+    if (orgs) setLinkedOrgs(orgs as unknown as LinkedOrganization[]);
   }, [contactId]);
 
   useEffect(() => {
@@ -99,41 +86,22 @@ export default function ContactDetail() {
 
   // --- Link / Unlink handlers ---
 
-  const searchInvestors = useCallback(async (q: string) => {
-    const { data } = await supabase
-      .from("investors")
-      .select("id, firm_name, pipeline_status")
-      .ilike("firm_name", `%${q}%`)
-      .limit(10);
-    return (data || []).map((i) => ({ id: i.id, label: i.firm_name, sub: i.pipeline_status || undefined }));
-  }, []);
-
-  const linkInvestor = useCallback(async (investorId: string) => {
-    await supabase.from("investor_contacts").insert({ investor_id: investorId, contact_id: contactId });
-    await loadLinks();
-  }, [contactId, loadLinks]);
-
-  const unlinkInvestor = useCallback(async (investorId: string) => {
-    await supabase.from("investor_contacts").delete().eq("investor_id", investorId).eq("contact_id", contactId);
-    await loadLinks();
-  }, [contactId, loadLinks]);
-
   const searchOrgs = useCallback(async (q: string) => {
     const { data } = await supabase
-      .from("soccer_orgs")
-      .select("id, org_name, org_type")
-      .ilike("org_name", `%${q}%`)
+      .from("organizations")
+      .select("id, name, org_category, source_table")
+      .ilike("name", `%${q}%`)
       .limit(10);
-    return (data || []).map((o) => ({ id: o.id, label: o.org_name, sub: o.org_type || undefined }));
+    return (data || []).map((o) => ({ id: o.id, label: o.name, sub: o.org_category || undefined }));
   }, []);
 
   const linkOrg = useCallback(async (orgId: string) => {
-    await supabase.from("soccer_org_contacts").insert({ soccer_org_id: orgId, contact_id: contactId });
+    await supabase.from("organization_contacts").insert({ organization_id: orgId, contact_id: contactId });
     await loadLinks();
   }, [contactId, loadLinks]);
 
   const unlinkOrg = useCallback(async (orgId: string) => {
-    await supabase.from("soccer_org_contacts").delete().eq("soccer_org_id", orgId).eq("contact_id", contactId);
+    await supabase.from("organization_contacts").delete().eq("organization_id", orgId).eq("contact_id", contactId);
     await loadLinks();
   }, [contactId, loadLinks]);
 
@@ -220,49 +188,28 @@ export default function ContactDetail() {
         <CorrespondenceSection entityType="contacts" entityId={contactId} />
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
-        <Card>
-          <CardContent className="pt-5">
-            <EntityLinker
-              title="Investors"
-              icon={<TrendingUp className="h-4 w-4" />}
-              items={linkedInvestors.map((li) => ({
-                id: li.investors.id,
-                label: li.investors.firm_name,
-                sub: li.investors.pipeline_status || undefined,
-                href: `/investors/${li.investors.id}`,
-                role: li.role,
-                linkId: li.investor_id,
-              }))}
-              onLink={linkInvestor}
-              onUnlink={unlinkInvestor}
-              onSearch={searchInvestors}
-              existingIds={new Set(linkedInvestors.map((li) => li.investor_id))}
-            />
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="pt-5">
-            <EntityLinker
-              title="Communities"
-              icon={<Building2 className="h-4 w-4" />}
-              items={linkedOrgs.map((lo) => ({
-                id: lo.soccer_orgs.id,
-                label: lo.soccer_orgs.org_name,
-                sub: lo.soccer_orgs.org_type || undefined,
-                href: `/soccer-orgs/${lo.soccer_orgs.id}`,
-                role: lo.role,
-                linkId: lo.soccer_org_id,
-              }))}
-              onLink={linkOrg}
-              onUnlink={unlinkOrg}
-              onSearch={searchOrgs}
-              existingIds={new Set(linkedOrgs.map((lo) => lo.soccer_org_id))}
-            />
-          </CardContent>
-        </Card>
-      </div>
+      <Card className="mt-6">
+        <CardContent className="pt-5">
+          <EntityLinker
+            title="Organizations"
+            icon={<Building2 className="h-4 w-4" />}
+            items={linkedOrgs.map((lo) => ({
+              id: lo.organizations.id,
+              label: lo.organizations.name,
+              sub: lo.organizations.org_category || undefined,
+              href: lo.organizations.source_table === "investors"
+                ? `/investors/${lo.organizations.id}`
+                : `/soccer-orgs/${lo.organizations.id}`,
+              role: lo.role,
+              linkId: lo.organization_id,
+            }))}
+            onLink={linkOrg}
+            onUnlink={unlinkOrg}
+            onSearch={searchOrgs}
+            existingIds={new Set(linkedOrgs.map((lo) => lo.organization_id))}
+          />
+        </CardContent>
+      </Card>
     </div>
   );
 }

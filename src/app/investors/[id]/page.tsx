@@ -14,10 +14,11 @@ import { CorrespondenceSection } from "@/components/CorrespondenceSection";
 import { ArrowLeft, Save, ExternalLink, X, Upload, Trash2, Users } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
+import { CHECK_SIZE_OPTIONS, CHECK_SIZE_COLORS } from "@/config/investor-constants";
 
 interface Investor {
   id: string;
-  firm_name: string;
+  name: string;
   description: string | null;
   fund_type: string | null;
   investor_type: string | null;
@@ -35,6 +36,7 @@ interface Investor {
   notes: string | null;
   last_contact_date: string | null;
   next_action: string | null;
+  next_action_date: string | null;
   avatar_url: string | null;
 }
 
@@ -272,15 +274,15 @@ export default function InvestorDetail() {
 
   const loadLinks = useCallback(async () => {
     const { data: contacts } = await supabase
-      .from("investor_contacts")
+      .from("organization_contacts")
       .select("contact_id, role, contacts(id, name, email, title)")
-      .eq("investor_id", investorId);
+      .eq("organization_id", investorId);
     if (contacts) setLinkedContacts(contacts as unknown as LinkedContact[]);
   }, [investorId]);
 
   useEffect(() => {
     async function load() {
-      const { data: inv } = await supabase.from("investors").select("*").eq("id", investorId).single();
+      const { data: inv } = await supabase.from("organizations").select("*").eq("id", investorId).single();
       if (inv) setInvestor(inv);
     }
     load();
@@ -299,12 +301,12 @@ export default function InvestorDetail() {
   }, []);
 
   const linkContact = useCallback(async (contactId: string) => {
-    await supabase.from("investor_contacts").insert({ investor_id: investorId, contact_id: contactId });
+    await supabase.from("organization_contacts").insert({ organization_id: investorId, contact_id: contactId });
     await loadLinks();
   }, [investorId, loadLinks]);
 
   const unlinkContact = useCallback(async (contactId: string) => {
-    await supabase.from("investor_contacts").delete().eq("investor_id", investorId).eq("contact_id", contactId);
+    await supabase.from("organization_contacts").delete().eq("organization_id", investorId).eq("contact_id", contactId);
     await loadLinks();
   }, [investorId, loadLinks]);
 
@@ -325,8 +327,8 @@ export default function InvestorDetail() {
     if (!investor) return;
     setSaving(true);
     const d = editDataRef.current;
-    const { error } = await supabase.from("investors").update({
-      firm_name: (d.firm_name as string) || investor.firm_name,
+    const basePayload = {
+      name: (d.name as string) || investor.name,
       description: (d.description as string) || null,
       fund_type: (d.fund_type as string) || null,
       investor_type: (d.investor_type as string) || null,
@@ -345,9 +347,34 @@ export default function InvestorDetail() {
       last_contact_date: (d.last_contact_date as string) || null,
       next_action: (d.next_action as string) || null,
       avatar_url: (d.avatar_url as string) || null,
+    };
+
+    // Try with next_action_date first; if column doesn't exist yet, retry without it
+    let { error } = await supabase.from("organizations").update({
+      ...basePayload,
+      next_action_date: (d.next_action_date as string) || null,
     }).eq("id", investor.id);
 
+    if (error?.message?.includes("next_action_date")) {
+      ({ error } = await supabase.from("organizations").update(basePayload).eq("id", investor.id));
+    }
+
     if (!error) {
+      // Calendar reminder — non-blocking
+      const newDate = (d.next_action_date as string) || null;
+      const oldDate = investor.next_action_date;
+      if (newDate && newDate !== oldDate) {
+        fetch("/api/calendar/create-event", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            title: `[MiM] Follow up: ${(d.name as string) || investor.name}`,
+            date: newDate,
+            description: `Next action: ${(d.next_action as string) || investor.next_action || ""}\nFirm: ${(d.name as string) || investor.name}`,
+          }),
+        }).catch(() => {});
+      }
+
       const updated = {
         ...investor,
         ...d,
@@ -377,21 +404,26 @@ export default function InvestorDetail() {
 
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-4">
-          <Avatar src={investor.avatar_url} name={investor.firm_name} size="lg" />
+          <Avatar src={investor.avatar_url} name={investor.name} size="lg" />
           <div>
             {editing ? (
               <Input
-                defaultValue={investor.firm_name || ""}
-                onChange={(e) => setField("firm_name", e.target.value)}
+                defaultValue={investor.name || ""}
+                onChange={(e) => setField("name", e.target.value)}
                 className="text-2xl font-bold h-auto py-1 px-2 -ml-2"
               />
             ) : (
-              <h1 className="text-2xl font-bold text-gray-900">{investor.firm_name}</h1>
+              <h1 className="text-2xl font-bold text-gray-900">{investor.name}</h1>
             )}
-            <div className="flex gap-2 mt-2">
+            <div className="flex gap-2 mt-2 flex-wrap">
               <Badge variant="secondary">{investor.pipeline_status || "Not in Pipeline"}</Badge>
               {investor.connection_status && <Badge variant="outline">{investor.connection_status}</Badge>}
               {investor.investor_type && <Badge variant="outline">{investor.investor_type}</Badge>}
+              {investor.check_size && (
+                <Badge className={`${CHECK_SIZE_COLORS[investor.check_size] || "bg-gray-100 text-gray-800"} border-0`}>
+                  {investor.check_size}
+                </Badge>
+              )}
             </div>
           </div>
         </div>
@@ -418,7 +450,7 @@ export default function InvestorDetail() {
           <CardContent>
             <AvatarUpload
               currentUrl={investor.avatar_url}
-              name={investor.firm_name}
+              name={investor.name}
               onUpload={(dataUrl) => setField("avatar_url", dataUrl)}
             />
           </CardContent>
@@ -434,7 +466,7 @@ export default function InvestorDetail() {
             <DetailField label="Geography" field="geography" {...fp} />
             <DetailField label="Location" field="location" {...fp} />
             <DetailField label="Sector Focus" field="sector_focus" {...fp} />
-            <DetailField label="Check Size" field="check_size" {...fp} />
+            <DetailSelect label="Check Size" field="check_size" options={CHECK_SIZE_OPTIONS} {...fp} />
             <DetailField label="Notable Investments" field="notable_investments" type="textarea" {...fp} />
             <DetailField label="Likelihood Score" field="likelihood_score" type="number" {...fp} />
             <DetailField label="Source" field="source" {...fp} />
@@ -449,6 +481,7 @@ export default function InvestorDetail() {
               <DetailSelect label="Connection Status" field="connection_status" options={CONNECTION_STATUSES} {...fp} />
               <DetailField label="Last Contact Date" field="last_contact_date" type="date" {...fp} />
               <DetailField label="Next Action" field="next_action" {...fp} />
+              <DetailField label="By When" field="next_action_date" type="date" {...fp} />
             </CardContent>
           </Card>
 
@@ -477,7 +510,7 @@ export default function InvestorDetail() {
       </div>
 
       <div className="mt-6">
-        <CorrespondenceSection entityType="investors" entityId={investorId} />
+        <CorrespondenceSection entityType="organizations" entityId={investorId} />
       </div>
 
       <Card className="mt-6">

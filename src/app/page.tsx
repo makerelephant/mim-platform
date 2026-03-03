@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import {
   Users, TrendingUp, Building2, Handshake, CheckSquare, Plus,
-  Activity, FileText, Loader2, ChevronDown, ChevronUp, Download, X,
+  Activity, FileText, Loader2, ChevronDown, ChevronUp, Download, X, Copy, Check,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { labels } from "@/config/labels";
@@ -82,7 +82,7 @@ function exportToPDF(report: Report) {
       <style>
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 40px; color: #1a1a1a; max-width: 800px; margin: 0 auto; }
         .report-header { display: flex; align-items: center; gap: 16px; margin-bottom: 24px; padding-bottom: 16px; border-bottom: 2px solid #e5e7eb; }
-        .report-header img { height: 40px; width: auto; }
+        .report-header img { height: 60px; width: 60px; border-radius: 12px; }
         .report-header .header-text h1 { font-size: 20px; font-weight: 700; margin: 0 0 4px 0; color: #111; }
         .report-header .header-text .author { font-size: 13px; color: #9ca3af; margin: 0; }
         h2 { font-size: 17px; font-weight: 700; margin-top: 28px; margin-bottom: 12px; padding-bottom: 6px; border-bottom: 1px solid #e5e7eb; color: #111; }
@@ -99,7 +99,7 @@ function exportToPDF(report: Report) {
     </head>
     <body>
       <div class="report-header">
-        <img src="/mim-logo.png" alt="MiM" />
+        <img src="${window.location.origin}/mim-icon.png" alt="MiM" />
         <div class="header-text">
           <h1>${report.title}</h1>
           <p class="author">Mark Slater</p>
@@ -151,6 +151,7 @@ export default function Dashboard() {
 
   // Report viewer state
   const [expandedReportId, setExpandedReportId] = useState<string | null>(null);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const loadData = useCallback(async () => {
     const [
@@ -163,9 +164,9 @@ export default function Dashboard() {
       { data: reportsData },
     ] = await Promise.all([
       supabase.from("contacts").select("*", { count: "exact", head: true }),
-      supabase.from("investors").select("*", { count: "exact", head: true }),
-      supabase.from("soccer_orgs").select("*", { count: "exact", head: true }),
-      supabase.from("soccer_orgs").select("*", { count: "exact", head: true }).not("partner_status", "is", null),
+      supabase.from("organizations").select("*", { count: "exact", head: true }).eq("source_table", "investors"),
+      supabase.from("organizations").select("*", { count: "exact", head: true }).eq("source_table", "soccer_orgs"),
+      supabase.from("organizations").select("*", { count: "exact", head: true }).eq("source_table", "soccer_orgs").not("partner_status", "is", null),
       supabase.from("tasks").select("*", { count: "exact", head: true }).in("status", ["todo", "in_progress"]),
       supabase.from("activity_log").select("*").order("created_at", { ascending: false }).limit(20),
       supabase.from("reports").select("*").order("created_at", { ascending: false }).limit(10),
@@ -354,6 +355,23 @@ export default function Dashboard() {
                         <Button
                           variant="ghost"
                           size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigator.clipboard.writeText(report.markdown_content);
+                            setCopiedId(report.id);
+                            setTimeout(() => setCopiedId(null), 2000);
+                          }}
+                          className="text-gray-500 hover:text-gray-700"
+                        >
+                          {copiedId === report.id ? (
+                            <><Check className="h-4 w-4 mr-1 text-green-500" /> Copied</>
+                          ) : (
+                            <><Copy className="h-4 w-4 mr-1" /> Copy MD</>
+                          )}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
                           onClick={(e) => { e.stopPropagation(); exportToPDF(report); }}
                           className="text-gray-500 hover:text-gray-700"
                         >
@@ -373,7 +391,7 @@ export default function Dashboard() {
                         {/* Report header with logo */}
                         <div className="flex items-center gap-4 mb-6 pb-4 border-b-2 border-gray-200">
                           {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img src="/mim-logo.png" alt="MiM" className="h-10 w-auto" />
+                          <img src="/mim-icon.png" alt="MiM" className="h-[60px] w-[60px] rounded-xl" />
                           <div>
                             <h2 className="text-lg font-bold text-gray-900 m-0">{report.title}</h2>
                             <p className="text-sm text-gray-400 m-0">Mark Slater</p>

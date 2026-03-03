@@ -12,7 +12,7 @@ import { SupabaseClient } from "@supabase/supabase-js";
 // ─── Types ──────────────────────────────────────────────────────────────────
 
 interface EntityMatch {
-  entity_type: string; // "contacts", "investors", "soccer_orgs"
+  entity_type: string; // "contacts", "organizations"
   entity_id: string;
   entity_name: string;
   match_method: string; // "email_direct", "email_junction", "domain_fallback"
@@ -82,17 +82,18 @@ const FREE_EMAIL_DOMAINS = new Set([
 
 const CLASSIFIER_SYSTEM_PROMPT = `You are an AI assistant that classifies business communications for a sports merchandise company called Made in Motion (MiM).
 
-MiM works with three main entity types:
-1. **Investors** — venture capital firms, angel investors, seed funds. Communications about fundraising, cap tables, term sheets, due diligence, pitch decks, portfolio updates, financial projections.
-2. **Communities (soccer_orgs)** — youth soccer organizations, clubs, leagues in Massachusetts. Communications about partnerships, merchandise, tournaments, player registrations, outreach, sponsorships, uniforms, team stores.
-3. **Contacts** — general contacts, networking, personal relationships that don't clearly fit investors or communities.
+MiM works with these entity types:
+1. **Organizations** — includes two main categories:
+   - *Investment Firms*: venture capital firms, angel investors, seed funds. Communications about fundraising, cap tables, term sheets, due diligence, pitch decks, portfolio updates, financial projections.
+   - *Youth Soccer Communities*: youth soccer organizations, clubs, leagues in Massachusetts. Communications about partnerships, merchandise, tournaments, player registrations, outreach, sponsorships, uniforms, team stores.
+2. **Contacts** — general contacts, networking, personal relationships that don't clearly fit an organization.
 
 You will receive:
 - The message content (subject, body, sender)
 - A list of resolved entities that the sender/recipients match to in our database
 
 Your job:
-1. **Classify** which silo this message primarily belongs to (investors, soccer_orgs, or contacts)
+1. **Classify** which silo this message primarily belongs to (organizations or contacts)
 2. **Pick the primary entity** from the resolved list (or null if none match well)
 3. **Summarize** the message in one concise line
 4. **Extract action items** with appropriate priorities:
@@ -104,7 +105,7 @@ Your job:
 
 Respond with ONLY a JSON object in this exact format:
 {
-  "primary_silo": "investors" | "soccer_orgs" | "contacts",
+  "primary_silo": "organizations" | "contacts",
   "primary_entity_id": "uuid-string" | null,
   "primary_entity_name": "Entity Name" | null,
   "summary": "One-line summary",
@@ -138,10 +139,8 @@ For each action item, separate CONTEXT from ACTION:
 
 class EntityResolver {
   private emailToContacts: Map<string, { id: string; name: string; organization?: string }> = new Map();
-  private contactToInvestors: Map<string, { id: string; name: string }[]> = new Map();
-  private contactToOrgs: Map<string, { id: string; name: string }[]> = new Map();
-  private domainToInvestors: Map<string, { id: string; name: string }> = new Map();
-  private domainToOrgs: Map<string, { id: string; name: string }> = new Map();
+  private contactToOrganizations: Map<string, { id: string; name: string; source_table: string }[]> = new Map();
+  private domainToOrganizations: Map<string, { id: string; name: string; source_table: string }> = new Map();
 
   constructor(private sb: SupabaseClient) {}
 
@@ -170,53 +169,28 @@ class EntityResolver {
       }
     }
 
-    // 3. Load investor_contacts junction
-    const { data: invContacts } = await this.sb
-      .from("investor_contacts")
-      .select("contact_id, investor_id, investors(id, firm_name)");
-    for (const ic of invContacts || []) {
-      const inv = ic.investors as unknown as { id: string; firm_name: string } | null;
-      if (inv) {
-        const list = this.contactToInvestors.get(ic.contact_id) || [];
-        list.push({ id: inv.id, name: inv.firm_name });
-        this.contactToInvestors.set(ic.contact_id, list);
-      }
-    }
-
-    // 4. Load soccer_org_contacts junction
+    // 3. Load organization_contacts junction (replaces investor_contacts + soccer_org_contacts)
     const { data: orgContacts } = await this.sb
-      .from("soccer_org_contacts")
-      .select("contact_id, soccer_org_id, soccer_orgs(id, org_name)");
+      .from("organization_contacts")
+      .select("contact_id, organization_id, organizations(id, name, source_table)");
     for (const oc of orgContacts || []) {
-      const org = oc.soccer_orgs as unknown as { id: string; org_name: string } | null;
+      const org = oc.organizations as unknown as { id: string; name: string; source_table: string } | null;
       if (org) {
-        const list = this.contactToOrgs.get(oc.contact_id) || [];
-        list.push({ id: org.id, name: org.org_name });
-        this.contactToOrgs.set(oc.contact_id, list);
+        const list = this.contactToOrganizations.get(oc.contact_id) || [];
+        list.push({ id: org.id, name: org.name, source_table: org.source_table });
+        this.contactToOrganizations.set(oc.contact_id, list);
       }
     }
 
-    // 5. Domain -> investor mapping
-    const { data: investors } = await this.sb
-      .from("investors")
-      .select("id, firm_name, website")
+    // 4. Domain -> organization mapping (replaces separate investor + soccer_org domain maps)
+    const { data: organizations } = await this.sb
+      .from("organizations")
+      .select("id, name, website, source_table")
       .not("website", "is", null);
-    for (const inv of investors || []) {
-      const domain = this.extractDomain(inv.website);
-      if (domain) {
-        this.domainToInvestors.set(domain, { id: inv.id, name: inv.firm_name });
-      }
-    }
-
-    // 6. Domain -> soccer_org mapping
-    const { data: orgs } = await this.sb
-      .from("soccer_orgs")
-      .select("id, org_name, website")
-      .not("website", "is", null);
-    for (const org of orgs || []) {
+    for (const org of organizations || []) {
       const domain = this.extractDomain(org.website);
       if (domain) {
-        this.domainToOrgs.set(domain, { id: org.id, name: org.org_name });
+        this.domainToOrganizations.set(domain, { id: org.id, name: org.name, source_table: org.source_table });
       }
     }
   }
@@ -259,48 +233,28 @@ class EntityResolver {
         });
       }
 
-      // Step 2: Contact -> linked investors
-      for (const inv of this.contactToInvestors.get(contact.id) || []) {
-        const invKey = `investors:${inv.id}`;
-        if (!seen.has(invKey)) {
-          seen.add(invKey);
-          matches.push({
-            entity_type: "investors", entity_id: inv.id,
-            entity_name: inv.name, match_method: "email_junction", confidence: 0.9,
-          });
-        }
-      }
-
-      // Step 3: Contact -> linked communities
-      for (const org of this.contactToOrgs.get(contact.id) || []) {
-        const orgKey = `soccer_orgs:${org.id}`;
+      // Step 2: Contact -> linked organizations
+      for (const org of this.contactToOrganizations.get(contact.id) || []) {
+        const orgKey = `organizations:${org.id}`;
         if (!seen.has(orgKey)) {
           seen.add(orgKey);
           matches.push({
-            entity_type: "soccer_orgs", entity_id: org.id,
+            entity_type: "organizations", entity_id: org.id,
             entity_name: org.name, match_method: "email_junction", confidence: 0.9,
           });
         }
       }
     }
 
-    // Step 4: Domain fallback
+    // Step 3: Domain fallback
     if (matches.length === 0) {
       const domain = this.extractEmailDomain(email);
       if (domain) {
-        const inv = this.domainToInvestors.get(domain);
-        if (inv && !seen.has(`investors:${inv.id}`)) {
-          seen.add(`investors:${inv.id}`);
+        const org = this.domainToOrganizations.get(domain);
+        if (org && !seen.has(`organizations:${org.id}`)) {
+          seen.add(`organizations:${org.id}`);
           matches.push({
-            entity_type: "investors", entity_id: inv.id,
-            entity_name: inv.name, match_method: "domain_fallback", confidence: 0.6,
-          });
-        }
-        const org = this.domainToOrgs.get(domain);
-        if (org && !seen.has(`soccer_orgs:${org.id}`)) {
-          seen.add(`soccer_orgs:${org.id}`);
-          matches.push({
-            entity_type: "soccer_orgs", entity_id: org.id,
+            entity_type: "organizations", entity_id: org.id,
             entity_name: org.name, match_method: "domain_fallback", confidence: 0.6,
           });
         }

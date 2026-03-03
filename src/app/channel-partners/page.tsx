@@ -14,7 +14,7 @@ import { Search, List, Columns3, Trash2, CheckSquare, Square, X, Plus } from "lu
 
 interface Community {
   id: string;
-  org_name: string;
+  name: string;
   org_type: string | null;
   website: string | null;
   players: number | null;
@@ -85,7 +85,7 @@ export default function ChannelPartnersPage() {
   const [addSelected, setAddSelected] = useState<Set<string>>(new Set());
 
   const load = useCallback(async () => {
-    const { data } = await supabase.from("soccer_orgs").select("*").order("org_name");
+    const { data } = await supabase.from("organizations").select("*").eq("source_table", "soccer_orgs").order("name");
     if (data) {
       setAllCommunities(data);
       setCommunities(data.filter((c) => c.partner_status != null));
@@ -96,7 +96,7 @@ export default function ChannelPartnersPage() {
   useEffect(() => { load(); }, [load]);
 
   const updateCell = async (id: string, field: string, value: string) => {
-    const { error } = await supabase.from("soccer_orgs").update({ [field]: value || null }).eq("id", id);
+    const { error } = await supabase.from("organizations").update({ [field]: value || null }).eq("id", id);
     if (!error) {
       setCommunities((prev) => prev.map((c) => (c.id === id ? { ...c, [field]: value || null } : c)));
       setAllCommunities((prev) => prev.map((c) => (c.id === id ? { ...c, [field]: value || null } : c)));
@@ -106,7 +106,7 @@ export default function ChannelPartnersPage() {
   const removeFromPipeline = async () => {
     if (selected.size === 0) return;
     const ids = Array.from(selected);
-    const { error } = await supabase.from("soccer_orgs").update({ partner_status: null }).in("id", ids);
+    const { error } = await supabase.from("organizations").update({ partner_status: null }).in("id", ids);
     if (!error) {
       setCommunities((prev) => prev.filter((c) => !selected.has(c.id)));
       setAllCommunities((prev) => prev.map((c) => selected.has(c.id) ? { ...c, partner_status: null } : c));
@@ -115,7 +115,7 @@ export default function ChannelPartnersPage() {
   };
 
   const removeOneFromPipeline = async (id: string) => {
-    const { error } = await supabase.from("soccer_orgs").update({ partner_status: null }).eq("id", id);
+    const { error } = await supabase.from("organizations").update({ partner_status: null }).eq("id", id);
     if (!error) {
       setCommunities((prev) => prev.filter((c) => c.id !== id));
       setAllCommunities((prev) => prev.map((c) => c.id === id ? { ...c, partner_status: null } : c));
@@ -123,7 +123,7 @@ export default function ChannelPartnersPage() {
   };
 
   const deleteOne = async (id: string) => {
-    const { error } = await supabase.from("soccer_orgs").delete().eq("id", id);
+    const { error } = await supabase.from("organizations").delete().eq("id", id);
     if (!error) {
       setCommunities((prev) => prev.filter((c) => c.id !== id));
       setAllCommunities((prev) => prev.filter((c) => c.id !== id));
@@ -133,7 +133,7 @@ export default function ChannelPartnersPage() {
   const deleteSelected = async () => {
     if (selected.size === 0) return;
     const ids = Array.from(selected);
-    const { error } = await supabase.from("soccer_orgs").delete().in("id", ids);
+    const { error } = await supabase.from("organizations").delete().in("id", ids);
     if (!error) {
       setCommunities((prev) => prev.filter((c) => !selected.has(c.id)));
       setAllCommunities((prev) => prev.filter((c) => !selected.has(c.id)));
@@ -144,7 +144,7 @@ export default function ChannelPartnersPage() {
   const bulkUpdate = async () => {
     if (!bulkField || selected.size === 0) return;
     const ids = Array.from(selected);
-    const { error } = await supabase.from("soccer_orgs").update({ [bulkField]: bulkValue || null }).in("id", ids);
+    const { error } = await supabase.from("organizations").update({ [bulkField]: bulkValue || null }).in("id", ids);
     if (!error) {
       setCommunities((prev) => prev.map((c) => selected.has(c.id) ? { ...c, [bulkField]: bulkValue || null } : c));
       setAllCommunities((prev) => prev.map((c) => selected.has(c.id) ? { ...c, [bulkField]: bulkValue || null } : c));
@@ -155,7 +155,7 @@ export default function ChannelPartnersPage() {
   const addToPipeline = async () => {
     if (addSelected.size === 0) return;
     const ids = Array.from(addSelected);
-    const { error } = await supabase.from("soccer_orgs").update({ partner_status: "Prospect" }).in("id", ids);
+    const { error } = await supabase.from("organizations").update({ partner_status: "Prospect" }).in("id", ids);
     if (!error) {
       setAllCommunities((prev) => prev.map((c) => addSelected.has(c.id) ? { ...c, partner_status: "Prospect" } : c));
       setCommunities((prev) => {
@@ -174,21 +174,21 @@ export default function ChannelPartnersPage() {
   const filtered = communities.filter((c) => {
     if (!search) return true;
     const s = search.toLowerCase();
-    return c.org_name?.toLowerCase().includes(s) || c.org_type?.toLowerCase().includes(s) || c.primary_contact?.toLowerCase().includes(s);
+    return c.name?.toLowerCase().includes(s) || c.org_type?.toLowerCase().includes(s) || c.primary_contact?.toLowerCase().includes(s);
   });
 
   const notInPipeline = allCommunities.filter((c) => !c.partner_status);
   const filteredNotInPipeline = notInPipeline.filter((c) => {
     if (!addSearch) return true;
     const s = addSearch.toLowerCase();
-    return c.org_name?.toLowerCase().includes(s) || c.org_type?.toLowerCase().includes(s);
+    return c.name?.toLowerCase().includes(s) || c.org_type?.toLowerCase().includes(s);
   });
 
   const handleDragStart = (e: React.DragEvent, id: string) => { setDraggedId(id); e.dataTransfer.effectAllowed = "move"; };
   const handleDrop = async (e: React.DragEvent, status: string) => {
     e.preventDefault();
     if (!draggedId) return;
-    await supabase.from("soccer_orgs").update({ partner_status: status }).eq("id", draggedId);
+    await supabase.from("organizations").update({ partner_status: status }).eq("id", draggedId);
     setCommunities((prev) => prev.map((c) => (c.id === draggedId ? { ...c, partner_status: status } : c)));
     setAllCommunities((prev) => prev.map((c) => (c.id === draggedId ? { ...c, partner_status: status } : c)));
     setDraggedId(null);
@@ -235,7 +235,7 @@ export default function ChannelPartnersPage() {
                             className="rounded border-gray-300"
                           />
                           <div className="flex-1 min-w-0">
-                            <div className="text-sm font-medium truncate">{c.org_name}</div>
+                            <div className="text-sm font-medium truncate">{c.name}</div>
                             <div className="text-xs text-gray-500 truncate">
                               {[c.org_type, leagues.length > 0 ? leagues.join(", ") : null, c.players ? `${c.players} players` : null].filter(Boolean).join(" · ") || "No details"}
                             </div>
@@ -315,7 +315,7 @@ export default function ChannelPartnersPage() {
                             <Trash2 className="h-3.5 w-3.5" />
                           </button>
                         </div>
-                        <Link href={`/soccer-orgs/${c.id}`}><h3 className="text-sm font-medium text-gray-900 hover:text-blue-600 pr-10">{c.org_name}</h3></Link>
+                        <Link href={`/soccer-orgs/${c.id}`}><h3 className="text-sm font-medium text-gray-900 hover:text-blue-600 pr-10">{c.name}</h3></Link>
                         {leagues.length > 0 && (
                           <div className="flex flex-wrap gap-1 mt-1.5">
                             {leagues.slice(0, 3).map((l) => <Badge key={l} variant="secondary" className="text-[10px] px-1.5 py-0">{l}</Badge>)}
@@ -355,7 +355,7 @@ export default function ChannelPartnersPage() {
                 {filtered.map((c) => (
                   <tr key={c.id} className={`border-b hover:bg-gray-50 ${selected.has(c.id) ? "bg-blue-50" : ""}`}>
                     <td className="px-3 py-3"><button onClick={() => toggleSelect(c.id)}>{selected.has(c.id) ? <CheckSquare className="h-4 w-4 text-blue-600" /> : <Square className="h-4 w-4 text-gray-300" />}</button></td>
-                    <td className="px-4 py-2"><div className="flex items-center gap-2"><Link href={`/soccer-orgs/${c.id}`} className="text-blue-600 hover:underline shrink-0">&#8599;</Link><EditableCell value={c.org_name} onSave={(v) => updateCell(c.id, "org_name", v)} /></div></td>
+                    <td className="px-4 py-2"><div className="flex items-center gap-2"><Link href={`/soccer-orgs/${c.id}`} className="text-blue-600 hover:underline shrink-0">&#8599;</Link><EditableCell value={c.name} onSave={(v) => updateCell(c.id, "name", v)} /></div></td>
                     <td className="px-4 py-2"><EditableCell value={c.org_type} onSave={(v) => updateCell(c.id, "org_type", v)} /></td>
                     <td className="px-4 py-2 text-gray-600">{c.players ?? "---"}</td>
                     <td className="px-4 py-2 text-gray-600">{c.total_revenue ? `$${Number(c.total_revenue).toLocaleString()}` : "---"}</td>

@@ -1,18 +1,23 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, ExternalLink } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Avatar } from "@/components/Avatar";
+import { EntityLinker } from "@/components/EntityLinker";
 import { CorrespondenceSection } from "@/components/CorrespondenceSection";
+import { ArrowLeft, Save, ExternalLink, X, Upload, Trash2, Users } from "lucide-react";
 import Link from "next/link";
+import Image from "next/image";
 
 interface SoccerOrg {
   id: string;
-  org_name: string;
+  name: string;
   org_type: string | null;
   corporate_structure: string | null;
   address: string | null;
@@ -20,6 +25,7 @@ interface SoccerOrg {
   merch_link: string | null;
   store_status: string | null;
   store_provider: string | null;
+  avatar_url: string | null;
   players: number | null;
   travel_teams: number | null;
   dues_per_season: number | null;
@@ -35,18 +41,9 @@ interface SoccerOrg {
   outreach_notes: string | null;
   partner_status: string | null;
   partner_since: string | null;
-  in_bays: boolean;
-  in_cmysl: boolean;
-  in_cysl: boolean;
-  in_ecnl: boolean;
-  in_ecysa: boolean;
-  in_mysl: boolean;
-  in_nashoba: boolean;
-  in_necsl: boolean;
-  in_roots: boolean;
-  in_south_coast: boolean;
-  in_south_shore: boolean;
   notes: string | null;
+  in_bays: boolean; in_cmysl: boolean; in_cysl: boolean; in_ecnl: boolean; in_ecysa: boolean;
+  in_mysl: boolean; in_nashoba: boolean; in_necsl: boolean; in_roots: boolean; in_south_coast: boolean; in_south_shore: boolean;
 }
 
 interface LinkedContact {
@@ -61,31 +58,256 @@ const LEAGUE_MAP: Record<string, string> = {
   in_roots: "Roots", in_south_coast: "South Coast", in_south_shore: "South Shore",
 };
 
+const ORG_TYPES = ["Soccer Program Or Club", "Soccer League"];
+const STRUCTURES = ["501c3", "LLC", "Corporation", "Partnership"];
+const OUTREACH_STATUSES = ["Not Contacted", "Initial Outreach", "In Conversation", "Meeting Scheduled", "Proposal Sent", "Negotiating", "Closed"];
+const PARTNER_STATUSES = ["Prospect", "Active Partner", "Inactive", "Churned"];
+const STORE_STATUSES = ["No Store", "Setting Up", "Live", "Paused"];
+
+/*
+ * Field components use UNCONTROLLED inputs (defaultValue + onChange → ref).
+ * Typing updates a ref in the parent — no setState, no re-render, no DOM destruction.
+ */
+
+function DetailField({
+  label, field, type = "text", editing, org, setField,
+}: {
+  label: string; field: keyof SoccerOrg; type?: "text" | "textarea" | "number" | "date" | "url";
+  editing: boolean; org: SoccerOrg; setField: (field: keyof SoccerOrg, value: string | number | null) => void;
+}) {
+  if (editing) {
+    const defVal = String(org[field] ?? "");
+    if (type === "textarea") {
+      return (
+        <div>
+          {label && <label className="text-xs text-gray-500">{label}</label>}
+          <Textarea rows={3} defaultValue={defVal} onChange={(e) => setField(field, e.target.value)} className="mt-0.5" />
+        </div>
+      );
+    }
+    return (
+      <div>
+        {label && <label className="text-xs text-gray-500">{label}</label>}
+        <Input
+          type={type === "number" ? "number" : type === "date" ? "date" : "text"}
+          defaultValue={defVal}
+          onChange={(e) => {
+            const v = e.target.value;
+            setField(field, type === "number" ? (v ? Number(v) : null) : v);
+          }}
+          className="mt-0.5"
+        />
+      </div>
+    );
+  }
+
+  const val = org[field];
+  const display = val != null && val !== "" ? String(val) : "—";
+  return (
+    <div>
+      {label && <span className="text-xs text-gray-500">{label}</span>}
+      {type === "url" && val ? (
+        <p className="text-sm">
+          <a href={String(val).startsWith("http") ? String(val) : `https://${val}`} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">{String(val)}</a>
+        </p>
+      ) : type === "number" && val != null && val !== "" ? (
+        <p className="text-sm">{field.includes("cost") || field.includes("revenue") || field.includes("dues") || field.includes("uniform") ? `$${Number(val).toLocaleString()}` : String(val)}</p>
+      ) : (
+        <p className={`text-sm ${display === "—" ? "text-gray-300" : ""}`}>{display}</p>
+      )}
+    </div>
+  );
+}
+
+function DetailSelect({
+  label, field, options, editing, org, setField,
+}: {
+  label: string; field: keyof SoccerOrg; options: string[];
+  editing: boolean; org: SoccerOrg; setField: (field: keyof SoccerOrg, value: string | number | null) => void;
+}) {
+  if (editing) {
+    return (
+      <div>
+        <label className="text-xs text-gray-500">{label}</label>
+        <select className="w-full border rounded-md px-2 py-1.5 text-sm mt-0.5" defaultValue={String(org[field] ?? "")} onChange={(e) => setField(field, e.target.value || null)}>
+          <option value="">—</option>
+          {options.map((s) => <option key={s} value={s}>{s}</option>)}
+        </select>
+      </div>
+    );
+  }
+  const val = org[field];
+  const display = val != null && val !== "" ? String(val) : "—";
+  return (
+    <div>
+      <span className="text-xs text-gray-500">{label}</span>
+      <p className={`text-sm ${display === "—" ? "text-gray-300" : ""}`}>{display}</p>
+    </div>
+  );
+}
+
+/* ── Avatar upload component ── */
+
+function AvatarUpload({ currentUrl, name, onUpload }: { currentUrl: string | null; name: string; onUpload: (dataUrl: string | null) => void }) {
+  const [preview, setPreview] = useState<string | null>(currentUrl);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = document.createElement("img");
+      img.onload = () => {
+        const size = 200;
+        const canvas = document.createElement("canvas");
+        const scale = Math.min(size / img.width, size / img.height, 1);
+        canvas.width = img.width * scale;
+        canvas.height = img.height * scale;
+        const ctx = canvas.getContext("2d")!;
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        const dataUrl = canvas.toDataURL("image/jpeg", 0.85);
+        setPreview(dataUrl);
+        onUpload(dataUrl);
+      };
+      img.src = reader.result as string;
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleRemove = () => { setPreview(null); onUpload(null); if (fileRef.current) fileRef.current.value = ""; };
+
+  return (
+    <div className="flex items-center gap-4">
+      <div className="relative h-20 w-20 rounded-full overflow-hidden bg-gray-100 border-2 border-dashed border-gray-300 flex items-center justify-center shrink-0">
+        {preview ? (
+          <Image src={preview} alt={name} fill className="object-cover" unoptimized />
+        ) : (
+          <span className="text-2xl font-bold text-gray-400">{name?.charAt(0)?.toUpperCase() || "?"}</span>
+        )}
+      </div>
+      <div className="flex flex-col gap-2">
+        <input ref={fileRef} type="file" accept="image/*" onChange={handleFile} className="hidden" />
+        <Button type="button" variant="outline" size="sm" onClick={() => fileRef.current?.click()}>
+          <Upload className="h-3.5 w-3.5 mr-1" /> {preview ? "Change Photo" : "Upload Photo"}
+        </Button>
+        {preview && (
+          <Button type="button" variant="ghost" size="sm" className="text-red-500 hover:text-red-700" onClick={handleRemove}>
+            <Trash2 className="h-3.5 w-3.5 mr-1" /> Remove
+          </Button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ── Main component ── */
+
 export default function SoccerOrgDetail() {
   const params = useParams();
   const router = useRouter();
   const [org, setOrg] = useState<SoccerOrg | null>(null);
   const [linkedContacts, setLinkedContacts] = useState<LinkedContact[]>([]);
+  const [editing, setEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  const orgId = params.id as string;
+  const editDataRef = useRef<Record<string, unknown>>({});
+
+  const loadLinks = useCallback(async () => {
+    const { data: contacts } = await supabase
+      .from("organization_contacts")
+      .select("contact_id, role, contacts(id, name, email, title)")
+      .eq("organization_id", orgId);
+    if (contacts) setLinkedContacts(contacts as unknown as LinkedContact[]);
+  }, [orgId]);
 
   useEffect(() => {
     async function load() {
-      const id = params.id as string;
-      const { data } = await supabase.from("soccer_orgs").select("*").eq("id", id).single();
+      const { data } = await supabase.from("organizations").select("*").eq("id", orgId).single();
       if (data) setOrg(data);
-
-      const { data: contacts } = await supabase
-        .from("soccer_org_contacts")
-        .select("contact_id, role, contacts(id, name, email, title)")
-        .eq("soccer_org_id", id);
-      if (contacts) setLinkedContacts(contacts as unknown as LinkedContact[]);
     }
     load();
-  }, [params.id]);
+    loadLinks();
+  }, [orgId, loadLinks]);
+
+  // --- Contact link / unlink ---
+  const searchContacts = useCallback(async (q: string) => {
+    const { data } = await supabase.from("contacts").select("id, name, email, organization").ilike("name", `%${q}%`).limit(10);
+    return (data || []).map((c) => ({ id: c.id, label: c.name, sub: c.organization || c.email || undefined }));
+  }, []);
+
+  const linkContact = useCallback(async (contactId: string) => {
+    await supabase.from("organization_contacts").insert({ organization_id: orgId, contact_id: contactId });
+    await loadLinks();
+  }, [orgId, loadLinks]);
+
+  const unlinkContact = useCallback(async (contactId: string) => {
+    await supabase.from("organization_contacts").delete().eq("organization_id", orgId).eq("contact_id", contactId);
+    await loadLinks();
+  }, [orgId, loadLinks]);
+
+  const setField = useCallback((field: keyof SoccerOrg, value: string | number | null) => {
+    editDataRef.current[field] = value;
+  }, []);
+
+  const startEditing = useCallback(() => {
+    if (org) { editDataRef.current = { ...org }; setEditing(true); }
+  }, [org]);
+
+  const handleSave = async () => {
+    if (!org) return;
+    setSaving(true);
+    const d = editDataRef.current;
+    const num = (k: string) => d[k] != null && String(d[k]) !== "" ? Number(d[k]) : null;
+
+    const { error } = await supabase.from("organizations").update({
+      name: (d.name as string) || org.name,
+      org_type: (d.org_type as string) || null,
+      corporate_structure: (d.corporate_structure as string) || null,
+      address: (d.address as string) || null,
+      website: (d.website as string) || null,
+      merch_link: (d.merch_link as string) || null,
+      store_status: (d.store_status as string) || null,
+      store_provider: (d.store_provider as string) || null,
+      outreach_status: (d.outreach_status as string) || null,
+      last_outreach_date: (d.last_outreach_date as string) || null,
+      outreach_notes: (d.outreach_notes as string) || null,
+      partner_status: (d.partner_status as string) || null,
+      partner_since: (d.partner_since as string) || null,
+      primary_contact: (d.primary_contact as string) || null,
+      notes: (d.notes as string) || null,
+      avatar_url: (d.avatar_url as string) || null,
+      players: num("players"),
+      travel_teams: num("travel_teams"),
+      dues_per_season: num("dues_per_season"),
+      dues_revenue: num("dues_revenue"),
+      uniform_cost: num("uniform_cost"),
+      total_revenue: num("total_revenue"),
+      gross_revenue: num("gross_revenue"),
+      total_costs: num("total_costs"),
+      yearly_cost_player: num("yearly_cost_player"),
+    }).eq("id", org.id);
+
+    if (!error) {
+      const updated = { ...org, ...d };
+      // Normalize numeric fields
+      for (const k of ["players", "travel_teams", "dues_per_season", "dues_revenue", "uniform_cost", "total_revenue", "gross_revenue", "total_costs", "yearly_cost_player"]) {
+        (updated as Record<string, unknown>)[k] = num(k);
+      }
+      setOrg(updated as SoccerOrg);
+      setEditing(false);
+    }
+    setSaving(false);
+  };
+
+  const handleCancel = () => { setEditing(false); };
 
   if (!org) {
     return <div className="p-8"><div className="animate-pulse h-64 bg-gray-200 rounded" /></div>;
   }
 
+  const fp = { editing, org, setField };
   const leagues = Object.entries(LEAGUE_MAP).filter(([key]) => org[key as keyof SoccerOrg]).map(([, label]) => label);
 
   return (
@@ -95,34 +317,62 @@ export default function SoccerOrgDetail() {
       </Button>
 
       <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">{org.org_name}</h1>
-          <div className="flex gap-2 mt-2">
-            {org.org_type && <Badge variant="secondary">{org.org_type}</Badge>}
-            {org.corporate_structure && <Badge variant="outline">{org.corporate_structure}</Badge>}
-            {org.partner_status && <Badge className="bg-green-100 text-green-800">{org.partner_status}</Badge>}
+        <div className="flex items-center gap-4">
+          <Avatar src={org.avatar_url} name={org.name} size="lg" />
+          <div>
+            {editing ? (
+              <Input
+                defaultValue={org.name || ""}
+                onChange={(e) => setField("name", e.target.value)}
+                className="text-2xl font-bold h-auto py-1 px-2 -ml-2"
+              />
+            ) : (
+              <h1 className="text-2xl font-bold text-gray-900">{org.name}</h1>
+            )}
+            <div className="flex gap-2 mt-2 flex-wrap">
+              {org.org_type && <Badge variant="secondary">{org.org_type}</Badge>}
+              {org.corporate_structure && <Badge variant="outline">{org.corporate_structure}</Badge>}
+              {org.partner_status && <Badge className="bg-green-100 text-green-800 border-0">{org.partner_status}</Badge>}
+            </div>
           </div>
         </div>
-        {org.website && (
-          <a href={org.website.startsWith("http") ? org.website : `https://${org.website}`} target="_blank" rel="noopener noreferrer">
-            <Button variant="outline" size="sm"><ExternalLink className="h-4 w-4 mr-1" /> Website</Button>
-          </a>
-        )}
+        <div className="flex gap-2">
+          {!editing && org.website && (
+            <a href={org.website.startsWith("http") ? org.website : `https://${org.website}`} target="_blank" rel="noopener noreferrer">
+              <Button variant="outline" size="sm"><ExternalLink className="h-4 w-4 mr-1" /> Website</Button>
+            </a>
+          )}
+          {editing ? (
+            <>
+              <Button variant="ghost" onClick={handleCancel}><X className="h-4 w-4 mr-1" /> Cancel</Button>
+              <Button onClick={handleSave} disabled={saving}><Save className="h-4 w-4 mr-1" /> Save</Button>
+            </>
+          ) : (
+            <Button variant="outline" onClick={startEditing}>Edit</Button>
+          )}
+        </div>
       </div>
+
+      {editing && (
+        <Card className="mb-6">
+          <CardHeader><CardTitle className="text-base">Avatar</CardTitle></CardHeader>
+          <CardContent>
+            <AvatarUpload currentUrl={org.avatar_url} name={org.name} onUpload={(dataUrl) => setField("avatar_url", dataUrl)} />
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <Card>
           <CardHeader><CardTitle className="text-base">Details</CardTitle></CardHeader>
           <CardContent className="space-y-3 text-sm">
-            <div><span className="text-xs text-gray-500">Address</span><p>{org.address || "—"}</p></div>
-            <div><span className="text-xs text-gray-500">Store Status</span><p>{org.store_status || "—"}</p></div>
-            <div><span className="text-xs text-gray-500">Store Provider</span><p>{org.store_provider || "—"}</p></div>
-            {org.merch_link && (
-              <div>
-                <span className="text-xs text-gray-500">Merch Link</span>
-                <a href={org.merch_link} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline block text-sm">{org.merch_link}</a>
-              </div>
-            )}
+            <DetailSelect label="Type" field="org_type" options={ORG_TYPES} {...fp} />
+            <DetailSelect label="Structure" field="corporate_structure" options={STRUCTURES} {...fp} />
+            <DetailField label="Address" field="address" {...fp} />
+            <DetailField label="Website" field="website" type="url" {...fp} />
+            <DetailField label="Merch Link" field="merch_link" type="url" {...fp} />
+            <DetailSelect label="Store Status" field="store_status" options={STORE_STATUSES} {...fp} />
+            <DetailField label="Store Provider" field="store_provider" {...fp} />
           </CardContent>
         </Card>
 
@@ -141,20 +391,13 @@ export default function SoccerOrgDetail() {
           </Card>
 
           <Card>
-            <CardHeader><CardTitle className="text-base">Linked Contacts</CardTitle></CardHeader>
-            <CardContent>
-              {linkedContacts.length === 0 ? (
-                <p className="text-sm text-gray-400">No linked contacts</p>
-              ) : (
-                <div className="space-y-2">
-                  {linkedContacts.map((lc) => (
-                    <div key={lc.contact_id} className="flex items-center justify-between py-1">
-                      <Link href={`/contacts/${lc.contacts.id}`} className="text-sm text-blue-600 hover:underline">{lc.contacts.name}</Link>
-                      <span className="text-xs text-gray-400">{lc.contacts.email || ""}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
+            <CardHeader><CardTitle className="text-base">Outreach Tracking</CardTitle></CardHeader>
+            <CardContent className="space-y-3 text-sm">
+              <DetailSelect label="Outreach Status" field="outreach_status" options={OUTREACH_STATUSES} {...fp} />
+              <DetailField label="Last Outreach Date" field="last_outreach_date" type="date" {...fp} />
+              <DetailField label="Outreach Notes" field="outreach_notes" type="textarea" {...fp} />
+              <DetailSelect label="Activity Status" field="partner_status" options={PARTNER_STATUSES} {...fp} />
+              <DetailField label="Partner Since" field="partner_since" type="date" {...fp} />
             </CardContent>
           </Card>
         </div>
@@ -163,48 +406,53 @@ export default function SoccerOrgDetail() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
         <Card>
           <CardHeader><CardTitle className="text-base">Program Financials</CardTitle></CardHeader>
-          <CardContent className="space-y-2 text-sm">
+          <CardContent className="space-y-3 text-sm">
             <div className="grid grid-cols-2 gap-3">
-              <div><span className="text-xs text-gray-500">Players</span><p>{org.players ?? "---"}</p></div>
-              <div><span className="text-xs text-gray-500">Travel Teams</span><p>{org.travel_teams ?? "---"}</p></div>
-              <div><span className="text-xs text-gray-500">Dues / Season</span><p>{org.dues_per_season ? `$${Number(org.dues_per_season).toLocaleString()}` : "---"}</p></div>
-              <div><span className="text-xs text-gray-500">Uniform Cost</span><p>{org.uniform_cost ? `$${Number(org.uniform_cost).toLocaleString()}` : "---"}</p></div>
-              <div><span className="text-xs text-gray-500">Total Revenue</span><p>{org.total_revenue ? `$${Number(org.total_revenue).toLocaleString()}` : "---"}</p></div>
-              <div><span className="text-xs text-gray-500">Dues Revenue</span><p>{org.dues_revenue ? `$${Number(org.dues_revenue).toLocaleString()}` : "---"}</p></div>
-              <div><span className="text-xs text-gray-500">Total Costs</span><p>{org.total_costs ? `$${Number(org.total_costs).toLocaleString()}` : "---"}</p></div>
-              <div><span className="text-xs text-gray-500">Yearly Cost / Player</span><p>{org.yearly_cost_player ? `$${Number(org.yearly_cost_player).toLocaleString()}` : "---"}</p></div>
+              <DetailField label="Players" field="players" type="number" {...fp} />
+              <DetailField label="Travel Teams" field="travel_teams" type="number" {...fp} />
+              <DetailField label="Dues / Season" field="dues_per_season" type="number" {...fp} />
+              <DetailField label="Uniform Cost" field="uniform_cost" type="number" {...fp} />
+              <DetailField label="Total Revenue" field="total_revenue" type="number" {...fp} />
+              <DetailField label="Dues Revenue" field="dues_revenue" type="number" {...fp} />
+              <DetailField label="Total Costs" field="total_costs" type="number" {...fp} />
+              <DetailField label="Yearly Cost / Player" field="yearly_cost_player" type="number" {...fp} />
             </div>
-            {org.primary_contact && <div className="pt-2 border-t"><span className="text-xs text-gray-500">Primary Contact</span><p>{org.primary_contact}</p></div>}
+            <DetailField label="Primary Contact" field="primary_contact" {...fp} />
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader><CardTitle className="text-base">Outreach Tracking</CardTitle></CardHeader>
-          <CardContent className="space-y-3 text-sm">
-            <div><span className="text-xs text-gray-500">Outreach Status</span><p>{org.outreach_status || "Not Contacted"}</p></div>
-            <div><span className="text-xs text-gray-500">Last Outreach Date</span><p>{org.last_outreach_date || "---"}</p></div>
-            {org.outreach_notes && <div><span className="text-xs text-gray-500">Outreach Notes</span><p className="whitespace-pre-wrap">{org.outreach_notes}</p></div>}
-            {org.partner_status && (
-              <div className="pt-2 border-t">
-                <span className="text-xs text-gray-500">Partner Status</span>
-                <p className="font-medium text-green-700">{org.partner_status}</p>
-                {org.partner_since && <p className="text-xs text-gray-400 mt-0.5">Since {org.partner_since}</p>}
-              </div>
-            )}
+          <CardHeader><CardTitle className="text-base">Notes</CardTitle></CardHeader>
+          <CardContent>
+            <DetailField label="" field="notes" type="textarea" {...fp} />
           </CardContent>
         </Card>
       </div>
 
+      <div className="mt-6">
+        <CorrespondenceSection entityType="organizations" entityId={orgId} />
+      </div>
+
       <Card className="mt-6">
-        <CardHeader><CardTitle className="text-base">Notes</CardTitle></CardHeader>
-        <CardContent>
-          <p className="text-sm text-gray-600 whitespace-pre-wrap">{org.notes || "No notes yet."}</p>
+        <CardContent className="pt-5">
+          <EntityLinker
+            title="Contacts"
+            icon={<Users className="h-4 w-4" />}
+            items={linkedContacts.map((lc) => ({
+              id: lc.contacts.id,
+              label: lc.contacts.name,
+              sub: lc.contacts.email || lc.contacts.title || undefined,
+              href: `/contacts/${lc.contacts.id}`,
+              role: lc.role,
+              linkId: lc.contact_id,
+            }))}
+            onLink={linkContact}
+            onUnlink={unlinkContact}
+            onSearch={searchContacts}
+            existingIds={new Set(linkedContacts.map((lc) => lc.contact_id))}
+          />
         </CardContent>
       </Card>
-
-      <div className="mt-6">
-        <CorrespondenceSection entityType="soccer_orgs" entityId={params.id as string} />
-      </div>
     </div>
   );
 }

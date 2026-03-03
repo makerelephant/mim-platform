@@ -21,7 +21,6 @@ import {
   AlertCircle,
   Target,
   Users,
-  TrendingUp,
   Building2,
   Star,
 } from "lucide-react";
@@ -66,16 +65,10 @@ interface LinkedContact {
   contacts: { id: string; name: string; email: string | null; title: string | null };
 }
 
-interface LinkedInvestor {
-  investor_id: string;
+interface LinkedOrganization {
+  organization_id: string;
   role: string | null;
-  investors: { id: string; firm_name: string; investor_type: string | null };
-}
-
-interface LinkedSoccerOrg {
-  soccer_org_id: string;
-  role: string | null;
-  soccer_orgs: { id: string; team_name: string; league: string | null };
+  organizations: { id: string; name: string; org_category: string | null; source_table: string | null };
 }
 
 /* ── Constants ── */
@@ -222,8 +215,7 @@ export default function TaskDetail() {
   const [task, setTask] = useState<Task | null>(null);
   const [relatedTasks, setRelatedTasks] = useState<RelatedTask[]>([]);
   const [linkedContacts, setLinkedContacts] = useState<LinkedContact[]>([]);
-  const [linkedInvestors, setLinkedInvestors] = useState<LinkedInvestor[]>([]);
-  const [linkedSoccerOrgs, setLinkedSoccerOrgs] = useState<LinkedSoccerOrg[]>([]);
+  const [linkedOrganizations, setLinkedOrganizations] = useState<LinkedOrganization[]>([]);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -233,23 +225,18 @@ export default function TaskDetail() {
   /* ── Data loading ── */
 
   const loadLinks = useCallback(async () => {
-    const [contactRes, investorRes, orgRes] = await Promise.all([
+    const [contactRes, orgRes] = await Promise.all([
       supabase
         .from("task_contacts")
         .select("contact_id, role, contacts(id, name, email, title)")
         .eq("task_id", taskId),
       supabase
-        .from("task_investors")
-        .select("investor_id, role, investors(id, firm_name, investor_type)")
-        .eq("task_id", taskId),
-      supabase
-        .from("task_soccer_orgs")
-        .select("soccer_org_id, role, soccer_orgs(id, team_name, league)")
+        .from("task_organizations")
+        .select("organization_id, role, organizations(id, name, org_category, source_table)")
         .eq("task_id", taskId),
     ]);
     if (contactRes.data) setLinkedContacts(contactRes.data as unknown as LinkedContact[]);
-    if (investorRes.data) setLinkedInvestors(investorRes.data as unknown as LinkedInvestor[]);
-    if (orgRes.data) setLinkedSoccerOrgs(orgRes.data as unknown as LinkedSoccerOrg[]);
+    if (orgRes.data) setLinkedOrganizations(orgRes.data as unknown as LinkedOrganization[]);
   }, [taskId]);
 
   const loadRelatedTasks = useCallback(async (threadId: string | null) => {
@@ -297,14 +284,9 @@ export default function TaskDetail() {
     return (data || []).map((c) => ({ id: c.id, label: c.name, sub: c.organization || c.email || undefined }));
   }, []);
 
-  const searchInvestors = useCallback(async (q: string) => {
-    const { data } = await supabase.from("investors").select("id, firm_name, investor_type").ilike("firm_name", `%${q}%`).limit(10);
-    return (data || []).map((i) => ({ id: i.id, label: i.firm_name, sub: i.investor_type || undefined }));
-  }, []);
-
-  const searchSoccerOrgs = useCallback(async (q: string) => {
-    const { data } = await supabase.from("soccer_orgs").select("id, team_name, league").ilike("team_name", `%${q}%`).limit(10);
-    return (data || []).map((o) => ({ id: o.id, label: o.team_name, sub: o.league || undefined }));
+  const searchOrganizations = useCallback(async (q: string) => {
+    const { data } = await supabase.from("organizations").select("id, name, org_category, source_table").ilike("name", `%${q}%`).limit(10);
+    return (data || []).map((o) => ({ id: o.id, label: o.name, sub: o.org_category || undefined }));
   }, []);
 
   const linkContact = useCallback(async (contactId: string) => {
@@ -317,23 +299,13 @@ export default function TaskDetail() {
     await loadLinks();
   }, [taskId, loadLinks]);
 
-  const linkInvestor = useCallback(async (investorId: string) => {
-    await supabase.from("task_investors").insert({ task_id: taskId, investor_id: investorId });
+  const linkOrganization = useCallback(async (orgId: string) => {
+    await supabase.from("task_organizations").insert({ task_id: taskId, organization_id: orgId });
     await loadLinks();
   }, [taskId, loadLinks]);
 
-  const unlinkInvestor = useCallback(async (investorId: string) => {
-    await supabase.from("task_investors").delete().eq("task_id", taskId).eq("investor_id", investorId);
-    await loadLinks();
-  }, [taskId, loadLinks]);
-
-  const linkSoccerOrg = useCallback(async (orgId: string) => {
-    await supabase.from("task_soccer_orgs").insert({ task_id: taskId, soccer_org_id: orgId });
-    await loadLinks();
-  }, [taskId, loadLinks]);
-
-  const unlinkSoccerOrg = useCallback(async (orgId: string) => {
-    await supabase.from("task_soccer_orgs").delete().eq("task_id", taskId).eq("soccer_org_id", orgId);
+  const unlinkOrganization = useCallback(async (orgId: string) => {
+    await supabase.from("task_organizations").delete().eq("task_id", taskId).eq("organization_id", orgId);
     await loadLinks();
   }, [taskId, loadLinks]);
 
@@ -532,7 +504,7 @@ export default function TaskDetail() {
       )}
 
       {/* Entity linkers */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
         <Card>
           <CardContent className="pt-5">
             <EntityLinker
@@ -557,41 +529,20 @@ export default function TaskDetail() {
         <Card>
           <CardContent className="pt-5">
             <EntityLinker
-              title="Investors"
-              icon={<TrendingUp className="h-4 w-4" />}
-              items={linkedInvestors.map((li) => ({
-                id: li.investors.id,
-                label: li.investors.firm_name,
-                sub: li.investors.investor_type || undefined,
-                href: `/investors/${li.investors.id}`,
-                role: li.role,
-                linkId: li.investor_id,
-              }))}
-              onLink={linkInvestor}
-              onUnlink={unlinkInvestor}
-              onSearch={searchInvestors}
-              existingIds={new Set(linkedInvestors.map((li) => li.investor_id))}
-            />
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="pt-5">
-            <EntityLinker
-              title="Communities"
+              title="Organizations"
               icon={<Building2 className="h-4 w-4" />}
-              items={linkedSoccerOrgs.map((lo) => ({
-                id: lo.soccer_orgs.id,
-                label: lo.soccer_orgs.team_name,
-                sub: lo.soccer_orgs.league || undefined,
-                href: `/soccer-orgs/${lo.soccer_orgs.id}`,
+              items={linkedOrganizations.map((lo) => ({
+                id: lo.organizations.id,
+                label: lo.organizations.name,
+                sub: lo.organizations.org_category || undefined,
+                href: lo.organizations.source_table === "investors" ? `/investors/${lo.organizations.id}` : `/soccer-orgs/${lo.organizations.id}`,
                 role: lo.role,
-                linkId: lo.soccer_org_id,
+                linkId: lo.organization_id,
               }))}
-              onLink={linkSoccerOrg}
-              onUnlink={unlinkSoccerOrg}
-              onSearch={searchSoccerOrgs}
-              existingIds={new Set(linkedSoccerOrgs.map((lo) => lo.soccer_org_id))}
+              onLink={linkOrganization}
+              onUnlink={unlinkOrganization}
+              onSearch={searchOrganizations}
+              existingIds={new Set(linkedOrganizations.map((lo) => lo.organization_id))}
             />
           </CardContent>
         </Card>

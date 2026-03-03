@@ -12,7 +12,14 @@ import { Avatar } from "@/components/Avatar";
 import Link from "next/link";
 import { labels } from "@/config/labels";
 import { timeAgo } from "@/lib/timeAgo";
+import { getGravatarUrl } from "@/lib/gravatar";
 import { Search, X, ChevronUp, ChevronDown, Plus, Trash2, CheckSquare, Square, LayoutGrid, List } from "lucide-react";
+
+interface InteractionInfo {
+  date: string;
+  subject: string | null;
+  snippet: string | null;
+}
 
 interface Contact {
   id: string;
@@ -61,15 +68,15 @@ export default function ContactsPage() {
   const [showBulk, setShowBulk] = useState(false);
   const [view, setView] = useState<"table" | "tiles">("table");
 
-  // Last interaction map: contactId -> latest date string
-  const [interactionMap, setInteractionMap] = useState<Map<string, string>>(new Map());
+  // Last interaction map: contactId -> interaction info
+  const [interactionMap, setInteractionMap] = useState<Map<string, InteractionInfo>>(new Map());
   // Org enhancement map: contactId -> org name from junction tables
   const [junctionOrgMap, setJunctionOrgMap] = useState<Map<string, string>>(new Map());
 
   // Column resize state
   const COL_KEYS = ["name", "organization", "email", "phone", "title", "segment", "category", "last_interaction"] as const;
   const DEFAULT_WIDTHS: Record<string, number> = {
-    name: 160, organization: 140, email: 170, phone: 110, title: 130, segment: 110, category: 110, last_interaction: 110,
+    name: 150, organization: 130, email: 160, phone: 100, title: 120, segment: 100, category: 100, last_interaction: 160,
   };
   const [colWidths, setColWidths] = useState<Record<string, number>>(DEFAULT_WIDTHS);
   const dragRef = useRef<{ col: string; startX: number; startW: number } | null>(null);
@@ -112,59 +119,46 @@ export default function ContactsPage() {
     setLoading(false);
   }, []);
 
-  // Load latest correspondence date per contact
+  // Load latest correspondence per contact (with subject + snippet preview)
   const loadLastInteractions = async (contactIds: string[]) => {
     if (contactIds.length === 0) return;
     const { data: interactions } = await supabase
       .from("correspondence")
-      .select("entity_id, date")
+      .select("entity_id, email_date, subject, snippet")
       .eq("entity_type", "contacts")
       .in("entity_id", contactIds)
-      .order("date", { ascending: false });
+      .order("email_date", { ascending: false });
 
     if (interactions) {
-      const map = new Map<string, string>();
+      const map = new Map<string, InteractionInfo>();
       for (const row of interactions) {
-        // Take first occurrence per entity_id (most recent since sorted DESC)
-        if (row.entity_id && row.date && !map.has(row.entity_id)) {
-          map.set(row.entity_id, row.date);
+        if (row.entity_id && row.email_date && !map.has(row.entity_id)) {
+          map.set(row.entity_id, {
+            date: row.email_date,
+            subject: row.subject || null,
+            snippet: row.snippet || null,
+          });
         }
       }
       setInteractionMap(map);
     }
   };
 
-  // Load org names from junction tables for contacts with empty org
+  // Load org names from unified organization_contacts junction
   const loadJunctionOrgs = async (contactIds: string[]) => {
     if (contactIds.length === 0) return;
     const map = new Map<string, string>();
 
-    // Soccer org contacts
-    const { data: soccerLinks } = await supabase
-      .from("soccer_org_contacts")
-      .select("contact_id, soccer_orgs(org_name)")
+    const { data: orgLinks } = await supabase
+      .from("organization_contacts")
+      .select("contact_id, organizations(name)")
       .in("contact_id", contactIds);
 
-    if (soccerLinks) {
-      for (const link of soccerLinks) {
-        const org = link.soccer_orgs as unknown as { org_name: string } | null;
-        if (org?.org_name && link.contact_id && !map.has(link.contact_id)) {
-          map.set(link.contact_id, org.org_name);
-        }
-      }
-    }
-
-    // Investor contacts
-    const { data: investorLinks } = await supabase
-      .from("investor_contacts")
-      .select("contact_id, investors(firm_name)")
-      .in("contact_id", contactIds);
-
-    if (investorLinks) {
-      for (const link of investorLinks) {
-        const inv = link.investors as unknown as { firm_name: string } | null;
-        if (inv?.firm_name && link.contact_id && !map.has(link.contact_id)) {
-          map.set(link.contact_id, inv.firm_name);
+    if (orgLinks) {
+      for (const link of orgLinks) {
+        const org = link.organizations as unknown as { name: string } | null;
+        if (org?.name && link.contact_id && !map.has(link.contact_id)) {
+          map.set(link.contact_id, org.name);
         }
       }
     }
@@ -254,8 +248,8 @@ export default function ContactsPage() {
     })
     .sort((a, b) => {
       if (sortField === "last_interaction") {
-        const aT = interactionMap.get(a.id) ? new Date(interactionMap.get(a.id)!).getTime() : 0;
-        const bT = interactionMap.get(b.id) ? new Date(interactionMap.get(b.id)!).getTime() : 0;
+        const aT = interactionMap.get(a.id) ? new Date(interactionMap.get(a.id)!.date).getTime() : 0;
+        const bT = interactionMap.get(b.id) ? new Date(interactionMap.get(b.id)!.date).getTime() : 0;
         return sortDir === "asc" ? aT - bT : bT - aT;
       }
       const aVal = (a[sortField] || "").toLowerCase();
@@ -351,7 +345,7 @@ export default function ContactsPage() {
             <Link key={c.id} href={`/contacts/${c.id}`}>
               <Card className="hover:shadow-md transition-shadow cursor-pointer h-full">
                 <CardContent className="p-4 flex flex-col items-center text-center gap-2">
-                  <Avatar src={c.avatar_url} name={c.name} size="lg" />
+                  <Avatar src={c.avatar_url || getGravatarUrl(c.email)} name={c.name} size="lg" />
                   <div className="min-w-0 w-full">
                     <p className="text-sm font-medium text-gray-900 truncate">{c.name}</p>
                     {c.email && <p className="text-xs text-gray-500 truncate">{c.email}</p>}
@@ -367,45 +361,47 @@ export default function ContactsPage() {
       ) : (
         <Card>
           <div className="overflow-x-auto">
-            <table className="text-sm" style={{ tableLayout: "fixed", width: 40 + 40 + COL_KEYS.reduce((s, k) => s + colWidths[k], 0) }}>
+            <table className="text-sm w-full" style={{ tableLayout: "fixed" }}>
+              {(() => { const tw = COL_KEYS.reduce((s, k) => s + colWidths[k], 0) + 76; const p = (w: number) => `${((w / tw) * 100).toFixed(1)}%`; return (
               <colgroup>
-                <col style={{ width: 40 }} />
-                <col style={{ width: 40 }} />
-                {COL_KEYS.map((k) => <col key={k} style={{ width: colWidths[k] }} />)}
+                <col style={{ width: p(40) }} />
+                <col style={{ width: p(36) }} />
+                {COL_KEYS.map((k) => <col key={k} style={{ width: p(colWidths[k]) }} />)}
               </colgroup>
+              ); })()}
               <thead>
                 <tr className="border-b bg-gray-50">
                   <th className="px-3 py-3"><button onClick={toggleSelectAll}>{selected.size === filtered.length && filtered.length > 0 ? <CheckSquare className="h-4 w-4 text-blue-600" /> : <Square className="h-4 w-4 text-gray-300" />}</button></th>
                   <th className="px-2 py-3"></th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-500 relative cursor-pointer" onClick={() => toggleSort("name")}>
+                  <th className="text-left px-3 py-3 font-medium text-gray-500 text-xs uppercase tracking-wide relative whitespace-nowrap overflow-hidden cursor-pointer" onClick={() => toggleSort("name")}>
                     <span className="flex items-center gap-1">Name <SortIcon field="name" /></span>
                     <div className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-400 active:bg-blue-500" onMouseDown={(e) => startResize("name", e)} />
                   </th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-500 relative">
+                  <th className="text-left px-3 py-3 font-medium text-gray-500 text-xs uppercase tracking-wide relative whitespace-nowrap overflow-hidden">
                     Organization
                     <div className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-400 active:bg-blue-500" onMouseDown={(e) => startResize("organization", e)} />
                   </th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-500 relative">
+                  <th className="text-left px-3 py-3 font-medium text-gray-500 text-xs uppercase tracking-wide relative whitespace-nowrap overflow-hidden">
                     Email
                     <div className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-400 active:bg-blue-500" onMouseDown={(e) => startResize("email", e)} />
                   </th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-500 relative">
+                  <th className="text-left px-3 py-3 font-medium text-gray-500 text-xs uppercase tracking-wide relative whitespace-nowrap overflow-hidden">
                     Phone
                     <div className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-400 active:bg-blue-500" onMouseDown={(e) => startResize("phone", e)} />
                   </th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-500 relative">
+                  <th className="text-left px-3 py-3 font-medium text-gray-500 text-xs uppercase tracking-wide relative whitespace-nowrap overflow-hidden">
                     Title
                     <div className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-400 active:bg-blue-500" onMouseDown={(e) => startResize("title", e)} />
                   </th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-500 relative cursor-pointer" onClick={() => toggleSort("segment")}>
+                  <th className="text-left px-3 py-3 font-medium text-gray-500 text-xs uppercase tracking-wide relative whitespace-nowrap overflow-hidden cursor-pointer" onClick={() => toggleSort("segment")}>
                     <span className="flex items-center gap-1">Segment <SortIcon field="segment" /></span>
                     <div className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-400 active:bg-blue-500" onMouseDown={(e) => startResize("segment", e)} />
                   </th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-500 relative cursor-pointer" onClick={() => toggleSort("primary_category")}>
+                  <th className="text-left px-3 py-3 font-medium text-gray-500 text-xs uppercase tracking-wide relative whitespace-nowrap overflow-hidden cursor-pointer" onClick={() => toggleSort("primary_category")}>
                     <span className="flex items-center gap-1">Category <SortIcon field="primary_category" /></span>
                     <div className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-400 active:bg-blue-500" onMouseDown={(e) => startResize("category", e)} />
                   </th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-500 relative cursor-pointer" onClick={() => toggleSort("last_interaction")}>
+                  <th className="text-left px-3 py-3 font-medium text-gray-500 text-xs uppercase tracking-wide relative whitespace-nowrap overflow-hidden cursor-pointer" onClick={() => toggleSort("last_interaction")}>
                     <span className="flex items-center gap-1">{labels.contactLastInteraction} <SortIcon field="last_interaction" /></span>
                     <div className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-400 active:bg-blue-500" onMouseDown={(e) => startResize("last_interaction", e)} />
                   </th>
@@ -415,33 +411,41 @@ export default function ContactsPage() {
                 {filtered.map((c) => {
                   const displayOrg = getDisplayOrg(c);
                   const isJunctionOrg = !c.organization && junctionOrgMap.has(c.id);
-                  const lastInteraction = interactionMap.get(c.id);
+                  const interaction = interactionMap.get(c.id);
                   return (
                     <tr key={c.id} className={`border-b hover:bg-gray-50 ${selected.has(c.id) ? "bg-blue-50" : ""}`}>
-                      <td className="px-3 py-3"><button onClick={() => toggleSelect(c.id)}>{selected.has(c.id) ? <CheckSquare className="h-4 w-4 text-blue-600" /> : <Square className="h-4 w-4 text-gray-300" />}</button></td>
-                      <td className="px-2 py-2"><Avatar src={c.avatar_url} name={c.name} size="sm" /></td>
-                      <td className="px-4 py-2 overflow-hidden">
-                        <div className="flex items-center gap-2">
-                          <Link href={`/contacts/${c.id}`} className="text-blue-600 hover:underline font-medium shrink-0">↗</Link>
-                          <EditableCell value={c.name} onSave={(v) => updateCell(c.id, "name", v)} />
+                      <td className="px-3 py-2"><button onClick={() => toggleSelect(c.id)}>{selected.has(c.id) ? <CheckSquare className="h-4 w-4 text-blue-600" /> : <Square className="h-4 w-4 text-gray-300" />}</button></td>
+                      <td className="px-2 py-2"><Avatar src={c.avatar_url || getGravatarUrl(c.email)} name={c.name} size="sm" /></td>
+                      <td className="px-3 py-2 overflow-hidden">
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <Link href={`/contacts/${c.id}`} className="text-blue-600 hover:underline shrink-0 text-xs">↗</Link>
+                          <div className="min-w-0 flex-1"><EditableCell value={c.name} onSave={(v) => updateCell(c.id, "name", v)} /></div>
                         </div>
                       </td>
-                      <td className="px-4 py-2 overflow-hidden">
+                      <td className="px-3 py-2 overflow-hidden">
                         {c.organization ? (
                           <EditableCell value={c.organization} onSave={(v) => updateCell(c.id, "organization", v)} />
                         ) : isJunctionOrg ? (
-                          <span className="text-xs text-gray-400 italic">{displayOrg}</span>
+                          <span className="text-xs text-gray-400 italic truncate block">{displayOrg}</span>
                         ) : (
                           <EditableCell value={null} onSave={(v) => updateCell(c.id, "organization", v)} />
                         )}
                       </td>
-                      <td className="px-4 py-2 overflow-hidden"><EditableCell value={c.email} onSave={(v) => updateCell(c.id, "email", v)} /></td>
-                      <td className="px-4 py-2 overflow-hidden"><EditableCell value={c.phone} onSave={(v) => updateCell(c.id, "phone", v)} /></td>
-                      <td className="px-4 py-2 overflow-hidden"><EditableCell value={c.title} onSave={(v) => updateCell(c.id, "title", v)} /></td>
-                      <td className="px-4 py-2 overflow-hidden"><EditableCell value={c.segment} onSave={(v) => updateCell(c.id, "segment", v)} type="select" options={SEGMENTS} /></td>
-                      <td className="px-4 py-2 overflow-hidden"><EditableCell value={c.primary_category} onSave={(v) => updateCell(c.id, "primary_category", v)} type="select" options={CATEGORIES} /></td>
-                      <td className="px-4 py-2 overflow-hidden text-gray-400 text-xs whitespace-nowrap">
-                        {lastInteraction ? timeAgo(lastInteraction) : "—"}
+                      <td className="px-3 py-2 overflow-hidden"><EditableCell value={c.email} onSave={(v) => updateCell(c.id, "email", v)} /></td>
+                      <td className="px-3 py-2 overflow-hidden"><EditableCell value={c.phone} onSave={(v) => updateCell(c.id, "phone", v)} /></td>
+                      <td className="px-3 py-2 overflow-hidden"><EditableCell value={c.title} onSave={(v) => updateCell(c.id, "title", v)} /></td>
+                      <td className="px-3 py-2 overflow-hidden"><EditableCell value={c.segment} onSave={(v) => updateCell(c.id, "segment", v)} type="select" options={SEGMENTS} /></td>
+                      <td className="px-3 py-2 overflow-hidden"><EditableCell value={c.primary_category} onSave={(v) => updateCell(c.id, "primary_category", v)} type="select" options={CATEGORIES} /></td>
+                      <td className="px-3 py-2 overflow-hidden">
+                        {interaction ? (
+                          <div title={`${interaction.subject || "(no subject)"}\n${interaction.snippet || ""}`}>
+                            <p className="text-xs text-gray-600 truncate leading-snug">{interaction.subject || "(no subject)"}</p>
+                            {interaction.snippet && <p className="text-[11px] text-gray-400 truncate leading-snug">{interaction.snippet}</p>}
+                            <span className="text-[10px] text-gray-300">{timeAgo(interaction.date)}</span>
+                          </div>
+                        ) : (
+                          <span className="text-gray-300 text-xs">—</span>
+                        )}
                       </td>
                     </tr>
                   );

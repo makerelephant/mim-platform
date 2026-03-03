@@ -37,8 +37,7 @@ interface GatheredData {
   emails: CorrespondenceRow[];
   slackMessages: CorrespondenceRow[];
   newContacts: Array<{ name: string; email: string | null; source: string | null; primary_category: string | null; created_at: string }>;
-  investorUpdates: Array<{ firm_name: string; stage: string | null; updated_at: string }>;
-  communityUpdates: Array<{ org_name: string; partner_status: string | null; updated_at: string }>;
+  organizationUpdates: Array<{ name: string; org_category: string | null; pipeline_status: string | null; partner_status: string | null; source_table: string | null; updated_at: string }>;
   agentActivity: Array<{ agent_name: string; action_type: string; summary: string; entity_type: string | null; created_at: string }>;
 }
 
@@ -100,8 +99,7 @@ async function gatherData(
     { data: emails },
     { data: slackMessages },
     { data: newContacts },
-    { data: investorUpdates },
-    { data: communityUpdates },
+    { data: organizationUpdates },
     { data: agentActivity },
   ] = await Promise.all([
     // Tasks created in period
@@ -143,14 +141,9 @@ async function gatherData(
       .select("name, email, source, primary_category, created_at")
       .gte("created_at", startISO)
       .lt("created_at", endISO),
-    // Investor updates
-    sb.from("investors")
-      .select("firm_name, stage, updated_at")
-      .gte("updated_at", startISO)
-      .lt("updated_at", endISO),
-    // Community updates
-    sb.from("soccer_orgs")
-      .select("org_name, partner_status, updated_at")
+    // Organization updates (investors + communities unified)
+    sb.from("organizations")
+      .select("name, org_category, pipeline_status, partner_status, source_table, updated_at")
       .gte("updated_at", startISO)
       .lt("updated_at", endISO),
     // Agent activity
@@ -169,8 +162,7 @@ async function gatherData(
     emails: emails || [],
     slackMessages: slackMessages || [],
     newContacts: newContacts || [],
-    investorUpdates: investorUpdates || [],
-    communityUpdates: communityUpdates || [],
+    organizationUpdates: organizationUpdates || [],
     agentActivity: agentActivity || [],
   };
 }
@@ -233,19 +225,22 @@ function buildDataContext(data: GatheredData): string {
     sections.push("None");
   }
 
-  sections.push(`\n## INVESTOR UPDATES (${data.investorUpdates.length})`);
-  if (data.investorUpdates.length > 0) {
-    for (const i of data.investorUpdates) {
-      sections.push(`- ${i.firm_name} (stage: ${i.stage || "unknown"})`);
+  const investorUpdates = data.organizationUpdates.filter((o) => o.source_table === "investors");
+  const communityUpdates = data.organizationUpdates.filter((o) => o.source_table === "soccer_orgs");
+
+  sections.push(`\n## INVESTOR UPDATES (${investorUpdates.length})`);
+  if (investorUpdates.length > 0) {
+    for (const i of investorUpdates) {
+      sections.push(`- ${i.name} (stage: ${i.pipeline_status || "unknown"})`);
     }
   } else {
     sections.push("None");
   }
 
-  sections.push(`\n## COMMUNITY/PARTNER UPDATES (${data.communityUpdates.length})`);
-  if (data.communityUpdates.length > 0) {
-    for (const c of data.communityUpdates) {
-      sections.push(`- ${c.org_name} (partner status: ${c.partner_status || "none"})`);
+  sections.push(`\n## COMMUNITY/PARTNER UPDATES (${communityUpdates.length})`);
+  if (communityUpdates.length > 0) {
+    for (const c of communityUpdates) {
+      sections.push(`- ${c.name} (partner status: ${c.partner_status || "none"})`);
     }
   } else {
     sections.push("None");

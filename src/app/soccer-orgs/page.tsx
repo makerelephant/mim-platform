@@ -10,25 +10,24 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { EditableCell } from "@/components/EditableCell";
 import { Avatar } from "@/components/Avatar";
 import { useResizableColumns } from "@/hooks/useResizableColumns";
-import { timeAgo } from "@/lib/timeAgo";
 import Link from "next/link";
 import { labels } from "@/config/labels";
 import { Search, X, Plus, Trash2, CheckSquare, Square, ChevronUp, ChevronDown } from "lucide-react";
 
 const TABLE_COLS = [
-  { key: "org_name", label: "Organization", width: 180 },
-  { key: "org_type", label: "Type", width: 120 },
-  { key: "leagues", label: "Leagues", width: 160 },
-  { key: "players", label: "Players", width: 70 },
-  { key: "outreach_status", label: "Outreach", width: 110 },
-  { key: "partner_status", label: "Partner", width: 110 },
-  { key: "website", label: "Website", width: 130 },
-  { key: "updated_at", label: "Updated", width: 95 },
+  { key: "name", label: "Organization", width: 170 },
+  { key: "org_type", label: "Type", width: 110 },
+  { key: "leagues", label: "Leagues", width: 150 },
+  { key: "players", label: "Players", width: 65 },
+  { key: "outreach_status", label: "Outreach", width: 100 },
+  { key: "partner_status", label: "Activity", width: 100 },
+  { key: "contacts_col", label: "Contacts", width: 130 },
+  { key: "website", label: "Website", width: 80 },
 ];
 
 interface SoccerOrg {
   id: string;
-  org_name: string;
+  name: string;
   org_type: string | null;
   corporate_structure: string | null;
   address: string | null;
@@ -47,7 +46,7 @@ interface SoccerOrg {
   updated_at: string | null;
 }
 
-type SortField = "org_name" | "updated_at";
+type SortField = "name";
 type SortDir = "asc" | "desc";
 
 const LEAGUE_FIELDS = [
@@ -75,8 +74,9 @@ export default function SoccerOrgsPage() {
   const [showBulk, setShowBulk] = useState(false);
   const [bulkField, setBulkField] = useState("");
   const [bulkValue, setBulkValue] = useState("");
-  const [sortField, setSortField] = useState<SortField>("updated_at");
-  const [sortDir, setSortDir] = useState<SortDir>("desc");
+  const [sortField, setSortField] = useState<SortField>("name");
+  const [sortDir, setSortDir] = useState<SortDir>("asc");
+  const [orgContactsMap, setOrgContactsMap] = useState<Map<string, string[]>>(new Map());
 
   const { colWidths, startResize, totalWidth } = useResizableColumns(TABLE_COLS);
 
@@ -91,36 +91,55 @@ export default function SoccerOrgsPage() {
   };
 
   const load = useCallback(async () => {
-    const { data } = await supabase.from("soccer_orgs").select("*").order("org_name");
+    const { data } = await supabase.from("organizations").select("*").eq("source_table", "soccer_orgs").order("name");
     if (data) setOrgs(data);
+
+    // Load contacts mapped to each org
+    const { data: orgLinks } = await supabase
+      .from("organization_contacts")
+      .select("organization_id, contacts(name)");
+    if (orgLinks) {
+      const map = new Map<string, string[]>();
+      for (const link of orgLinks) {
+        const id = link.organization_id;
+        const name = (link.contacts as unknown as { name: string })?.name;
+        if (name) {
+          if (!map.has(id)) map.set(id, []);
+          map.get(id)!.push(name);
+        }
+      }
+      setOrgContactsMap(map);
+    }
+
     setLoading(false);
   }, []);
 
   useEffect(() => { load(); }, [load]);
 
   const updateCell = async (id: string, field: string, value: string) => {
-    const { error } = await supabase.from("soccer_orgs").update({ [field]: value || null }).eq("id", id);
+    const { error } = await supabase.from("organizations").update({ [field]: value || null }).eq("id", id);
     if (!error) setOrgs((prev) => prev.map((o) => (o.id === id ? { ...o, [field]: value || null, updated_at: new Date().toISOString() } : o)));
   };
 
   const createOrg = async () => {
     if (!newName.trim()) return;
-    const { data, error } = await supabase.from("soccer_orgs").insert({
-      org_name: newName, org_type: newType || null, website: newWebsite || null,
+    const { data, error } = await supabase.from("organizations").insert({
+      name: newName, org_category: "Youth Soccer", source_table: "soccer_orgs",
+      org_type: newType || null, website: newWebsite || null,
     }).select().single();
     if (!error && data) { setOrgs((prev) => [...prev, data]); setNewName(""); setNewType(""); setNewWebsite(""); setShowNew(false); }
   };
 
   const deleteSelected = async () => {
     if (selected.size === 0) return;
-    const { error } = await supabase.from("soccer_orgs").delete().in("id", Array.from(selected));
+    const { error } = await supabase.from("organizations").delete().in("id", Array.from(selected));
     if (!error) { setOrgs((prev) => prev.filter((o) => !selected.has(o.id))); setSelected(new Set()); }
   };
 
   const bulkUpdate = async () => {
     if (!bulkField || selected.size === 0) return;
     const ids = Array.from(selected);
-    const { error } = await supabase.from("soccer_orgs").update({ [bulkField]: bulkValue || null }).in("id", ids);
+    const { error } = await supabase.from("organizations").update({ [bulkField]: bulkValue || null }).in("id", ids);
     if (!error) { setOrgs((prev) => prev.map((o) => selected.has(o.id) ? { ...o, [bulkField]: bulkValue || null } : o)); setSelected(new Set()); setShowBulk(false); }
   };
 
@@ -132,17 +151,12 @@ export default function SoccerOrgsPage() {
   const getLeagues = (o: SoccerOrg) => LEAGUE_FIELDS.filter((lf) => o[lf.key]).map((lf) => lf.label);
 
   const filtered = orgs.filter((o) => {
-    if (search && !o.org_name?.toLowerCase().includes(search.toLowerCase())) return false;
+    if (search && !o.name?.toLowerCase().includes(search.toLowerCase())) return false;
     if (filterType && o.org_type !== filterType) return false;
     if (filterStructure && o.corporate_structure !== filterStructure) return false;
     if (filterLeague) { const key = `in_${filterLeague.toLowerCase().replace(/ /g, "_")}` as keyof SoccerOrg; if (!o[key]) return false; }
     return true;
   }).sort((a, b) => {
-    if (sortField === "updated_at") {
-      const aT = a.updated_at ? new Date(a.updated_at).getTime() : 0;
-      const bT = b.updated_at ? new Date(b.updated_at).getTime() : 0;
-      return sortDir === "asc" ? aT - bT : bT - aT;
-    }
     const aVal = (a[sortField] || "").toLowerCase();
     const bVal = (b[sortField] || "").toLowerCase();
     return sortDir === "asc" ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
@@ -206,20 +220,22 @@ export default function SoccerOrgsPage() {
 
       <Card>
         <div className="overflow-x-auto">
-          <table className="text-sm" style={{ tableLayout: "fixed", width: 40 + 40 + totalWidth }}>
+          <table className="text-sm w-full" style={{ tableLayout: "fixed" }}>
+            {(() => { const fw = 76 + totalWidth; const p = (w: number) => `${((w / fw) * 100).toFixed(1)}%`; return (
             <colgroup>
-              <col style={{ width: 40 }} />
-              <col style={{ width: 40 }} />
-              {TABLE_COLS.map((c) => <col key={c.key} style={{ width: colWidths[c.key] }} />)}
+              <col style={{ width: p(40) }} />
+              <col style={{ width: p(36) }} />
+              {TABLE_COLS.map((c) => <col key={c.key} style={{ width: p(colWidths[c.key]) }} />)}
             </colgroup>
+            ); })()}
             <thead><tr className="border-b bg-gray-50">
               <th className="px-3 py-3"><button onClick={toggleSelectAll}>{selected.size === filtered.length && filtered.length > 0 ? <CheckSquare className="h-4 w-4 text-blue-600" /> : <Square className="h-4 w-4 text-gray-300" />}</button></th>
               <th className="px-2 py-3"></th>
               {TABLE_COLS.map((c) => {
-                const sortable = c.key === "org_name" || c.key === "updated_at";
+                const sortable = c.key === "name";
                 const sf = sortable ? (c.key as SortField) : null;
                 return (
-                  <th key={c.key} className={`text-left px-4 py-3 font-medium text-gray-500 relative ${sortable ? "cursor-pointer" : ""}`} onClick={sf ? () => toggleSort(sf) : undefined}>
+                  <th key={c.key} className={`text-left px-3 py-3 font-medium text-gray-500 text-xs uppercase tracking-wide relative whitespace-nowrap overflow-hidden ${sortable ? "cursor-pointer" : ""}`} onClick={sf ? () => toggleSort(sf) : undefined}>
                     <span className="flex items-center gap-1">{c.label} {sf && <SortIcon field={sf} />}</span>
                     <div className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-400 active:bg-blue-500" onMouseDown={(e) => startResize(c.key, e)} />
                   </th>
@@ -229,16 +245,16 @@ export default function SoccerOrgsPage() {
             <tbody>
               {filtered.map((o) => (
                 <tr key={o.id} className={`border-b hover:bg-gray-50 ${selected.has(o.id) ? "bg-blue-50" : ""}`}>
-                  <td className="px-3 py-3"><button onClick={() => toggleSelect(o.id)}>{selected.has(o.id) ? <CheckSquare className="h-4 w-4 text-blue-600" /> : <Square className="h-4 w-4 text-gray-300" />}</button></td>
-                  <td className="px-2 py-2"><Avatar src={o.avatar_url} name={o.org_name} size="sm" /></td>
-                  <td className="px-4 py-2 overflow-hidden"><div className="flex items-center gap-2"><Link href={`/soccer-orgs/${o.id}`} className="text-blue-600 hover:underline shrink-0">&#8599;</Link><EditableCell value={o.org_name} onSave={(v) => updateCell(o.id, "org_name", v)} /></div></td>
-                  <td className="px-4 py-2 overflow-hidden"><EditableCell value={o.org_type} onSave={(v) => updateCell(o.id, "org_type", v)} type="select" options={ORG_TYPES} /></td>
-                  <td className="px-4 py-2 overflow-hidden"><div className="flex flex-wrap gap-1">{getLeagues(o).map((l) => <Badge key={l} variant="outline" className="text-xs">{l}</Badge>)}</div></td>
-                  <td className="px-4 py-2 overflow-hidden text-gray-600 text-xs">{o.players ?? "---"}</td>
-                  <td className="px-4 py-2 overflow-hidden">{o.outreach_status && o.outreach_status !== "Not Contacted" ? <Badge variant="secondary" className="text-xs">{o.outreach_status}</Badge> : <span className="text-xs text-gray-300">---</span>}</td>
-                  <td className="px-4 py-2 overflow-hidden">{o.partner_status ? <Badge className="text-xs bg-green-100 text-green-800">{o.partner_status}</Badge> : <span className="text-xs text-gray-300">---</span>}</td>
-                  <td className="px-4 py-2 overflow-hidden"><EditableCell value={o.website} onSave={(v) => updateCell(o.id, "website", v)} /></td>
-                  <td className="px-4 py-2 overflow-hidden text-gray-400 text-xs whitespace-nowrap">{timeAgo(o.updated_at)}</td>
+                  <td className="px-3 py-2"><button onClick={() => toggleSelect(o.id)}>{selected.has(o.id) ? <CheckSquare className="h-4 w-4 text-blue-600" /> : <Square className="h-4 w-4 text-gray-300" />}</button></td>
+                  <td className="px-2 py-2"><Avatar src={o.avatar_url} name={o.name} size="sm" /></td>
+                  <td className="px-3 py-2 overflow-hidden"><div className="flex items-center gap-1.5 min-w-0"><Link href={`/soccer-orgs/${o.id}`} className="text-blue-600 hover:underline shrink-0 text-xs">↗</Link><div className="min-w-0 flex-1"><EditableCell value={o.name} onSave={(v) => updateCell(o.id, "name", v)} /></div></div></td>
+                  <td className="px-3 py-2 overflow-hidden"><EditableCell value={o.org_type} onSave={(v) => updateCell(o.id, "org_type", v)} type="select" options={ORG_TYPES} /></td>
+                  <td className="px-3 py-2 overflow-hidden"><div className="flex flex-wrap gap-0.5 overflow-hidden max-h-[2rem]">{getLeagues(o).map((l) => <Badge key={l} variant="outline" className="text-[10px] px-1 py-0">{l}</Badge>)}</div></td>
+                  <td className="px-3 py-2 overflow-hidden text-gray-600 text-xs">{o.players ?? "—"}</td>
+                  <td className="px-3 py-2 overflow-hidden">{o.outreach_status && o.outreach_status !== "Not Contacted" ? <Badge variant="secondary" className="text-[10px]">{o.outreach_status}</Badge> : <span className="text-xs text-gray-300">—</span>}</td>
+                  <td className="px-3 py-2 overflow-hidden">{o.partner_status ? <Badge className="text-[10px] bg-green-100 text-green-800">{o.partner_status}</Badge> : <span className="text-xs text-gray-300">—</span>}</td>
+                  <td className="px-3 py-2 overflow-hidden"><span className="text-xs text-gray-600 truncate block" title={orgContactsMap.get(o.id)?.join(", ")}>{orgContactsMap.get(o.id)?.join(", ") || <span className="text-gray-300">—</span>}</span></td>
+                  <td className="px-3 py-2 overflow-hidden">{o.website ? <a href={o.website.startsWith("http") ? o.website : `https://${o.website}`} target="_blank" rel="noopener noreferrer"><Badge variant="outline" className="text-[10px] cursor-pointer hover:bg-blue-50">Link ↗</Badge></a> : <span className="text-xs text-gray-300">—</span>}</td>
                 </tr>
               ))}
             </tbody>

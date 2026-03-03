@@ -12,22 +12,22 @@ import { useResizableColumns } from "@/hooks/useResizableColumns";
 import { labels } from "@/config/labels";
 import { timeAgo } from "@/lib/timeAgo";
 import Link from "next/link";
-import { Search, Plus, Trash2, CheckSquare, Square, ArrowRight, X, ChevronUp, ChevronDown } from "lucide-react";
+import { Search, Plus, Trash2, CheckSquare, Square, ArrowRight, X, ChevronUp, ChevronDown, FileDown } from "lucide-react";
 
 const TABLE_COLS = [
-  { key: "firm", label: "Firm", width: 170 },
-  { key: "type", label: "Type", width: 120 },
-  { key: "connection", label: "Connection Status", width: 130 },
-  { key: "pipeline", label: "Status", width: 120 },
-  { key: "correspondence", label: "Correspondence", width: 220 },
-  { key: "score", label: "Score", width: 70 },
-  { key: "website", label: "Website", width: 130 },
-  { key: "updated_at", label: "Updated", width: 95 },
+  { key: "firm", label: "Firm", width: 180 },
+  { key: "type", label: "Type", width: 100 },
+  { key: "connection", label: "Connection Status", width: 125 },
+  { key: "pipeline", label: "Status", width: 110 },
+  { key: "activity", label: "Recent Activity", width: 200 },
+  { key: "score", label: "Score", width: 60 },
+  { key: "website", label: "Website", width: 120 },
+  { key: "updated_at", label: "Updated", width: 80 },
 ];
 
 interface Investor {
   id: string;
-  firm_name: string;
+  name: string;
   description: string | null;
   investor_type: string | null;
   geography: string | null;
@@ -44,12 +44,13 @@ interface Investor {
   updated_at: string | null;
 }
 
-interface CorrespondenceInfo {
-  subject: string;
-  email_date: string | null;
+interface RecentActivity {
+  text: string;
+  date: string;
+  type: "email" | "task";
 }
 
-type SortField = "firm_name" | "updated_at";
+type SortField = "name" | "updated_at";
 type SortDir = "asc" | "desc";
 
 const CONNECTION_STATUSES = ["Active", "Stale", "Need Introduction", "Warm Intro", "Cold"];
@@ -73,9 +74,14 @@ export default function InvestorsPage() {
   const [bulkValue, setBulkValue] = useState("");
   const [sortField, setSortField] = useState<SortField>("updated_at");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
-  const [corrMap, setCorrMap] = useState<Map<string, CorrespondenceInfo>>(new Map());
+  const [activityMap, setActivityMap] = useState<Map<string, RecentActivity>>(new Map());
 
   const { colWidths, startResize, totalWidth } = useResizableColumns(TABLE_COLS);
+
+  // Percentage-based column widths for responsive layout
+  const FIXED_COL_PX = 76; // checkbox(40) + avatar(36)
+  const fullWidth = FIXED_COL_PX + totalWidth;
+  const pct = (w: number) => `${((w / fullWidth) * 100).toFixed(1)}%`;
 
   const toggleSort = (field: SortField) => {
     if (sortField === field) setSortDir(sortDir === "asc" ? "desc" : "asc");
@@ -87,45 +93,71 @@ export default function InvestorsPage() {
     return sortDir === "asc" ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />;
   };
 
-  const loadCorrespondence = useCallback(async (investorIds: string[]) => {
+  const loadRecentActivity = useCallback(async (investorIds: string[]) => {
     if (investorIds.length === 0) return;
+
+    const map = new Map<string, RecentActivity>();
+
+    // Load latest correspondence per investor
     const { data: corr } = await supabase
       .from("correspondence")
       .select("entity_id, subject, email_date")
-      .eq("entity_type", "investors")
+      .eq("entity_type", "organizations")
       .in("entity_id", investorIds)
       .order("email_date", { ascending: false });
+
     if (corr) {
-      const map = new Map<string, CorrespondenceInfo>();
       for (const row of corr) {
         if (row.entity_id && row.subject && !map.has(row.entity_id)) {
-          map.set(row.entity_id, { subject: row.subject, email_date: row.email_date });
+          map.set(row.entity_id, { text: row.subject, date: row.email_date || "", type: "email" });
         }
       }
-      setCorrMap(map);
     }
+
+    // Load latest tasks per investor — if more recent, override
+    const { data: tasks } = await supabase
+      .from("tasks")
+      .select("entity_id, title, summary, created_at")
+      .eq("entity_type", "organizations")
+      .in("entity_id", investorIds)
+      .order("created_at", { ascending: false });
+
+    if (tasks) {
+      for (const row of tasks) {
+        if (row.entity_id && row.title) {
+          const existing = map.get(row.entity_id);
+          const taskDate = row.created_at;
+          if (!existing || (taskDate && existing.date && new Date(taskDate) > new Date(existing.date))) {
+            map.set(row.entity_id, { text: row.summary || row.title, date: taskDate, type: "task" });
+          }
+        }
+      }
+    }
+
+    setActivityMap(map);
   }, []);
 
   const load = useCallback(async () => {
-    const { data } = await supabase.from("investors").select("*").order("firm_name");
+    const { data } = await supabase.from("organizations").select("*").eq("source_table", "investors").order("name");
     if (data) {
       setInvestors(data);
-      loadCorrespondence(data.map((inv: Investor) => inv.id));
+      loadRecentActivity(data.map((inv: Investor) => inv.id));
     }
     setLoading(false);
-  }, [loadCorrespondence]);
+  }, [loadRecentActivity]);
 
   useEffect(() => { load(); }, [load]);
 
   const updateCell = async (id: string, field: string, value: string) => {
-    const { error } = await supabase.from("investors").update({ [field]: value || null }).eq("id", id);
+    const { error } = await supabase.from("organizations").update({ [field]: value || null }).eq("id", id);
     if (!error) setInvestors((prev) => prev.map((inv) => (inv.id === id ? { ...inv, [field]: value || null, updated_at: new Date().toISOString() } : inv)));
   };
 
   const createInvestor = async () => {
     if (!newFirm.trim()) return;
-    const { data, error } = await supabase.from("investors").insert({
-      firm_name: newFirm, investor_type: newType || null, geography: newGeo || null,
+    const { data, error } = await supabase.from("organizations").insert({
+      name: newFirm, org_category: "Investment Firm", source_table: "investors",
+      investor_type: newType || null, geography: newGeo || null,
       sector_focus: newSector || null, source: "manual",
     }).select().single();
     if (!error && data) {
@@ -137,14 +169,14 @@ export default function InvestorsPage() {
 
   const deleteSelected = async () => {
     if (selected.size === 0) return;
-    const { error } = await supabase.from("investors").delete().in("id", Array.from(selected));
+    const { error } = await supabase.from("organizations").delete().in("id", Array.from(selected));
     if (!error) { setInvestors((prev) => prev.filter((inv) => !selected.has(inv.id))); setSelected(new Set()); }
   };
 
   const addToPipeline = async () => {
     if (selected.size === 0) return;
     const ids = Array.from(selected);
-    const { error } = await supabase.from("investors").update({ pipeline_status: "Prospect" }).in("id", ids);
+    const { error } = await supabase.from("organizations").update({ pipeline_status: "Prospect" }).in("id", ids);
     if (!error) {
       setInvestors((prev) => prev.map((inv) => selected.has(inv.id) && !inv.pipeline_status ? { ...inv, pipeline_status: "Prospect" } : inv));
       setSelected(new Set());
@@ -154,7 +186,7 @@ export default function InvestorsPage() {
   const removeFromPipeline = async () => {
     if (selected.size === 0) return;
     const ids = Array.from(selected);
-    const { error } = await supabase.from("investors").update({ pipeline_status: null }).in("id", ids);
+    const { error } = await supabase.from("organizations").update({ pipeline_status: null }).in("id", ids);
     if (!error) {
       setInvestors((prev) => prev.map((inv) => selected.has(inv.id) ? { ...inv, pipeline_status: null } : inv));
       setSelected(new Set());
@@ -164,7 +196,7 @@ export default function InvestorsPage() {
   const bulkUpdate = async () => {
     if (!bulkField || selected.size === 0) return;
     const ids = Array.from(selected);
-    const { error } = await supabase.from("investors").update({ [bulkField]: bulkValue || null }).in("id", ids);
+    const { error } = await supabase.from("organizations").update({ [bulkField]: bulkValue || null }).in("id", ids);
     if (!error) {
       setInvestors((prev) => prev.map((inv) => selected.has(inv.id) ? { ...inv, [bulkField]: bulkValue || null } : inv));
       setSelected(new Set()); setShowBulk(false); setBulkField(""); setBulkValue("");
@@ -174,10 +206,70 @@ export default function InvestorsPage() {
   const toggleSelect = (id: string) => { setSelected((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; }); };
   const toggleSelectAll = () => { if (selected.size === filtered.length) setSelected(new Set()); else setSelected(new Set(filtered.map((inv) => inv.id))); };
 
+  // ── PDF Export ──
+  const exportPDF = () => {
+    const sorted = [...filtered].sort((a, b) => {
+      const aT = a.updated_at ? new Date(a.updated_at).getTime() : 0;
+      const bT = b.updated_at ? new Date(b.updated_at).getTime() : 0;
+      return bT - aT;
+    });
+
+    const dateStr = new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
+    const escHtml = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+    const rows = sorted.map((inv) => {
+      const act = activityMap.get(inv.id);
+      return `<tr>
+        <td>${escHtml(inv.name)}</td>
+        <td>${escHtml(inv.investor_type || "—")}</td>
+        <td>${escHtml(inv.connection_status || "—")}</td>
+        <td>${escHtml(inv.pipeline_status || "—")}</td>
+        <td class="activity">${act ? escHtml(act.text) : "—"}</td>
+        <td class="center">${inv.likelihood_score ?? "—"}</td>
+        <td class="muted">${inv.updated_at ? timeAgo(inv.updated_at) : "—"}</td>
+      </tr>`;
+    }).join("");
+
+    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Investor Pipeline Report</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; padding: 40px; color: #1a1a1a; }
+  .header { display: flex; align-items: center; gap: 16px; margin-bottom: 24px; border-bottom: 2px solid #e5e7eb; padding-bottom: 16px; }
+  .header img { height: 60px; width: 60px; border-radius: 12px; }
+  .header h1 { font-size: 18px; font-weight: 700; }
+  .header .meta { font-size: 11px; color: #6b7280; margin-top: 2px; }
+  table { width: 100%; border-collapse: collapse; font-size: 10.5px; }
+  th { background: #f9fafb; padding: 8px 10px; text-align: left; border-bottom: 2px solid #d1d5db; font-weight: 600; color: #374151; white-space: nowrap; }
+  td { padding: 7px 10px; border-bottom: 1px solid #e5e7eb; vertical-align: top; }
+  td.activity { max-width: 220px; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; line-height: 1.4; }
+  td.center { text-align: center; }
+  td.muted { color: #9ca3af; font-size: 10px; }
+  tr:nth-child(even) { background: #fafafa; }
+  @media print { body { padding: 20px; } @page { margin: 0.5in; size: landscape; } }
+</style>
+</head><body>
+  <div class="header">
+    <img src="${window.location.origin}/mim-icon.png" alt="MiM" />
+    <div><h1>Investor Pipeline Report</h1><div class="meta">${dateStr} &middot; ${sorted.length} investors &middot; Sorted by recency</div></div>
+  </div>
+  <table>
+    <thead><tr><th>Firm</th><th>Type</th><th>Connection</th><th>Status</th><th>Recent Activity</th><th>Score</th><th>Updated</th></tr></thead>
+    <tbody>${rows}</tbody>
+  </table>
+</body></html>`;
+
+    const printWindow = window.open("", "_blank");
+    if (printWindow) {
+      printWindow.document.write(html);
+      printWindow.document.close();
+      printWindow.onload = () => { printWindow.print(); };
+    }
+  };
+
   const filtered = investors.filter((inv) => {
     if (search) {
       const s = search.toLowerCase();
-      if (!inv.firm_name?.toLowerCase().includes(s) && !inv.sector_focus?.toLowerCase().includes(s) && !inv.geography?.toLowerCase().includes(s)) return false;
+      if (!inv.name?.toLowerCase().includes(s) && !inv.investor_type?.toLowerCase().includes(s) && !inv.connection_status?.toLowerCase().includes(s)) return false;
     }
     if (filterConnection && inv.connection_status !== filterConnection) return false;
     if (filterPipeline === "in" && !inv.pipeline_status) return false;
@@ -208,6 +300,9 @@ export default function InvestorsPage() {
           </p>
         </div>
         <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={exportPDF}>
+            <FileDown className="h-4 w-4 mr-1" /> Export PDF
+          </Button>
           <Link href="/pipeline">
             <Button variant="outline" size="sm"><ArrowRight className="h-4 w-4 mr-1" /> View Pipeline</Button>
           </Link>
@@ -270,11 +365,11 @@ export default function InvestorsPage() {
 
       <Card>
         <div className="overflow-x-auto">
-          <table className="text-sm" style={{ tableLayout: "fixed", width: 40 + 40 + totalWidth }}>
+          <table className="text-sm w-full" style={{ tableLayout: "fixed" }}>
             <colgroup>
-              <col style={{ width: 40 }} />
-              <col style={{ width: 40 }} />
-              {TABLE_COLS.map((c) => <col key={c.key} style={{ width: colWidths[c.key] }} />)}
+              <col style={{ width: pct(40) }} />
+              <col style={{ width: pct(36) }} />
+              {TABLE_COLS.map((c) => <col key={c.key} style={{ width: pct(colWidths[c.key]) }} />)}
             </colgroup>
             <thead>
               <tr className="border-b bg-gray-50">
@@ -282,9 +377,9 @@ export default function InvestorsPage() {
                 <th className="px-2 py-3"></th>
                 {TABLE_COLS.map((c) => {
                   const sortable = c.key === "firm" || c.key === "updated_at";
-                  const sf = c.key === "firm" ? "firm_name" : c.key === "updated_at" ? "updated_at" : null;
+                  const sf = c.key === "firm" ? "name" : c.key === "updated_at" ? "updated_at" : null;
                   return (
-                    <th key={c.key} className={`text-left px-4 py-3 font-medium text-gray-500 relative ${sortable ? "cursor-pointer" : ""}`} onClick={sortable && sf ? () => toggleSort(sf as SortField) : undefined}>
+                    <th key={c.key} className={`text-left px-3 py-3 font-medium text-gray-500 text-xs uppercase tracking-wide relative whitespace-nowrap overflow-hidden ${sortable ? "cursor-pointer" : ""}`} onClick={sortable && sf ? () => toggleSort(sf as SortField) : undefined}>
                       <span className="flex items-center gap-1">{c.label} {sf && <SortIcon field={sf as SortField} />}</span>
                       <div className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-blue-400 active:bg-blue-500" onMouseDown={(e) => startResize(c.key, e)} />
                     </th>
@@ -295,27 +390,27 @@ export default function InvestorsPage() {
             <tbody>
               {filtered.map((inv) => (
                 <tr key={inv.id} className={`border-b hover:bg-gray-50 ${selected.has(inv.id) ? "bg-blue-50" : ""}`}>
-                  <td className="px-3 py-3"><button onClick={() => toggleSelect(inv.id)}>{selected.has(inv.id) ? <CheckSquare className="h-4 w-4 text-blue-600" /> : <Square className="h-4 w-4 text-gray-300" />}</button></td>
-                  <td className="px-2 py-2"><Avatar src={inv.avatar_url} name={inv.firm_name} size="sm" /></td>
-                  <td className="px-4 py-2 overflow-hidden"><div className="flex items-center gap-2"><Link href={`/investors/${inv.id}`} className="text-blue-600 hover:underline shrink-0">↗</Link><EditableCell value={inv.firm_name} onSave={(v) => updateCell(inv.id, "firm_name", v)} /></div></td>
-                  <td className="px-4 py-2 overflow-hidden"><EditableCell value={inv.investor_type} onSave={(v) => updateCell(inv.id, "investor_type", v)} /></td>
-                  <td className="px-4 py-2 overflow-hidden"><EditableCell value={inv.connection_status} onSave={(v) => updateCell(inv.id, "connection_status", v)} type="select" options={CONNECTION_STATUSES} /></td>
-                  <td className="px-4 py-2 overflow-hidden"><EditableCell value={inv.pipeline_status} onSave={(v) => updateCell(inv.id, "pipeline_status", v)} type="select" options={PIPELINE_STATUSES} /></td>
-                  <td className="px-4 py-2 overflow-hidden">
-                    {corrMap.has(inv.id) ? (
-                      <div className="truncate" title={corrMap.get(inv.id)!.subject}>
-                        <span className="text-xs text-gray-600">{corrMap.get(inv.id)!.subject}</span>
-                        {corrMap.get(inv.id)!.email_date && (
-                          <span className="text-[10px] text-gray-400 ml-1">· {timeAgo(corrMap.get(inv.id)!.email_date)}</span>
+                  <td className="px-3 py-2"><button onClick={() => toggleSelect(inv.id)}>{selected.has(inv.id) ? <CheckSquare className="h-4 w-4 text-blue-600" /> : <Square className="h-4 w-4 text-gray-300" />}</button></td>
+                  <td className="px-2 py-2"><Avatar src={inv.avatar_url} name={inv.name} size="sm" /></td>
+                  <td className="px-3 py-2 overflow-hidden"><div className="flex items-center gap-1.5 min-w-0"><Link href={`/investors/${inv.id}`} className="text-blue-600 hover:underline shrink-0 text-xs">↗</Link><div className="min-w-0 flex-1"><EditableCell value={inv.name} onSave={(v) => updateCell(inv.id, "name", v)} /></div></div></td>
+                  <td className="px-3 py-2 overflow-hidden"><EditableCell value={inv.investor_type} onSave={(v) => updateCell(inv.id, "investor_type", v)} /></td>
+                  <td className="px-3 py-2 overflow-hidden"><EditableCell value={inv.connection_status} onSave={(v) => updateCell(inv.id, "connection_status", v)} type="select" options={CONNECTION_STATUSES} /></td>
+                  <td className="px-3 py-2 overflow-hidden"><EditableCell value={inv.pipeline_status} onSave={(v) => updateCell(inv.id, "pipeline_status", v)} type="select" options={PIPELINE_STATUSES} /></td>
+                  <td className="px-3 py-2 overflow-hidden">
+                    {activityMap.has(inv.id) ? (
+                      <div title={activityMap.get(inv.id)!.text}>
+                        <p className="text-xs text-gray-600 line-clamp-2 leading-snug">{activityMap.get(inv.id)!.text}</p>
+                        {activityMap.get(inv.id)!.date && (
+                          <span className="text-[10px] text-gray-400">{timeAgo(activityMap.get(inv.id)!.date)}</span>
                         )}
                       </div>
                     ) : (
                       <span className="text-gray-300 text-xs">—</span>
                     )}
                   </td>
-                  <td className="px-4 py-2 overflow-hidden"><EditableCell value={inv.likelihood_score} onSave={(v) => updateCell(inv.id, "likelihood_score", v)} type="number" /></td>
-                  <td className="px-4 py-2 overflow-hidden"><EditableCell value={inv.website} onSave={(v) => updateCell(inv.id, "website", v)} /></td>
-                  <td className="px-4 py-2 overflow-hidden text-gray-400 text-xs whitespace-nowrap">{timeAgo(inv.updated_at)}</td>
+                  <td className="px-3 py-2 overflow-hidden"><EditableCell value={inv.likelihood_score} onSave={(v) => updateCell(inv.id, "likelihood_score", v)} type="number" /></td>
+                  <td className="px-3 py-2 overflow-hidden"><EditableCell value={inv.website} onSave={(v) => updateCell(inv.id, "website", v)} /></td>
+                  <td className="px-3 py-2 overflow-hidden text-gray-400 text-xs whitespace-nowrap">{timeAgo(inv.updated_at)}</td>
                 </tr>
               ))}
             </tbody>

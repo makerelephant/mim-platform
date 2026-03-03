@@ -12,10 +12,11 @@ import { Avatar } from "@/components/Avatar";
 import Link from "next/link";
 import { labels } from "@/config/labels";
 import { Search, List, Columns3, Trash2, CheckSquare, Square, X, Plus } from "lucide-react";
+import { CHECK_SIZE_COLORS } from "@/config/investor-constants";
 
 interface Investor {
   id: string;
-  firm_name: string;
+  name: string;
   description: string | null;
   investor_type: string | null;
   geography: string | null;
@@ -59,7 +60,7 @@ export default function PipelinePage() {
   const [addSelected, setAddSelected] = useState<Set<string>>(new Set());
 
   const load = useCallback(async () => {
-    const { data } = await supabase.from("investors").select("*").order("firm_name");
+    const { data } = await supabase.from("organizations").select("*").eq("source_table", "investors").order("name");
     if (data) {
       setAllInvestors(data);
       setInvestors(data.filter((inv) => inv.pipeline_status != null));
@@ -70,7 +71,7 @@ export default function PipelinePage() {
   useEffect(() => { load(); }, [load]);
 
   const updateCell = async (id: string, field: string, value: string) => {
-    const { error } = await supabase.from("investors").update({ [field]: value || null }).eq("id", id);
+    const { error } = await supabase.from("organizations").update({ [field]: value || null }).eq("id", id);
     if (!error) {
       setInvestors((prev) => prev.map((inv) => (inv.id === id ? { ...inv, [field]: value || null } : inv)));
       setAllInvestors((prev) => prev.map((inv) => (inv.id === id ? { ...inv, [field]: value || null } : inv)));
@@ -80,7 +81,7 @@ export default function PipelinePage() {
   const removeFromPipeline = async () => {
     if (selected.size === 0) return;
     const ids = Array.from(selected);
-    const { error } = await supabase.from("investors").update({ pipeline_status: null }).in("id", ids);
+    const { error } = await supabase.from("organizations").update({ pipeline_status: null }).in("id", ids);
     if (!error) {
       setInvestors((prev) => prev.filter((inv) => !selected.has(inv.id)));
       setAllInvestors((prev) => prev.map((inv) => selected.has(inv.id) ? { ...inv, pipeline_status: null } : inv));
@@ -89,7 +90,7 @@ export default function PipelinePage() {
   };
 
   const removeOneFromPipeline = async (id: string) => {
-    const { error } = await supabase.from("investors").update({ pipeline_status: null }).eq("id", id);
+    const { error } = await supabase.from("organizations").update({ pipeline_status: null }).eq("id", id);
     if (!error) {
       setInvestors((prev) => prev.filter((inv) => inv.id !== id));
       setAllInvestors((prev) => prev.map((inv) => inv.id === id ? { ...inv, pipeline_status: null } : inv));
@@ -97,7 +98,7 @@ export default function PipelinePage() {
   };
 
   const deleteOne = async (id: string) => {
-    const { error } = await supabase.from("investors").delete().eq("id", id);
+    const { error } = await supabase.from("organizations").delete().eq("id", id);
     if (!error) {
       setInvestors((prev) => prev.filter((inv) => inv.id !== id));
       setAllInvestors((prev) => prev.filter((inv) => inv.id !== id));
@@ -107,7 +108,7 @@ export default function PipelinePage() {
   const deleteSelected = async () => {
     if (selected.size === 0) return;
     const ids = Array.from(selected);
-    const { error } = await supabase.from("investors").delete().in("id", ids);
+    const { error } = await supabase.from("organizations").delete().in("id", ids);
     if (!error) {
       setInvestors((prev) => prev.filter((inv) => !selected.has(inv.id)));
       setAllInvestors((prev) => prev.filter((inv) => !selected.has(inv.id)));
@@ -118,7 +119,7 @@ export default function PipelinePage() {
   const bulkUpdate = async () => {
     if (!bulkField || selected.size === 0) return;
     const ids = Array.from(selected);
-    const { error } = await supabase.from("investors").update({ [bulkField]: bulkValue || null }).in("id", ids);
+    const { error } = await supabase.from("organizations").update({ [bulkField]: bulkValue || null }).in("id", ids);
     if (!error) {
       setInvestors((prev) => prev.map((inv) => selected.has(inv.id) ? { ...inv, [bulkField]: bulkValue || null } : inv));
       setAllInvestors((prev) => prev.map((inv) => selected.has(inv.id) ? { ...inv, [bulkField]: bulkValue || null } : inv));
@@ -129,7 +130,7 @@ export default function PipelinePage() {
   const addToPipeline = async () => {
     if (addSelected.size === 0) return;
     const ids = Array.from(addSelected);
-    const { error } = await supabase.from("investors").update({ pipeline_status: "Prospect" }).in("id", ids);
+    const { error } = await supabase.from("organizations").update({ pipeline_status: "Prospect" }).in("id", ids);
     if (!error) {
       setAllInvestors((prev) => prev.map((inv) => addSelected.has(inv.id) ? { ...inv, pipeline_status: "Prospect" } : inv));
       setInvestors((prev) => {
@@ -148,21 +149,21 @@ export default function PipelinePage() {
   const filtered = investors.filter((inv) => {
     if (!search) return true;
     const s = search.toLowerCase();
-    return inv.firm_name?.toLowerCase().includes(s) || inv.sector_focus?.toLowerCase().includes(s) || inv.geography?.toLowerCase().includes(s);
+    return inv.name?.toLowerCase().includes(s) || inv.sector_focus?.toLowerCase().includes(s) || inv.geography?.toLowerCase().includes(s);
   });
 
   const notInPipeline = allInvestors.filter((inv) => !inv.pipeline_status);
   const filteredNotInPipeline = notInPipeline.filter((inv) => {
     if (!addSearch) return true;
     const s = addSearch.toLowerCase();
-    return inv.firm_name?.toLowerCase().includes(s) || inv.sector_focus?.toLowerCase().includes(s);
+    return inv.name?.toLowerCase().includes(s) || inv.sector_focus?.toLowerCase().includes(s);
   });
 
   const handleDragStart = (e: React.DragEvent, id: string) => { setDraggedId(id); e.dataTransfer.effectAllowed = "move"; };
   const handleDrop = async (e: React.DragEvent, status: string) => {
     e.preventDefault();
     if (!draggedId) return;
-    await supabase.from("investors").update({ pipeline_status: status }).eq("id", draggedId);
+    await supabase.from("organizations").update({ pipeline_status: status }).eq("id", draggedId);
     setInvestors((prev) => prev.map((inv) => (inv.id === draggedId ? { ...inv, pipeline_status: status } : inv)));
     setAllInvestors((prev) => prev.map((inv) => (inv.id === draggedId ? { ...inv, pipeline_status: status } : inv)));
     setDraggedId(null);
@@ -206,9 +207,9 @@ export default function PipelinePage() {
                           onChange={() => { setAddSelected((prev) => { const n = new Set(prev); n.has(inv.id) ? n.delete(inv.id) : n.add(inv.id); return n; }); }}
                           className="rounded border-gray-300"
                         />
-                        <Avatar src={inv.avatar_url} name={inv.firm_name} size="sm" />
+                        <Avatar src={inv.avatar_url} name={inv.name} size="sm" />
                         <div className="flex-1 min-w-0">
-                          <div className="text-sm font-medium truncate">{inv.firm_name}</div>
+                          <div className="text-sm font-medium truncate">{inv.name}</div>
                           <div className="text-xs text-gray-500 truncate">{[inv.investor_type, inv.geography, inv.sector_focus].filter(Boolean).join(" · ") || "No details"}</div>
                         </div>
                       </label>
@@ -284,12 +285,17 @@ export default function PipelinePage() {
                         </button>
                       </div>
                       <div className="flex items-center gap-2 mb-1">
-                        <Avatar src={inv.avatar_url} name={inv.firm_name} size="sm" />
-                        <Link href={`/investors/${inv.id}`}><h3 className="text-sm font-medium text-gray-900 hover:text-blue-600">{inv.firm_name}</h3></Link>
+                        <Avatar src={inv.avatar_url} name={inv.name} size="sm" />
+                        <Link href={`/investors/${inv.id}`}><h3 className="text-sm font-medium text-gray-900 hover:text-blue-600">{inv.name}</h3></Link>
                       </div>
                       {inv.sector_focus && <p className="text-xs text-gray-500 mt-1 line-clamp-1">{inv.sector_focus}</p>}
-                      <div className="flex items-center gap-2 mt-2">
+                      <div className="flex items-center gap-2 mt-2 flex-wrap">
                         {inv.connection_status && <Badge variant="outline" className="text-xs">{inv.connection_status}</Badge>}
+                        {inv.check_size && (
+                          <Badge className={`text-xs border-0 ${CHECK_SIZE_COLORS[inv.check_size] || "bg-gray-100 text-gray-800"}`}>
+                            {inv.check_size}
+                          </Badge>
+                        )}
                         {inv.likelihood_score != null && inv.likelihood_score > 0 && <span className="text-xs text-gray-400">Score: {inv.likelihood_score}</span>}
                       </div>
                     </div>
@@ -322,8 +328,8 @@ export default function PipelinePage() {
                 {filtered.map((inv) => (
                   <tr key={inv.id} className={`border-b hover:bg-gray-50 ${selected.has(inv.id) ? "bg-blue-50" : ""}`}>
                     <td className="px-3 py-3"><button onClick={() => toggleSelect(inv.id)}>{selected.has(inv.id) ? <CheckSquare className="h-4 w-4 text-blue-600" /> : <Square className="h-4 w-4 text-gray-300" />}</button></td>
-                    <td className="px-2 py-2"><Avatar src={inv.avatar_url} name={inv.firm_name} size="sm" /></td>
-                    <td className="px-4 py-2"><div className="flex items-center gap-2"><Link href={`/investors/${inv.id}`} className="text-blue-600 hover:underline shrink-0">↗</Link><EditableCell value={inv.firm_name} onSave={(v) => updateCell(inv.id, "firm_name", v)} /></div></td>
+                    <td className="px-2 py-2"><Avatar src={inv.avatar_url} name={inv.name} size="sm" /></td>
+                    <td className="px-4 py-2"><div className="flex items-center gap-2"><Link href={`/investors/${inv.id}`} className="text-blue-600 hover:underline shrink-0">↗</Link><EditableCell value={inv.name} onSave={(v) => updateCell(inv.id, "name", v)} /></div></td>
                     <td className="px-4 py-2"><EditableCell value={inv.investor_type} onSave={(v) => updateCell(inv.id, "investor_type", v)} /></td>
                     <td className="px-4 py-2"><EditableCell value={inv.geography} onSave={(v) => updateCell(inv.id, "geography", v)} /></td>
                     <td className="px-4 py-2"><EditableCell value={inv.sector_focus} onSave={(v) => updateCell(inv.id, "sector_focus", v)} /></td>

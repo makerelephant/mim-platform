@@ -148,11 +148,11 @@ export async function runSheetsScanner(opts?: {
     addLog(`Parsed ${totalRows} investor rows from sheet`);
 
     // ── Load existing investors from DB ──
-    const { data: existingInvestors } = await sb.from("investors").select("id, firm_name, description, connection_status, pipeline_status, likelihood_score, next_action");
+    const { data: existingInvestors } = await sb.from("organizations").select("id, name, description, connection_status, pipeline_status, likelihood_score, next_action").eq("source_table", "investors");
     const firmMap = new Map<string, typeof existingInvestors extends (infer T)[] | null ? T : never>();
     if (existingInvestors) {
       for (const inv of existingInvestors) {
-        firmMap.set(inv.firm_name.toLowerCase().trim(), inv);
+        firmMap.set(inv.name.toLowerCase().trim(), inv);
       }
     }
     addLog(`Loaded ${firmMap.size} existing investors from DB`);
@@ -223,7 +223,7 @@ export async function runSheetsScanner(opts?: {
         }
 
         if (Object.keys(updates).length > 0) {
-          await sb.from("investors").update(updates).eq("id", existing.id);
+          await sb.from("organizations").update(updates).eq("id", existing.id);
           recordsUpdated++;
           addLog(`Updated: ${si.firm} (${Object.keys(updates).join(", ")})`);
         } else {
@@ -232,8 +232,10 @@ export async function runSheetsScanner(opts?: {
         }
       } else {
         // ── Create new investor ──
-        const { error } = await sb.from("investors").insert({
-          firm_name: si.firm,
+        const { error } = await sb.from("organizations").insert({
+          name: si.firm,
+          org_category: "Investment Firm",
+          source_table: "investors",
           description,
           connection_status: connectionStatus,
           pipeline_status: pipelineStatus,
