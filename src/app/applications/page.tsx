@@ -46,7 +46,17 @@ const RUN_STATUS_ICONS: Record<string, React.ReactNode> = {
   completed: <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />,
   running: <Play className="h-3.5 w-3.5 text-blue-500" />,
   failed: <AlertCircle className="h-3.5 w-3.5 text-red-500" />,
+  stale: <AlertCircle className="h-3.5 w-3.5 text-yellow-500" />,
 };
+
+/** A run stuck in "running" for more than 10 minutes is stale */
+function effectiveRunStatus(run: AgentRun): string {
+  if (run.status === "running" && run.started_at) {
+    const elapsed = Date.now() - new Date(run.started_at).getTime();
+    if (elapsed > 10 * 60 * 1000) return "stale";
+  }
+  return run.status;
+}
 
 export default function ApplicationsPage() {
   const [agents, setAgents] = useState<Agent[]>([]);
@@ -149,10 +159,12 @@ export default function ApplicationsPage() {
                   )}
 
                   {/* Last run info */}
-                  {lastRun && (
+                  {lastRun && (() => {
+                    const runStatus = effectiveRunStatus(lastRun);
+                    return (
                     <div className="flex items-center gap-2 text-xs text-gray-400 mb-4 p-2 bg-gray-50 rounded">
-                      {RUN_STATUS_ICONS[lastRun.status] || RUN_STATUS_ICONS.completed}
-                      <span>Last run {timeAgo(lastRun.started_at)}</span>
+                      {RUN_STATUS_ICONS[runStatus] || RUN_STATUS_ICONS.completed}
+                      <span>{runStatus === "stale" ? "Timed out" : "Last run"} {timeAgo(lastRun.started_at)}</span>
                       {lastRun.records_processed != null && (
                         <span className="text-gray-300">|</span>
                       )}
@@ -160,7 +172,8 @@ export default function ApplicationsPage() {
                         <span>{lastRun.records_processed} processed</span>
                       )}
                     </div>
-                  )}
+                    );
+                  })()}
 
                   {/* Actions */}
                   <div className="flex gap-2">
