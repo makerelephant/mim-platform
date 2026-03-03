@@ -14,11 +14,12 @@ import { CorrespondenceSection } from "@/components/CorrespondenceSection";
 import { ArrowLeft, Save, ExternalLink, X, Upload, Trash2, Users } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
+import { ORG_TYPE_OPTIONS } from "@/config/organization-constants";
 
 interface SoccerOrg {
   id: string;
   name: string;
-  org_type: string | null;
+  org_type: string[] | null;
   corporate_structure: string | null;
   address: string | null;
   website: string | null;
@@ -58,7 +59,7 @@ const LEAGUE_MAP: Record<string, string> = {
   in_roots: "Roots", in_south_coast: "South Coast", in_south_shore: "South Shore",
 };
 
-const ORG_TYPES = ["Soccer Program Or Club", "Soccer League"];
+const ORG_TYPES = [...ORG_TYPE_OPTIONS];
 const STRUCTURES = ["501c3", "LLC", "Corporation", "Partnership"];
 const OUTREACH_STATUSES = ["Not Contacted", "Initial Outreach", "In Conversation", "Meeting Scheduled", "Proposal Sent", "Negotiating", "Closed"];
 const PARTNER_STATUSES = ["Prospect", "Active Partner", "Inactive", "Churned"];
@@ -125,23 +126,26 @@ function DetailSelect({
   label: string; field: keyof SoccerOrg; options: string[];
   editing: boolean; org: SoccerOrg; setField: (field: keyof SoccerOrg, value: string | number | null) => void;
 }) {
+  // Handle array fields (e.g. org_type TEXT[])
+  const rawVal = org[field];
+  const displayVal = Array.isArray(rawVal) ? rawVal.join(", ") : (rawVal != null && rawVal !== "" ? String(rawVal) : "—");
+  const defaultVal = Array.isArray(rawVal) ? (rawVal[0] ?? "") : String(rawVal ?? "");
+
   if (editing) {
     return (
       <div>
         <label className="text-xs text-gray-500">{label}</label>
-        <select className="w-full border rounded-md px-2 py-1.5 text-sm mt-0.5" defaultValue={String(org[field] ?? "")} onChange={(e) => setField(field, e.target.value || null)}>
+        <select className="w-full border rounded-md px-2 py-1.5 text-sm mt-0.5" defaultValue={defaultVal} onChange={(e) => setField(field, e.target.value || null)}>
           <option value="">—</option>
           {options.map((s) => <option key={s} value={s}>{s}</option>)}
         </select>
       </div>
     );
   }
-  const val = org[field];
-  const display = val != null && val !== "" ? String(val) : "—";
   return (
     <div>
       <span className="text-xs text-gray-500">{label}</span>
-      <p className={`text-sm ${display === "—" ? "text-gray-300" : ""}`}>{display}</p>
+      <p className={`text-sm ${displayVal === "—" ? "text-gray-300" : ""}`}>{displayVal}</p>
     </div>
   );
 }
@@ -261,9 +265,14 @@ export default function SoccerOrgDetail() {
     const d = editDataRef.current;
     const num = (k: string) => d[k] != null && String(d[k]) !== "" ? Number(d[k]) : null;
 
+    // org_type is TEXT[] — wrap selected value in an array
+    const orgTypeVal = d.org_type;
+    const orgTypeArray = Array.isArray(orgTypeVal) ? orgTypeVal
+      : (orgTypeVal ? [orgTypeVal as string] : []);
+
     const { error } = await supabase.from("organizations").update({
       name: (d.name as string) || org.name,
-      org_type: (d.org_type as string) || null,
+      org_type: orgTypeArray,
       corporate_structure: (d.corporate_structure as string) || null,
       address: (d.address as string) || null,
       website: (d.website as string) || null,
@@ -330,7 +339,7 @@ export default function SoccerOrgDetail() {
               <h1 className="text-2xl font-bold text-gray-900">{org.name}</h1>
             )}
             <div className="flex gap-2 mt-2 flex-wrap">
-              {org.org_type && <Badge variant="secondary">{org.org_type}</Badge>}
+              {org.org_type?.map((t) => <Badge key={t} variant="secondary">{t}</Badge>)}
               {org.corporate_structure && <Badge variant="outline">{org.corporate_structure}</Badge>}
               {org.partner_status && <Badge className="bg-green-100 text-green-800 border-0">{org.partner_status}</Badge>}
             </div>
