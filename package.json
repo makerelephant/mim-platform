@@ -20,6 +20,7 @@
     "date-fns": "^4.1.0",
     "googleapis": "^171.4.0",
     "lucide-react": "^0.469.0",
+    "md5": "^2.3.0",
     "next": "16.1.6",
     "radix-ui": "^1.4.3",
     "react": "19.2.3",
@@ -28,6 +29,7 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@types/md5": "^2.3.6",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
