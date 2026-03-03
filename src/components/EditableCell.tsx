@@ -48,12 +48,22 @@ export function EditableCell({ value, onSave, type = "text", options, className 
 
   if (editing) {
     if (type === "select" && options) {
+      const handleSelectChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
+        const newVal = e.target.value;
+        setEditValue(newVal);
+        if (newVal !== String(value ?? "")) {
+          setSaving(true);
+          try { await onSave(newVal); } catch { setEditValue(String(value ?? "")); }
+          setSaving(false);
+        }
+        setEditing(false);
+      };
       return (
         <select
           ref={inputRef as React.RefObject<HTMLSelectElement>}
           value={editValue}
-          onChange={(e) => { setEditValue(e.target.value); }}
-          onBlur={handleSave}
+          onChange={handleSelectChange}
+          onBlur={() => setEditing(false)}
           className={`w-full border rounded px-1.5 py-0.5 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none ${className}`}
           disabled={saving}
         >
