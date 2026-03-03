@@ -37,7 +37,7 @@ interface GatheredData {
   emails: CorrespondenceRow[];
   slackMessages: CorrespondenceRow[];
   newContacts: Array<{ name: string; email: string | null; source: string | null; primary_category: string | null; created_at: string }>;
-  organizationUpdates: Array<{ name: string; org_category: string | null; pipeline_status: string | null; partner_status: string | null; source_table: string | null; updated_at: string }>;
+  organizationUpdates: Array<{ name: string; org_category: string | null; pipeline_status: string | null; partner_status: string | null; org_type: string[] | null; updated_at: string }>;
   agentActivity: Array<{ agent_name: string; action_type: string; summary: string; entity_type: string | null; created_at: string }>;
 }
 
@@ -143,7 +143,7 @@ async function gatherData(
       .lt("created_at", endISO),
     // Organization updates (investors + communities unified)
     sb.from("organizations")
-      .select("name, org_category, pipeline_status, partner_status, source_table, updated_at")
+      .select("name, org_category, pipeline_status, partner_status, org_type, updated_at")
       .gte("updated_at", startISO)
       .lt("updated_at", endISO),
     // Agent activity
@@ -225,8 +225,8 @@ function buildDataContext(data: GatheredData): string {
     sections.push("None");
   }
 
-  const investorUpdates = data.organizationUpdates.filter((o) => o.source_table === "investors");
-  const communityUpdates = data.organizationUpdates.filter((o) => o.source_table === "soccer_orgs");
+  const investorUpdates = data.organizationUpdates.filter((o) => o.org_type?.includes("Investor"));
+  const communityUpdates = data.organizationUpdates.filter((o) => o.org_type?.includes("Customer"));
 
   sections.push(`\n## INVESTOR UPDATES (${investorUpdates.length})`);
   if (investorUpdates.length > 0) {

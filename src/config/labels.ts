@@ -5,51 +5,81 @@
  */
 
 export const labels = {
-  /* ── Sidebar nav & page titles ── */
+  /* ── Dashboard ── */
   dashboard: "Dashboard",
-  contacts: "Contacts",
 
-  // Super category headers
-  superConversations: "Conversations",
-  superOrganizations: "Organizations",
-  superContent: "Content",
+  /* ── Super category headers ── */
+  superFundraising: "Fundraising",
+  superPartnerships: "Partnerships",
+  superCommunities: "Communities",
+  superActivity: "Activity",
+  superPeople: "People",
+  superSentiment: "Sentiment",
   superOrchestrations: "Orchestrations",
-  superAccount: "Account",
-  superEndPoints: "End Points",
-  superApplications: "Applications",
+  superSettings: "Settings",
 
-  // Investor group
-  investorGroup: "Investors",
-  investors: "All Investors",
-  pipeline: "Pipeline",
-  transactions: "Transactions",
+  /* ── Fundraising section ── */
+  fundraisingPipeline: "Pipeline",
+  investors: "Investors",
+  investorContacts: "Investor Contacts",
+  fundraisingActivity: "Activity",
 
-  // Communities group
-  communitiesGroup: "Communities",
-  soccerOrgs: "All Communities",
-  channelPartners: "Channel Partners",
+  /* ── Partnerships section ── */
+  partnerOrgs: "Partner Orgs",
+  categoryGeoAssignments: "Category × Geo",
+  partnershipPipeline: "Partnership Pipeline",
 
-  // Content section
-  newsSentiment: "News Sentiment",
-  research: "Research",
-  outreach: "Outreach",
+  /* ── Communities section ── */
+  allCommunities: "All Communities",
+  shareLinks: "Share Links",
+  moments: "Moments",
+  communityOrgMap: "Community → Org Map",
 
-  supportIssues: "Support Issues",
+  /* ── Activity section ── */
   tasks: "Tasks",
+  supportIssues: "Support",
   activityLog: "Activity Log",
 
-  /* ── Page subtitles / section headers (optional overrides) ── */
+  /* ── People section ── */
+  contacts: "Contacts",
+  roles: "Roles",
+  creators: "Creators",
+
+  /* ── Sentiment section ── */
+  newsSentiment: "News Sentiment",
+  research: "Research",
+
+  /* ── Orchestrations section ── */
+  applications: "Applications",
+  campaigns: "Campaigns",
+  endPoints: "End Points",
+
+  /* ── Settings section ── */
+  fieldsEnums: "Fields / Enums",
+  integrations: "Integrations",
+  usersPermissions: "Users / Permissions",
+
+  /* ── Page titles ── */
   investorsPageTitle: "Investors",
-  transactionsPageTitle: "Market Transactions",
+  pipelinePageTitle: "Fundraising Pipeline",
+  partnerOrgsPageTitle: "Partner Organizations",
+  partnershipPipelinePageTitle: "Partnership Pipeline",
+  communitiesPageTitle: "Communities",
   contactsPageTitle: "Contacts",
-  soccerOrgsPageTitle: "Communities",
-  channelPartnersPageTitle: "Channel Partner Pipeline",
-  pipelinePageTitle: "Investor Pipeline",
-  supportIssuesPageTitle: "Support Issues",
+  rolesPageTitle: "Contact Roles",
+  investorContactsPageTitle: "Investor Contacts",
+  categoryGeoPageTitle: "Category × Geo Assignments",
   tasksPageTitle: "Tasks",
+  supportIssuesPageTitle: "Support Issues",
   activityLogPageTitle: "Activity Log",
   newsSentimentPageTitle: "News Sentiment",
   researchPageTitle: "Research",
+  applicationsPageTitle: "Applications",
+
+  /* ── Legacy page titles (still used by existing pages) ── */
+  transactionsPageTitle: "Market Transactions",
+  channelPartnersPageTitle: "Partner Organizations",
+  soccerOrgsPageTitle: "Communities",
   outreachPageTitle: "Outreach",
 
   /* ── Task detail page ── */
@@ -68,8 +98,6 @@ export const labels = {
   contactLastInteraction: "Last Interaction",
 
   /* ── Applications / Agents ── */
-  applications: "Applications",
-  applicationsPageTitle: "Applications",
   agentDescription: "Description",
   agentSystemPrompt: "System Prompt",
   agentConfig: "Configuration",

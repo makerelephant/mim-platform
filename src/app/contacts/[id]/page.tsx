@@ -33,7 +33,7 @@ interface Contact {
 interface LinkedOrganization {
   organization_id: string;
   role: string | null;
-  organizations: { id: string; name: string; org_category: string | null; source_table: string | null };
+  organizations: { id: string; name: string; org_category: string | null; org_type: string[] | null };
 }
 
 export default function ContactDetail() {
@@ -50,7 +50,7 @@ export default function ContactDetail() {
   const loadLinks = useCallback(async () => {
     const { data: orgs } = await supabase
       .from("organization_contacts")
-      .select("organization_id, role, organizations(id, name, org_category, source_table)")
+      .select("organization_id, role, organizations(id, name, org_category, org_type)")
       .eq("contact_id", contactId);
     if (orgs) setLinkedOrgs(orgs as unknown as LinkedOrganization[]);
   }, [contactId]);
@@ -89,7 +89,7 @@ export default function ContactDetail() {
   const searchOrgs = useCallback(async (q: string) => {
     const { data } = await supabase
       .from("organizations")
-      .select("id, name, org_category, source_table")
+      .select("id, name, org_category, org_type")
       .ilike("name", `%${q}%`)
       .limit(10);
     return (data || []).map((o) => ({ id: o.id, label: o.name, sub: o.org_category || undefined }));
@@ -197,7 +197,7 @@ export default function ContactDetail() {
               id: lo.organizations.id,
               label: lo.organizations.name,
               sub: lo.organizations.org_category || undefined,
-              href: lo.organizations.source_table === "investors"
+              href: lo.organizations.org_type?.includes("Investor")
                 ? `/investors/${lo.organizations.id}`
                 : `/soccer-orgs/${lo.organizations.id}`,
               role: lo.role,

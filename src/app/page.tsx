@@ -164,9 +164,9 @@ export default function Dashboard() {
       { data: reportsData },
     ] = await Promise.all([
       supabase.from("contacts").select("*", { count: "exact", head: true }),
-      supabase.from("organizations").select("*", { count: "exact", head: true }).eq("source_table", "investors"),
-      supabase.from("organizations").select("*", { count: "exact", head: true }).eq("source_table", "soccer_orgs"),
-      supabase.from("organizations").select("*", { count: "exact", head: true }).eq("source_table", "soccer_orgs").not("partner_status", "is", null),
+      supabase.from("organizations").select("*", { count: "exact", head: true }).contains("org_type", ["Investor"]),
+      supabase.from("organizations").select("*", { count: "exact", head: true }).contains("org_type", ["Customer"]),
+      supabase.from("organizations").select("*", { count: "exact", head: true }).contains("org_type", ["Partner"]),
       supabase.from("tasks").select("*", { count: "exact", head: true }).in("status", ["todo", "in_progress"]),
       supabase.from("activity_log").select("*").order("created_at", { ascending: false }).limit(20),
       supabase.from("reports").select("*").order("created_at", { ascending: false }).limit(10),

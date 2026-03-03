@@ -15,7 +15,7 @@ import { Search, List, Columns3, Trash2, CheckSquare, Square, X, Plus } from "lu
 interface Community {
   id: string;
   name: string;
-  org_type: string | null;
+  org_type: string[] | null;
   website: string | null;
   players: number | null;
   outreach_status: string | null;
@@ -85,7 +85,7 @@ export default function ChannelPartnersPage() {
   const [addSelected, setAddSelected] = useState<Set<string>>(new Set());
 
   const load = useCallback(async () => {
-    const { data } = await supabase.from("organizations").select("*").eq("source_table", "soccer_orgs").order("name");
+    const { data } = await supabase.from("organizations").select("*").contains("org_type", ["Partner"]).order("name");
     if (data) {
       setAllCommunities(data);
       setCommunities(data.filter((c) => c.partner_status != null));
@@ -174,14 +174,14 @@ export default function ChannelPartnersPage() {
   const filtered = communities.filter((c) => {
     if (!search) return true;
     const s = search.toLowerCase();
-    return c.name?.toLowerCase().includes(s) || c.org_type?.toLowerCase().includes(s) || c.primary_contact?.toLowerCase().includes(s);
+    return c.name?.toLowerCase().includes(s) || c.org_type?.some((t) => t.toLowerCase().includes(s)) || c.primary_contact?.toLowerCase().includes(s);
   });
 
   const notInPipeline = allCommunities.filter((c) => !c.partner_status);
   const filteredNotInPipeline = notInPipeline.filter((c) => {
     if (!addSearch) return true;
     const s = addSearch.toLowerCase();
-    return c.name?.toLowerCase().includes(s) || c.org_type?.toLowerCase().includes(s);
+    return c.name?.toLowerCase().includes(s) || c.org_type?.some((t) => t.toLowerCase().includes(s));
   });
 
   const handleDragStart = (e: React.DragEvent, id: string) => { setDraggedId(id); e.dataTransfer.effectAllowed = "move"; };
@@ -237,7 +237,7 @@ export default function ChannelPartnersPage() {
                           <div className="flex-1 min-w-0">
                             <div className="text-sm font-medium truncate">{c.name}</div>
                             <div className="text-xs text-gray-500 truncate">
-                              {[c.org_type, leagues.length > 0 ? leagues.join(", ") : null, c.players ? `${c.players} players` : null].filter(Boolean).join(" · ") || "No details"}
+                              {[c.org_type?.join(", "), leagues.length > 0 ? leagues.join(", ") : null, c.players ? `${c.players} players` : null].filter(Boolean).join(" · ") || "No details"}
                             </div>
                           </div>
                         </label>
@@ -356,7 +356,7 @@ export default function ChannelPartnersPage() {
                   <tr key={c.id} className={`border-b hover:bg-gray-50 ${selected.has(c.id) ? "bg-blue-50" : ""}`}>
                     <td className="px-3 py-3"><button onClick={() => toggleSelect(c.id)}>{selected.has(c.id) ? <CheckSquare className="h-4 w-4 text-blue-600" /> : <Square className="h-4 w-4 text-gray-300" />}</button></td>
                     <td className="px-4 py-2"><div className="flex items-center gap-2"><Link href={`/soccer-orgs/${c.id}`} className="text-blue-600 hover:underline shrink-0">&#8599;</Link><EditableCell value={c.name} onSave={(v) => updateCell(c.id, "name", v)} /></div></td>
-                    <td className="px-4 py-2"><EditableCell value={c.org_type} onSave={(v) => updateCell(c.id, "org_type", v)} /></td>
+                    <td className="px-4 py-2"><EditableCell value={c.org_type?.join(", ") ?? null} onSave={(v) => updateCell(c.id, "org_type", v)} /></td>
                     <td className="px-4 py-2 text-gray-600">{c.players ?? "---"}</td>
                     <td className="px-4 py-2 text-gray-600">{c.total_revenue ? `$${Number(c.total_revenue).toLocaleString()}` : "---"}</td>
                     <td className="px-4 py-2"><EditableCell value={c.partner_status} onSave={(v) => updateCell(c.id, "partner_status", v)} type="select" options={PARTNER_STATUSES} /></td>

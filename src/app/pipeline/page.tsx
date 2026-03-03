@@ -59,8 +59,11 @@ export default function PipelinePage() {
   const [addSearch, setAddSearch] = useState("");
   const [addSelected, setAddSelected] = useState<Set<string>>(new Set());
 
+  // TODO: Migrate pipeline data to the `opportunities` table once the SQL migration has been run.
+  // Currently pipeline_status is read/written directly on the organizations table.
+  // After migration, fetch from `opportunities` and join with organizations for display data.
   const load = useCallback(async () => {
-    const { data } = await supabase.from("organizations").select("*").eq("source_table", "investors").order("name");
+    const { data } = await supabase.from("organizations").select("*").contains("org_type", ["Investor"]).order("name");
     if (data) {
       setAllInvestors(data);
       setInvestors(data.filter((inv) => inv.pipeline_status != null));

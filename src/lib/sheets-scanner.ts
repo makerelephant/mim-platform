@@ -148,7 +148,7 @@ export async function runSheetsScanner(opts?: {
     addLog(`Parsed ${totalRows} investor rows from sheet`);
 
     // ── Load existing investors from DB ──
-    const { data: existingInvestors } = await sb.from("organizations").select("id, name, description, connection_status, pipeline_status, likelihood_score, next_action").eq("source_table", "investors");
+    const { data: existingInvestors } = await sb.from("organizations").select("id, name, description, connection_status, pipeline_status, likelihood_score, next_action").contains("org_type", ["Investor"]);
     const firmMap = new Map<string, typeof existingInvestors extends (infer T)[] | null ? T : never>();
     if (existingInvestors) {
       for (const inv of existingInvestors) {
@@ -235,7 +235,7 @@ export async function runSheetsScanner(opts?: {
         const { error } = await sb.from("organizations").insert({
           name: si.firm,
           org_category: "Investment Firm",
-          source_table: "investors",
+          org_type: ["Investor"],
           description,
           connection_status: connectionStatus,
           pipeline_status: pipelineStatus,

@@ -28,7 +28,7 @@ const TABLE_COLS = [
 interface SoccerOrg {
   id: string;
   name: string;
-  org_type: string | null;
+  org_type: string[];
   corporate_structure: string | null;
   address: string | null;
   website: string | null;
@@ -91,7 +91,7 @@ export default function SoccerOrgsPage() {
   };
 
   const load = useCallback(async () => {
-    const { data } = await supabase.from("organizations").select("*").eq("source_table", "soccer_orgs").order("name");
+    const { data } = await supabase.from("organizations").select("*").contains("org_type", ["Customer"]).order("name");
     if (data) setOrgs(data);
 
     // Load contacts mapped to each org
@@ -124,8 +124,8 @@ export default function SoccerOrgsPage() {
   const createOrg = async () => {
     if (!newName.trim()) return;
     const { data, error } = await supabase.from("organizations").insert({
-      name: newName, org_category: "Youth Soccer", source_table: "soccer_orgs",
-      org_type: newType || null, website: newWebsite || null,
+      name: newName, org_category: "Youth Soccer", org_type: ["Customer"],
+      website: newWebsite || null,
     }).select().single();
     if (!error && data) { setOrgs((prev) => [...prev, data]); setNewName(""); setNewType(""); setNewWebsite(""); setShowNew(false); }
   };
@@ -146,13 +146,13 @@ export default function SoccerOrgsPage() {
   const toggleSelect = (id: string) => { setSelected((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; }); };
   const toggleSelectAll = () => { if (selected.size === filtered.length) setSelected(new Set()); else setSelected(new Set(filtered.map((o) => o.id))); };
 
-  const types = [...new Set(orgs.map((o) => o.org_type).filter(Boolean))] as string[];
+  const types = [...new Set(orgs.flatMap((o) => o.org_type || []))] as string[];
   const structures = [...new Set(orgs.map((o) => o.corporate_structure).filter(Boolean))] as string[];
   const getLeagues = (o: SoccerOrg) => LEAGUE_FIELDS.filter((lf) => o[lf.key]).map((lf) => lf.label);
 
   const filtered = orgs.filter((o) => {
     if (search && !o.name?.toLowerCase().includes(search.toLowerCase())) return false;
-    if (filterType && o.org_type !== filterType) return false;
+    if (filterType && !o.org_type?.includes(filterType)) return false;
     if (filterStructure && o.corporate_structure !== filterStructure) return false;
     if (filterLeague) { const key = `in_${filterLeague.toLowerCase().replace(/ /g, "_")}` as keyof SoccerOrg; if (!o[key]) return false; }
     return true;
@@ -248,7 +248,7 @@ export default function SoccerOrgsPage() {
                   <td className="px-3 py-2"><button onClick={() => toggleSelect(o.id)}>{selected.has(o.id) ? <CheckSquare className="h-4 w-4 text-blue-600" /> : <Square className="h-4 w-4 text-gray-300" />}</button></td>
                   <td className="px-2 py-2"><Avatar src={o.avatar_url} name={o.name} size="sm" /></td>
                   <td className="px-3 py-2 overflow-hidden"><div className="flex items-center gap-1.5 min-w-0"><Link href={`/soccer-orgs/${o.id}`} className="text-blue-600 hover:underline shrink-0 text-xs">↗</Link><div className="min-w-0 flex-1"><EditableCell value={o.name} onSave={(v) => updateCell(o.id, "name", v)} /></div></div></td>
-                  <td className="px-3 py-2 overflow-hidden"><EditableCell value={o.org_type} onSave={(v) => updateCell(o.id, "org_type", v)} type="select" options={ORG_TYPES} /></td>
+                  <td className="px-3 py-2 overflow-hidden"><EditableCell value={o.org_type?.join(", ") ?? null} onSave={(v) => updateCell(o.id, "org_type", v)} type="select" options={ORG_TYPES} /></td>
                   <td className="px-3 py-2 overflow-hidden"><div className="flex flex-wrap gap-0.5 overflow-hidden max-h-[2rem]">{getLeagues(o).map((l) => <Badge key={l} variant="outline" className="text-[10px] px-1 py-0">{l}</Badge>)}</div></td>
                   <td className="px-3 py-2 overflow-hidden text-gray-600 text-xs">{o.players ?? "—"}</td>
                   <td className="px-3 py-2 overflow-hidden">{o.outreach_status && o.outreach_status !== "Not Contacted" ? <Badge variant="secondary" className="text-[10px]">{o.outreach_status}</Badge> : <span className="text-xs text-gray-300">—</span>}</td>

@@ -138,7 +138,7 @@ export default function InvestorsPage() {
   }, []);
 
   const load = useCallback(async () => {
-    const { data } = await supabase.from("organizations").select("*").eq("source_table", "investors").order("name");
+    const { data } = await supabase.from("organizations").select("*").contains("org_type", ["Investor"]).order("name");
     if (data) {
       setInvestors(data);
       loadRecentActivity(data.map((inv: Investor) => inv.id));
@@ -156,7 +156,7 @@ export default function InvestorsPage() {
   const createInvestor = async () => {
     if (!newFirm.trim()) return;
     const { data, error } = await supabase.from("organizations").insert({
-      name: newFirm, org_category: "Investment Firm", source_table: "investors",
+      name: newFirm, org_category: "Investment Firm", org_type: ["Investor"],
       investor_type: newType || null, geography: newGeo || null,
       sector_focus: newSector || null, source: "manual",
     }).select().single();

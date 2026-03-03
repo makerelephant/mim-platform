@@ -139,8 +139,8 @@ For each action item, separate CONTEXT from ACTION:
 
 class EntityResolver {
   private emailToContacts: Map<string, { id: string; name: string; organization?: string }> = new Map();
-  private contactToOrganizations: Map<string, { id: string; name: string; source_table: string }[]> = new Map();
-  private domainToOrganizations: Map<string, { id: string; name: string; source_table: string }> = new Map();
+  private contactToOrganizations: Map<string, { id: string; name: string; org_type: string[] | null }[]> = new Map();
+  private domainToOrganizations: Map<string, { id: string; name: string; org_type: string[] | null }> = new Map();
 
   constructor(private sb: SupabaseClient) {}
 
@@ -172,12 +172,12 @@ class EntityResolver {
     // 3. Load organization_contacts junction (replaces investor_contacts + soccer_org_contacts)
     const { data: orgContacts } = await this.sb
       .from("organization_contacts")
-      .select("contact_id, organization_id, organizations(id, name, source_table)");
+      .select("contact_id, organization_id, organizations(id, name, org_type)");
     for (const oc of orgContacts || []) {
-      const org = oc.organizations as unknown as { id: string; name: string; source_table: string } | null;
+      const org = oc.organizations as unknown as { id: string; name: string; org_type: string[] | null } | null;
       if (org) {
         const list = this.contactToOrganizations.get(oc.contact_id) || [];
-        list.push({ id: org.id, name: org.name, source_table: org.source_table });
+        list.push({ id: org.id, name: org.name, org_type: org.org_type });
         this.contactToOrganizations.set(oc.contact_id, list);
       }
     }
@@ -185,12 +185,12 @@ class EntityResolver {
     // 4. Domain -> organization mapping (replaces separate investor + soccer_org domain maps)
     const { data: organizations } = await this.sb
       .from("organizations")
-      .select("id, name, website, source_table")
+      .select("id, name, website, org_type")
       .not("website", "is", null);
     for (const org of organizations || []) {
       const domain = this.extractDomain(org.website);
       if (domain) {
-        this.domainToOrganizations.set(domain, { id: org.id, name: org.name, source_table: org.source_table });
+        this.domainToOrganizations.set(domain, { id: org.id, name: org.name, org_type: org.org_type });
       }
     }
   }
