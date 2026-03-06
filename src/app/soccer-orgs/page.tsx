@@ -118,8 +118,10 @@ export default function SoccerOrgsPage() {
   useEffect(() => { load(); }, [load]);
 
   const updateCell = async (id: string, field: string, value: string) => {
-    // org_type is a TEXT[] column — wrap the value in an array
-    const dbValue = field === "org_type" ? (value ? [value] : []) : (value || null);
+    // org_type is a TEXT[] column — value comes as comma-separated string from multi-select
+    const dbValue = field === "org_type"
+      ? (value ? value.split(",").map((v) => v.trim()).filter(Boolean) : [])
+      : (value || null);
     const { error } = await supabase.from("organizations").update({ [field]: dbValue }).eq("id", id);
     if (!error) setOrgs((prev) => prev.map((o) => (o.id === id ? { ...o, [field]: dbValue, updated_at: new Date().toISOString() } : o)));
   };
@@ -142,7 +144,9 @@ export default function SoccerOrgsPage() {
   const bulkUpdate = async () => {
     if (!bulkField || selected.size === 0) return;
     const ids = Array.from(selected);
-    const dbValue = bulkField === "org_type" ? (bulkValue ? [bulkValue] : []) : (bulkValue || null);
+    const dbValue = bulkField === "org_type"
+      ? (bulkValue ? bulkValue.split(",").map((v) => v.trim()).filter(Boolean) : [])
+      : (bulkValue || null);
     const { error } = await supabase.from("organizations").update({ [bulkField]: dbValue }).in("id", ids);
     if (!error) { setOrgs((prev) => prev.map((o) => selected.has(o.id) ? { ...o, [bulkField]: dbValue } : o)); setSelected(new Set()); setShowBulk(false); }
   };
@@ -166,10 +170,10 @@ export default function SoccerOrgsPage() {
     return sortDir === "asc" ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
   });
 
-  if (loading) return <div className="p-8"><div className="animate-pulse h-64 bg-gray-200 rounded" /></div>;
+  if (loading) return <div><div className="animate-pulse h-64 bg-gray-200 rounded" /></div>;
 
   return (
-    <div className="p-8">
+    <div>
       <div className="flex items-center justify-between mb-6">
         <div><h1 className="text-2xl font-bold text-gray-900">{labels.soccerOrgsPageTitle}</h1><p className="text-gray-500 text-sm mt-1">{filtered.length} of {orgs.length} communities</p></div>
         <Dialog open={showNew} onOpenChange={setShowNew}>
@@ -252,7 +256,7 @@ export default function SoccerOrgsPage() {
                   <td className="px-3 py-2"><button onClick={() => toggleSelect(o.id)}>{selected.has(o.id) ? <CheckSquare className="h-4 w-4 text-blue-600" /> : <Square className="h-4 w-4 text-gray-300" />}</button></td>
                   <td className="px-2 py-2"><Avatar src={o.avatar_url} name={o.name} size="sm" /></td>
                   <td className="px-3 py-2 overflow-hidden"><div className="flex items-center gap-1.5 min-w-0"><Link href={`/soccer-orgs/${o.id}`} className="text-blue-600 hover:underline shrink-0 text-xs">↗</Link><div className="min-w-0 flex-1"><EditableCell value={o.name} onSave={(v) => updateCell(o.id, "name", v)} /></div></div></td>
-                  <td className="px-3 py-2 overflow-hidden"><EditableCell value={Array.isArray(o.org_type) ? o.org_type.join(", ") : (o.org_type ?? null)} onSave={(v) => updateCell(o.id, "org_type", v)} type="select" options={ORG_TYPES} /></td>
+                  <td className="px-3 py-2 overflow-hidden"><EditableCell value={Array.isArray(o.org_type) ? o.org_type.join(", ") : (o.org_type ?? null)} onSave={(v) => updateCell(o.id, "org_type", v)} type="multi-select" options={ORG_TYPES} /></td>
                   <td className="px-3 py-2 overflow-hidden"><div className="flex flex-wrap gap-0.5 overflow-hidden max-h-[2rem]">{getLeagues(o).map((l) => <Badge key={l} variant="outline" className="text-[10px] px-1 py-0">{l}</Badge>)}</div></td>
                   <td className="px-3 py-2 overflow-hidden text-gray-600 text-xs">{o.players ?? "—"}</td>
                   <td className="px-3 py-2 overflow-hidden">{o.outreach_status && o.outreach_status !== "Not Contacted" ? <Badge variant="secondary" className="text-[10px]">{o.outreach_status}</Badge> : <span className="text-xs text-gray-300">—</span>}</td>

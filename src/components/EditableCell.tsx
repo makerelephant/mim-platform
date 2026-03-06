@@ -5,7 +5,7 @@ import { useState, useRef, useEffect } from "react";
 interface EditableCellProps {
   value: string | number | null;
   onSave: (value: string) => Promise<void>;
-  type?: "text" | "number" | "select" | "date";
+  type?: "text" | "number" | "select" | "multi-select" | "date";
   options?: string[];
   className?: string;
   placeholder?: string;
@@ -47,6 +47,50 @@ export function EditableCell({ value, onSave, type = "text", options, className 
   };
 
   if (editing) {
+    if (type === "multi-select" && options) {
+      const currentVals = String(value ?? "").split(",").map((v) => v.trim()).filter(Boolean);
+      const handleToggle = async (opt: string) => {
+        const isChecked = currentVals.includes(opt);
+        const newVals = isChecked ? currentVals.filter((v) => v !== opt) : [...currentVals, opt];
+        const newStr = newVals.join(", ");
+        setSaving(true);
+        try {
+          await onSave(newStr);
+          setEditValue(newStr);
+        } catch {
+          /* revert handled by parent */
+        }
+        setSaving(false);
+      };
+      return (
+        <div className="relative border rounded bg-white shadow-lg p-2 min-w-[140px] z-10">
+          <div className="space-y-1">
+            {options.map((opt) => {
+              const isChecked = currentVals.includes(opt);
+              return (
+                <label key={opt} className="flex items-center gap-2 text-xs px-1.5 py-1 rounded cursor-pointer hover:bg-gray-100">
+                  <input
+                    type="checkbox"
+                    checked={isChecked}
+                    onChange={() => handleToggle(opt)}
+                    disabled={saving}
+                    className="rounded border-gray-300"
+                  />
+                  <span className={isChecked ? "font-medium" : ""}>{opt}</span>
+                </label>
+              );
+            })}
+          </div>
+          <button
+            onClick={() => setEditing(false)}
+            className="mt-2 w-full text-xs text-gray-500 hover:text-gray-700 border-t pt-1.5"
+          >
+            Done
+          </button>
+        </div>
+      );
+    }
+
     if (type === "select" && options) {
       const handleSelectChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
         const newVal = e.target.value;

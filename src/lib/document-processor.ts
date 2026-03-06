@@ -1,0 +1,275 @@
+/**
+ * Document Processor — extracts text from uploaded files.
+ *
+ * Supports: PDF, DOCX, TXT, MD, HTML, CSV
+ * Returns: extracted text + chunk array for future retrieval.
+ *
+ * PPTX support is basic (extracts text from XML) but
+ * doesn't require a heavy dependency.
+ */
+
+// ─── Types ──────────────────────────────────────────────────────────────────
+
+export interface ProcessedDocument {
+  text: string;
+  chunks: { chunk_index: number; text: string; token_count: number }[];
+  fileType: string;
+}
+
+// ─── Constants ──────────────────────────────────────────────────────────────
+
+const CHUNK_TARGET_TOKENS = 500;
+const CHARS_PER_TOKEN = 4; // rough approximation
+const CHUNK_TARGET_CHARS = CHUNK_TARGET_TOKENS * CHARS_PER_TOKEN;
+
+// ─── Supported file types ───────────────────────────────────────────────────
+
+export const SUPPORTED_FILE_TYPES = new Set([
+  "application/pdf",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document", // .docx
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation", // .pptx
+  "text/plain",
+  "text/markdown",
+  "text/html",
+  "text/csv",
+  "application/json",
+]);
+
+export const EXTENSION_TO_TYPE: Record<string, string> = {
+  pdf: "pdf",
+  docx: "docx",
+  pptx: "pptx",
+  txt: "txt",
+  md: "md",
+  markdown: "md",
+  html: "html",
+  htm: "html",
+  csv: "csv",
+  json: "json",
+};
+
+// ─── Main Processor ─────────────────────────────────────────────────────────
+
+/**
+ * Extract text from a file buffer.
+ * Determines extraction method based on file type.
+ */
+export async function processDocument(
+  buffer: Buffer,
+  fileName: string,
+  mimeType?: string,
+): Promise<ProcessedDocument> {
+  const ext = fileName.split(".").pop()?.toLowerCase() || "";
+  const fileType = EXTENSION_TO_TYPE[ext] || "txt";
+
+  let text = "";
+
+  switch (fileType) {
+    case "pdf":
+      text = await extractPdf(buffer);
+      break;
+    case "docx":
+      text = await extractDocx(buffer);
+      break;
+    case "pptx":
+      text = await extractPptx(buffer);
+      break;
+    case "html":
+      text = extractHtml(buffer.toString("utf-8"));
+      break;
+    case "csv":
+    case "json":
+    case "txt":
+    case "md":
+    default:
+      text = buffer.toString("utf-8");
+      break;
+  }
+
+  // Clean up text
+  text = text
+    .replace(/\r\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+
+  // Chunk the text
+  const chunks = chunkText(text);
+
+  return { text, chunks, fileType };
+}
+
+// ─── Text from raw paste/input ──────────────────────────────────────────────
+
+export function processTextInput(text: string): ProcessedDocument {
+  const cleaned = text
+    .replace(/\r\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+
+  return {
+    text: cleaned,
+    chunks: chunkText(cleaned),
+    fileType: "txt",
+  };
+}
+
+// ─── PDF Extraction ─────────────────────────────────────────────────────────
+
+async function extractPdf(buffer: Buffer): Promise<string> {
+  try {
+    // Use pdfjs-dist directly (modern version) instead of pdf-parse wrapper
+    // The legacy build works in Node.js without canvas dependency
+    const pdfjsLib = await import("pdfjs-dist/legacy/build/pdf.mjs");
+
+    // Disable web worker — not available in Vercel serverless environment
+    pdfjsLib.GlobalWorkerOptions.workerSrc = "";
+
+    const data = new Uint8Array(buffer);
+    const doc = await pdfjsLib.getDocument({
+      data,
+      disableFontFace: true,
+      useWorkerFetch: false,
+      isEvalSupported: false,
+      useSystemFonts: false,
+    }).promise;
+
+    const textPages: string[] = [];
+    for (let i = 1; i <= doc.numPages; i++) {
+      const page = await doc.getPage(i);
+      const content = await page.getTextContent();
+      let lastY: number | null = null;
+      let pageText = "";
+      for (const item of content.items) {
+        if ("str" in item) {
+          // Add newline when Y position changes (new line)
+          if (lastY !== null && Math.abs(item.transform[5] - lastY) > 2) {
+            pageText += "\n";
+          }
+          pageText += item.str;
+          lastY = item.transform[5];
+        }
+      }
+      if (pageText.trim()) {
+        textPages.push(pageText);
+      }
+    }
+
+    await doc.destroy();
+    return textPages.join("\n\n");
+  } catch (e) {
+    console.error("PDF extraction failed:", e);
+    return `[PDF extraction failed: ${String(e).slice(0, 200)}]`;
+  }
+}
+
+// ─── DOCX Extraction ────────────────────────────────────────────────────────
+
+async function extractDocx(buffer: Buffer): Promise<string> {
+  try {
+    const mammoth = await import("mammoth");
+    const result = await mammoth.extractRawText({ buffer });
+    return result.value || "";
+  } catch (e) {
+    console.error("DOCX extraction failed:", e);
+    return "[DOCX extraction failed — install mammoth]";
+  }
+}
+
+// ─── PPTX Extraction (basic XML text extraction) ────────────────────────────
+
+async function extractPptx(buffer: Buffer): Promise<string> {
+  try {
+    // PPTX is a ZIP file containing XML slides
+    // We'll do basic text extraction from the XML
+    const JSZip = (await import("jszip")).default;
+    const zip = await JSZip.loadAsync(buffer);
+
+    const texts: string[] = [];
+    const slideFiles = Object.keys(zip.files)
+      .filter((f) => f.startsWith("ppt/slides/slide") && f.endsWith(".xml"))
+      .sort();
+
+    for (const slideFile of slideFiles) {
+      const xmlContent = await zip.files[slideFile].async("text");
+      // Extract text from XML tags like <a:t>text</a:t>
+      const textMatches = xmlContent.match(/<a:t[^>]*>([^<]*)<\/a:t>/g);
+      if (textMatches) {
+        const slideTexts = textMatches.map((m) =>
+          m.replace(/<[^>]*>/g, "").trim()
+        ).filter(Boolean);
+        if (slideTexts.length > 0) {
+          const slideNum = slideFile.match(/slide(\d+)/)?.[1] || "?";
+          texts.push(`[Slide ${slideNum}]\n${slideTexts.join(" ")}`);
+        }
+      }
+    }
+
+    return texts.join("\n\n");
+  } catch (e) {
+    console.error("PPTX extraction failed:", e);
+    return "[PPTX extraction failed]";
+  }
+}
+
+// ─── HTML Extraction (strip tags) ───────────────────────────────────────────
+
+export function extractHtml(html: string): string {
+  return html
+    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "")
+    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+// ─── Text Chunking ──────────────────────────────────────────────────────────
+
+function chunkText(
+  text: string,
+): { chunk_index: number; text: string; token_count: number }[] {
+  if (!text || text.length === 0) return [];
+
+  const chunks: { chunk_index: number; text: string; token_count: number }[] = [];
+
+  // Split on paragraph boundaries first
+  const paragraphs = text.split(/\n\n+/);
+  let currentChunk = "";
+  let chunkIndex = 0;
+
+  for (const para of paragraphs) {
+    const combined = currentChunk ? `${currentChunk}\n\n${para}` : para;
+
+    if (combined.length > CHUNK_TARGET_CHARS && currentChunk) {
+      // Push current chunk and start new one
+      const tokenCount = Math.ceil(currentChunk.length / CHARS_PER_TOKEN);
+      chunks.push({ chunk_index: chunkIndex++, text: currentChunk.trim(), token_count: tokenCount });
+      currentChunk = para;
+    } else {
+      currentChunk = combined;
+    }
+  }
+
+  // Push remaining text
+  if (currentChunk.trim()) {
+    const tokenCount = Math.ceil(currentChunk.length / CHARS_PER_TOKEN);
+    chunks.push({ chunk_index: chunkIndex, text: currentChunk.trim(), token_count: tokenCount });
+  }
+
+  return chunks;
+}
+
+// ─── File Size Validation ───────────────────────────────────────────────────
+
+const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
+
+export function validateFileSize(sizeBytes: number): { valid: boolean; error?: string } {
+  if (sizeBytes > MAX_FILE_SIZE) {
+    return { valid: false, error: `File too large (${Math.round(sizeBytes / 1024 / 1024)}MB). Maximum is 50MB.` };
+  }
+  return { valid: true };
+}

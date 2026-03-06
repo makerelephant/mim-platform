@@ -8,6 +8,9 @@
 import { google } from "googleapis";
 import Anthropic from "@anthropic-ai/sdk";
 import { SupabaseClient } from "@supabase/supabase-js";
+import { preFilterGmail } from "./scanner-prefilter";
+import { buildEntityDossier } from "./entity-dossier";
+import { computeFeedbackForEntities } from "./feedback-engine";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -59,6 +62,8 @@ export interface ScannerResult {
   tasksCreated: number;
   skippedDupes: number;
   contactsCreated: number;
+  preFiltered: number;
+  threadSkipped: number;
   log: string[];
   error?: string;
 }
@@ -80,28 +85,48 @@ const FREE_EMAIL_DOMAINS = new Set([
   "protonmail.com", "mail.com", "comcast.net", "verizon.net",
 ]);
 
+const DEFAULT_GOALS_90DAY = [
+  "$76K in gross revenue",
+  "Average order value of $35",
+  "Additional $250K in investment raised",
+];
+
 const CLASSIFIER_SYSTEM_PROMPT = `You are an AI assistant that classifies business communications for a sports merchandise company called Made in Motion (MiM).
 
+MiM is a platform that enables youth sports organizations and community groups to create and sell custom branded merchandise through "Drop" links — on-demand, zero-inventory storefronts.
+
 MiM works with these entity types:
-1. **Organizations** — includes two main categories:
-   - *Investment Firms*: venture capital firms, angel investors, seed funds. Communications about fundraising, cap tables, term sheets, due diligence, pitch decks, portfolio updates, financial projections.
-   - *Youth Soccer Communities*: youth soccer organizations, clubs, leagues in Massachusetts. Communications about partnerships, merchandise, tournaments, player registrations, outreach, sponsorships, uniforms, team stores.
+1. **Organizations** — includes three main categories:
+   - *Investors*: venture capital firms, angel investors, seed funds. Communications about fundraising, cap tables, term sheets, due diligence, pitch decks, portfolio updates, financial projections.
+   - *Partners (Channel Partners)*: distribution partners, resellers, platform integrators, affiliates. Communications about partnership agreements, revenue sharing, integration, co-marketing, referrals.
+   - *Communities (Customers)*: youth sports organizations, clubs, leagues, schools, recreation centers, civic groups. Communications about merchandise, tournaments, player registrations, outreach, sponsorships, uniforms, team stores, Drop links.
 2. **Contacts** — general contacts, networking, personal relationships that don't clearly fit an organization.
 
 You will receive:
 - The message content (subject, body, sender)
 - A list of resolved entities that the sender/recipients match to in our database
+- A reference list of known organizations in our CRM (use this to identify name mentions in the email body/subject even if the sender wasn't matched by email)
+- Optionally, an ENTITY DOSSIER with relationship history for the primary entity
+- Optionally, a FEEDBACK HISTORY showing how the user has interacted with past tasks from this entity
+
+When you receive an ENTITY DOSSIER, use it to:
+- Avoid creating duplicate tasks if similar open tasks already exist for this entity
+- Adjust priority based on relationship stage (e.g., investor in "Engaged" stage gets higher priority than "Prospect")
+- Reference prior correspondence context in your task summaries
+- Flag re-engagement opportunities when last contact was 30+ days ago
+- When feedback shows the user ignores tasks from this entity, reduce task creation (only create for genuinely important items)
 
 Your job:
 1. **Classify** which silo this message primarily belongs to (organizations or contacts)
-2. **Pick the primary entity** from the resolved list (or null if none match well)
+2. **Pick the primary entity** from the resolved list OR from the known org reference list if you find a name match in the email content. Use the exact entity ID from the list.
 3. **Summarize** the message in one concise line
 4. **Extract action items** with appropriate priorities:
-   - critical: urgent deadlines, legal issues, compliance, time-sensitive investor requests
-   - high: meeting requests, term sheet discussions, partnership proposals, investor follow-ups, deal updates
-   - medium: general follow-ups, status updates, introductions, scheduling
+   - critical: urgent deadlines, legal issues, compliance, time-sensitive investor requests, expiring term sheets
+   - high: meeting requests, term sheet discussions, partnership proposals, investor follow-ups, deal updates, large order inquiries
+   - medium: general follow-ups, status updates, introductions, scheduling, product questions
    - low: newsletters, FYI emails, automated notifications, mass emails
 5. **Tag** the message with relevant categories
+6. **Score goal relevance** — how directly this impacts MiM's 90-day strategic goals
 
 Respond with ONLY a JSON object in this exact format:
 {
@@ -120,20 +145,80 @@ Respond with ONLY a JSON object in this exact format:
       "goal_relevance_score": 1-10 | null
     }
   ],
-  "tags": ["follow-up", "meeting-request", "deal-update", "partnership", "intro-request", "merch", "newsletter", etc.]
+  "tags": ["follow-up", "meeting-request", "deal-update", "partnership", "intro-request", "merch", "newsletter", "fundraising", "order", "team-store", etc.]
 }
 
 IMPORTANT:
 - If there are no action items, return an empty array []
-- Task titles should be actionable and specific
+- Task titles should be actionable and specific (e.g., "Follow up with Sequoia on term sheet" not "Follow up")
 - Only extract genuine action items that require the user to do something
 - Skip automated notifications, marketing emails, and spam
 - If the email is clearly automated/newsletter, set primary_silo to "contacts" and return no action items
+- When you find an org name mentioned in the email body that matches the known org list, use that org as the primary entity even if the Entity Resolver didn't match the sender
 
 For each action item, separate CONTEXT from ACTION:
 - "summary" = the background/situation
 - "recommended_action" = what to do about it
-- "goal_relevance_score" = how relevant this is to the company's 90-day strategic goals (1=tangential, 5=moderately relevant, 10=directly critical to fundraising/partnerships). Only set this if you can reasonably infer relevance.`;
+- "goal_relevance_score" = how relevant this is to the company's 90-day strategic goals (scoring guide below)
+
+GOAL RELEVANCE SCORING:
+- 9-10: Directly advances a 90-day goal (e.g., investor ready to wire funds, large merch order closing)
+- 7-8: Strongly related (e.g., new investor meeting, partnership that drives revenue)
+- 4-6: Moderately related (e.g., intro to potential investor, community org interested in merch)
+- 1-3: Tangentially related or unrelated (e.g., networking, general inquiry)
+
+EXAMPLES:
+
+Example 1 — Investor follow-up email:
+{
+  "primary_silo": "organizations",
+  "primary_entity_id": "abc-123",
+  "primary_entity_name": "Sequoia Capital",
+  "summary": "Sequoia requesting updated financial projections before next partner meeting",
+  "sentiment": "positive",
+  "action_items": [
+    {
+      "title": "Send updated financials to Sequoia Capital",
+      "summary": "Sequoia partner Sarah Chen is requesting Q1 financial projections and updated cap table ahead of their Monday partner meeting",
+      "recommended_action": "Prepare and send updated P&L, revenue forecast, and cap table by Friday EOD",
+      "priority": "critical",
+      "due_date": "2026-03-07",
+      "goal_relevance_score": 10
+    }
+  ],
+  "tags": ["fundraising", "deal-update", "follow-up"]
+}
+
+Example 2 — Partner inquiry:
+{
+  "primary_silo": "organizations",
+  "primary_entity_id": "def-456",
+  "primary_entity_name": "Bay State FC",
+  "summary": "Bay State FC interested in setting up a team store for spring season",
+  "sentiment": "positive",
+  "action_items": [
+    {
+      "title": "Schedule demo call with Bay State FC for team store setup",
+      "summary": "Bay State FC's program director wants to launch a team store for their spring soccer season with 200+ players",
+      "recommended_action": "Reply to schedule a 30-min demo call this week, prepare sample Drop link with their logo",
+      "priority": "high",
+      "due_date": null,
+      "goal_relevance_score": 8
+    }
+  ],
+  "tags": ["partnership", "team-store", "merch", "meeting-request"]
+}
+
+Example 3 — Newsletter (skip):
+{
+  "primary_silo": "contacts",
+  "primary_entity_id": null,
+  "primary_entity_name": null,
+  "summary": "Weekly SaaS newsletter from TechCrunch",
+  "sentiment": "neutral",
+  "action_items": [],
+  "tags": ["newsletter"]
+}`;
 
 // ─── Entity Resolver ────────────────────────────────────────────────────────
 
@@ -280,6 +365,38 @@ class EntityResolver {
   }
 }
 
+// ─── Org Context Loader ──────────────────────────────────────────────────────
+
+async function loadOrgContext(sb: SupabaseClient): Promise<string> {
+  const { data: orgs } = await sb
+    .from("organizations")
+    .select("id, name, org_type, lifecycle_status, partner_status, pipeline_status")
+    .order("name");
+
+  if (!orgs || orgs.length === 0) return "";
+
+  const investors: string[] = [];
+  const partners: string[] = [];
+  const communities: string[] = [];
+
+  for (const org of orgs) {
+    const types = (org.org_type as string[]) || [];
+    const status = org.pipeline_status || org.partner_status || org.lifecycle_status || "";
+    const label = status ? `${org.name} (${status}) [id:${org.id}]` : `${org.name} [id:${org.id}]`;
+
+    if (types.includes("Investor")) investors.push(label);
+    if (types.includes("Partner")) partners.push(label);
+    if (types.includes("Customer") || types.length === 0) communities.push(label);
+  }
+
+  let ctx = "KNOWN ORGANIZATIONS IN OUR CRM (use these IDs when you find a name match):\n\n";
+  if (investors.length > 0) ctx += `Investors (${investors.length}): ${investors.join(", ")}\n\n`;
+  if (partners.length > 0) ctx += `Partners (${partners.length}): ${partners.join(", ")}\n\n`;
+  if (communities.length > 0) ctx += `Communities/Customers (${communities.length}): ${communities.join(", ")}\n\n`;
+
+  return ctx;
+}
+
 // ─── Classifier ─────────────────────────────────────────────────────────────
 
 async function classifyMessage(
@@ -291,7 +408,10 @@ async function classifyMessage(
     model: DEFAULT_MODEL,
     maxTokens: DEFAULT_MAX_TOKENS,
   },
-): Promise<ClassificationResult> {
+  orgContext: string = "",
+  entityDossier: string = "",
+  threadContext: string = "",
+): Promise<ClassificationResult & { prompt_tokens?: number; completion_tokens?: number }> {
   // Build entity context
   let entityContext: string;
   if (resolvedEntities.length > 0) {
@@ -304,7 +424,13 @@ async function classifyMessage(
   }
 
   const msgContent = `Source: Email\nFrom: ${message.from}\nSubject: ${message.subject}\nBody:\n${message.body.slice(0, 1500)}`;
-  const userPrompt = `${entityContext}\n\n---\n\n${msgContent}`;
+
+  // Build enriched prompt with dossier, thread context, and org context
+  let userPrompt = entityContext;
+  if (entityDossier) userPrompt += `\n\n${entityDossier}`;
+  if (threadContext) userPrompt += `\n\n${threadContext}`;
+  if (orgContext) userPrompt += `\n\n${orgContext}`;
+  userPrompt += `\n\n---\n\n${msgContent}`;
 
   try {
     const response = await anthropic.messages.create({
@@ -350,6 +476,8 @@ async function classifyMessage(
       action_items: actionItems,
       tags: data.tags || [],
       sentiment: data.sentiment || "neutral",
+      prompt_tokens: response.usage?.input_tokens,
+      completion_tokens: response.usage?.output_tokens,
     };
   } catch (e) {
     // Fallback classification
@@ -511,12 +639,30 @@ export async function runGmailScanner(
       addLog("No agent record found — using defaults");
     }
 
+    // ── Inject 90-day goals into system prompt ──
+    const cfgGoals = (agentRow?.config as Record<string, unknown> | null)?.goals_90day as string[] | undefined;
+    const goals = cfgGoals && cfgGoals.length > 0 ? cfgGoals : DEFAULT_GOALS_90DAY;
+    const goalsBlock = `MiM's 90-DAY STRATEGIC GOALS:\n${goals.map((g) => `• ${g}`).join("\n")}\n\n`;
+    agentSystemPrompt = agentSystemPrompt.replace("GOAL RELEVANCE SCORING:", goalsBlock + "GOAL RELEVANCE SCORING:");
+    addLog(`Injected ${goals.length} goals into classifier prompt`);
+
     const userEmails = new Set(userEmailsList.map((e) => e.toLowerCase().trim()));
+
+    // ── Brain email config (for knowledge ingestion routing) ──
+    const brainEmail = ((agentRow?.config as Record<string, unknown> | null)?.brain_email as string) || "";
+    const brainEmailLower = brainEmail ? brainEmail.toLowerCase().trim() : "";
+    if (brainEmailLower) {
+      addLog(`Brain email configured: ${brainEmailLower}`);
+    }
 
     // ── Entity resolver ──
     const resolver = new EntityResolver(sb);
     await resolver.load();
     addLog("Entity resolver loaded");
+
+    // ── Load org context for classifier ──
+    const orgContext = await loadOrgContext(sb);
+    addLog(`Loaded org context (${orgContext.length} chars)`);
 
     // ── Fetch recent messages ──
     const afterTs = Math.floor((Date.now() - scanHours * 60 * 60 * 1000) / 1000);
@@ -533,6 +679,9 @@ export async function runGmailScanner(
     let recordsProcessed = 0;
     let recordsUpdated = 0;
     let skippedDupes = 0;
+    let preFiltered = 0;
+    let threadSkipped = 0;
+    const processedEntities: Array<{ entity_type: string; entity_id: string }> = [];
 
     for (const msgRef of messages) {
       recordsProcessed++;
@@ -578,6 +727,67 @@ export async function runGmailScanner(
         body: bodyText,
         internal_date: msg.internalDate || "",
       };
+
+      // ── Pre-filter: skip newsletters, auto-replies, marketing, noreply ──
+      const filterResult = preFilterGmail(headers, bodyText, extractEmailAddress(details.from));
+      if (filterResult.action === "skip") {
+        preFiltered++;
+        addLog(`  Pre-filtered [${filterResult.category}]: ${details.subject.slice(0, 60)} — ${filterResult.reason}`);
+        // Log to classification_log for tracking
+        try {
+          await sb.from("classification_log").insert({
+            source: "gmail",
+            source_message_id: msgId,
+            thread_id: details.thread_id || null,
+            from_email: extractEmailAddress(details.from),
+            subject: details.subject,
+            pre_filter_result: filterResult.category,
+            agent_run_id: runId,
+          });
+        } catch { /* ignore logging error */ }
+        continue;
+      }
+
+      // ── Brain email routing: route to knowledge ingestion ──
+      if (brainEmailLower) {
+        const toEmails_ = parseEmailList(details.to);
+        const ccEmails_ = parseEmailList(details.cc);
+        const allRecipients = [...toEmails_, ...ccEmails_];
+        const isBrainEmail = allRecipients.some((e) => e.toLowerCase().trim() === brainEmailLower);
+
+        if (isBrainEmail) {
+          addLog(`  Brain email detected: "${details.subject.slice(0, 60)}" — routing to ingestion`);
+          try {
+            const baseUrl = process.env.VERCEL_URL
+              ? `https://${process.env.VERCEL_URL}`
+              : process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+
+            await fetch(`${baseUrl}/api/brain/ingest`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                title: details.subject || "Email to Brain",
+                text: `From: ${details.from}\nSubject: ${details.subject}\nDate: ${details.date}\n\n${details.body}`,
+                source_type: "email",
+                source_ref: msgId,
+                uploaded_by: "gmail-scanner",
+                metadata: {
+                  from: details.from,
+                  to: details.to,
+                  subject: details.subject,
+                  gmail_message_id: msgId,
+                  thread_id: details.thread_id,
+                },
+              }),
+            });
+            addLog(`  Brain ingestion successful for: "${details.subject.slice(0, 60)}"`);
+          } catch (e) {
+            addLog(`  Brain ingestion failed: ${e instanceof Error ? e.message : String(e)}`);
+          }
+          // TODO: Also process attachments if present
+          continue; // Skip normal classification for brain emails
+        }
+      }
 
       // ── Parse participants ──
       const fromEmail = extractEmailAddress(details.from);
@@ -653,12 +863,73 @@ export async function runGmailScanner(
 
       if (allMatches.length === 0) continue; // No known entities — skip
 
+      // ── Thread awareness: check for existing open tasks on same thread ──
+      let threadContext = "";
+      if (details.thread_id) {
+        const { data: existingThreadTasks } = await sb
+          .from("tasks")
+          .select("id, title, status, priority, created_at")
+          .eq("gmail_thread_id", details.thread_id)
+          .in("status", ["todo", "in_progress"])
+          .order("created_at", { ascending: false })
+          .limit(3);
+
+        if (existingThreadTasks && existingThreadTasks.length > 0) {
+          const newestTask = existingThreadTasks[0];
+          const taskAgeMs = Date.now() - new Date(newestTask.created_at).getTime();
+          const fortyEightHoursMs = 48 * 60 * 60 * 1000;
+
+          if (taskAgeMs < fortyEightHoursMs) {
+            // Recent open task exists — skip creating new task, just update existing
+            threadSkipped++;
+            addLog(`  Thread skip: "${newestTask.title.slice(0, 50)}" already open (${Math.round(taskAgeMs / 3600000)}h ago)`);
+            await sb.from("tasks").update({ updated_at: new Date().toISOString() }).eq("id", newestTask.id);
+            // Log the skip
+            try {
+              await sb.from("classification_log").insert({
+                source: "gmail",
+                source_message_id: msgId,
+                thread_id: details.thread_id,
+                from_email: fromEmail,
+                subject: details.subject,
+                pre_filter_result: "thread_skip",
+                agent_run_id: runId,
+              });
+            } catch { /* ignore logging error */ }
+            continue;
+          }
+
+          // Older open tasks exist — tell classifier about them
+          const taskLines = existingThreadTasks.map(
+            (t) => `  - [${t.priority}] "${t.title}" (${t.status}, created ${new Date(t.created_at).toLocaleDateString()})`
+          );
+          threadContext = `EXISTING OPEN TASKS FOR THIS EMAIL THREAD:\n${taskLines.join("\n")}\nAvoid creating duplicate tasks. Only create a new task if this message introduces a genuinely new action item.`;
+        }
+      }
+
+      // ── Build entity dossier for primary entity ──
+      const primaryEntity = allMatches.find((m) => m.entity_type === "organizations") || allMatches[0];
+      let dossierRendered = "";
+      if (primaryEntity?.entity_id) {
+        try {
+          const dossier = await buildEntityDossier(sb, primaryEntity.entity_type, primaryEntity.entity_id);
+          if (dossier) {
+            dossierRendered = dossier.rendered;
+          }
+        } catch (e) {
+          addLog(`  Dossier build failed for ${primaryEntity.entity_name}: ${e instanceof Error ? e.message : String(e)}`);
+        }
+      }
+
       // ── Classify ──
       const result = await classifyMessage(
         anthropic,
         { subject: details.subject, body: details.body, from: details.from },
         allMatches,
         { systemPrompt: agentSystemPrompt, model: agentModel, maxTokens: agentMaxTokens },
+        orgContext,
+        dossierRendered,
+        threadContext,
       );
 
       // ── Direction & date ──
@@ -673,6 +944,39 @@ export async function runGmailScanner(
 
       const entityType = result.primary_silo;
       const entityId = result.primary_entity_id;
+
+      // Track processed entities for feedback computation
+      if (entityId) {
+        processedEntities.push({ entity_type: entityType, entity_id: entityId });
+      }
+
+      // ── Classification logging ──
+      try {
+        await sb.from("classification_log").insert({
+          source: "gmail",
+          source_message_id: msgId,
+          thread_id: details.thread_id || null,
+          entity_type: entityType,
+          entity_id: entityId,
+          entity_name: result.primary_entity_name,
+          from_email: fromEmail,
+          subject: details.subject,
+          classification_result: {
+            primary_silo: result.primary_silo,
+            summary: result.summary,
+            sentiment: result.sentiment,
+            tags: result.tags,
+            action_count: result.action_items.length,
+          },
+          pre_filter_result: "passed",
+          dossier_summary: dossierRendered ? dossierRendered.slice(0, 500) : null,
+          feedback_summary: null,
+          prompt_tokens: result.prompt_tokens || null,
+          completion_tokens: result.completion_tokens || null,
+          model: agentModel,
+          agent_run_id: runId,
+        });
+      } catch { /* ignore logging error */ }
 
       // ── Log correspondence ──
       if (entityId) {
@@ -708,6 +1012,8 @@ export async function runGmailScanner(
         if (action.goal_relevance_score != null) taskPayload.goal_relevance_score = action.goal_relevance_score;
         if (details.thread_id) taskPayload.gmail_thread_id = details.thread_id;
         taskPayload.gmail_message_id = msgId;
+        taskPayload.thread_id = details.thread_id || null;
+        taskPayload.source_message_id = msgId;
 
         await sb.from("tasks").insert(taskPayload);
         tasksCreated++;
@@ -739,6 +1045,16 @@ export async function runGmailScanner(
       addLog(`Processed: ${details.subject.slice(0, 60)}${entityLabel} (${result.action_items.length} tasks)`);
     }
 
+    // ── Compute entity feedback for processed entities ──
+    if (processedEntities.length > 0) {
+      try {
+        const feedbackCount = await computeFeedbackForEntities(sb, processedEntities);
+        addLog(`Computed feedback for ${feedbackCount} entities`);
+      } catch (e) {
+        addLog(`Feedback computation failed: ${e instanceof Error ? e.message : String(e)}`);
+      }
+    }
+
     // ── Complete run ──
     if (runId) {
       await sb.from("agent_runs").update({
@@ -752,6 +1068,7 @@ export async function runGmailScanner(
     addLog(`Completed — processed: ${recordsProcessed}, updated: ${recordsUpdated}, skipped dupes: ${skippedDupes}`);
 
     addLog(`Contacts auto-created: ${contactsCreated}`);
+    addLog(`Pre-filtered: ${preFiltered}, Thread-skipped: ${threadSkipped}`);
 
     return {
       success: true,
@@ -760,6 +1077,8 @@ export async function runGmailScanner(
       tasksCreated,
       skippedDupes,
       contactsCreated,
+      preFiltered,
+      threadSkipped,
       log,
     };
   } catch (e) {
@@ -784,6 +1103,8 @@ export async function runGmailScanner(
       tasksCreated: 0,
       skippedDupes: 0,
       contactsCreated: 0,
+      preFiltered: 0,
+      threadSkipped: 0,
       log,
       error: errMsg,
     };

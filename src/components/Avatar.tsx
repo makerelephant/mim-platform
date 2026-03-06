@@ -6,6 +6,7 @@ interface AvatarProps {
   src: string | null | undefined;
   name: string;
   size?: "sm" | "md" | "lg";
+  shape?: "circle" | "square";
   className?: string;
 }
 
@@ -38,23 +39,26 @@ function getColor(name: string): string {
   return colors[Math.abs(hash) % colors.length];
 }
 
-export function Avatar({ src, name, size = "sm", className = "" }: AvatarProps) {
+export function Avatar({ src, name, size = "sm", shape = "circle", className = "" }: AvatarProps) {
   const [imgError, setImgError] = useState(false);
   const sizeClass = sizeClasses[size];
+  const roundedClass = shape === "square" ? "rounded-[6px]" : "rounded-full";
 
   if (src && !imgError) {
     return (
-      <img
-        src={src}
-        alt={name}
-        onError={() => setImgError(true)}
-        className={`${sizeClass} rounded-full object-cover shrink-0 ${className}`}
-      />
+      <div className={`${sizeClass} ${roundedClass} overflow-hidden shrink-0 ${className}`}>
+        <img
+          src={src}
+          alt={name}
+          onError={() => setImgError(true)}
+          className="w-full h-full object-cover"
+        />
+      </div>
     );
   }
 
   return (
-    <div className={`${sizeClass} ${getColor(name)} rounded-full flex items-center justify-center text-white font-medium shrink-0 ${className}`}>
+    <div className={`${sizeClass} ${getColor(name)} ${roundedClass} flex items-center justify-center text-white font-medium shrink-0 ${className}`}>
       {getInitials(name)}
     </div>
   );

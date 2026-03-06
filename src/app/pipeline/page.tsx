@@ -173,10 +173,10 @@ export default function PipelinePage() {
   };
   const handleDragOver = (e: React.DragEvent) => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; };
 
-  if (loading) return <div className="p-8"><div className="animate-pulse"><div className="flex gap-4">{[1,2,3,4].map((i) => <div key={i} className="h-96 bg-gray-200 rounded flex-1" />)}</div></div></div>;
+  if (loading) return <div><div className="animate-pulse"><div className="flex gap-4">{[1,2,3,4].map((i) => <div key={i} className="h-96 bg-gray-200 rounded flex-1" />)}</div></div></div>;
 
   return (
-    <div className="p-8">
+    <div>
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">{labels.pipelinePageTitle}</h1>

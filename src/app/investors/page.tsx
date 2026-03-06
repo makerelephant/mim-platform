@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { supabase } from "@/lib/supabase";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -12,10 +12,19 @@ import { useResizableColumns } from "@/hooks/useResizableColumns";
 import { labels } from "@/config/labels";
 import { timeAgo } from "@/lib/timeAgo";
 import Link from "next/link";
-import { Search, Plus, Trash2, CheckSquare, Square, ArrowRight, X, ChevronUp, ChevronDown, FileDown } from "lucide-react";
+import { Search, Plus, Trash2, CheckSquare, Square, ArrowRight, X, ChevronUp, ChevronDown, FileDown, Columns3, RefreshCw, Loader2 } from "lucide-react";
 
-const TABLE_COLS = [
-  { key: "firm", label: "Firm", width: 180 },
+// ─── Column definitions ─────────────────────────────────────────────────────
+
+interface ColDef {
+  key: string;
+  label: string;
+  width: number;
+  locked?: boolean;
+}
+
+const ALL_TABLE_COLS: ColDef[] = [
+  { key: "firm", label: "Firm", width: 180, locked: true },
   { key: "type", label: "Type", width: 100 },
   { key: "connection", label: "Connection Status", width: 125 },
   { key: "pipeline", label: "Status", width: 110 },
@@ -24,6 +33,10 @@ const TABLE_COLS = [
   { key: "website", label: "Website", width: 120 },
   { key: "updated_at", label: "Updated", width: 80 },
 ];
+
+const DEFAULT_VISIBLE_COLS = new Set(["firm", "connection", "pipeline", "activity", "website", "updated_at"]);
+
+// ─── Types ──────────────────────────────────────────────────────────────────
 
 interface Investor {
   id: string;
@@ -50,11 +63,13 @@ interface RecentActivity {
   type: "email" | "task";
 }
 
-type SortField = "name" | "updated_at";
+type SortField = "name" | "updated_at" | "activity";
 type SortDir = "asc" | "desc";
 
 const CONNECTION_STATUSES = ["Active", "Stale", "Need Introduction", "Warm Intro", "Cold"];
 const PIPELINE_STATUSES = ["Prospect", "Qualified", "Engaged", "First Meeting", "In Closing", "Closed", "Passed", "Not a Fit"];
+
+// ─── Page ───────────────────────────────────────────────────────────────────
 
 export default function InvestorsPage() {
   const [investors, setInvestors] = useState<Investor[]>([]);
@@ -72,20 +87,37 @@ export default function InvestorsPage() {
   const [showBulk, setShowBulk] = useState(false);
   const [bulkField, setBulkField] = useState("");
   const [bulkValue, setBulkValue] = useState("");
-  const [sortField, setSortField] = useState<SortField>("updated_at");
+  const [sortField, setSortField] = useState<SortField>("activity");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [activityMap, setActivityMap] = useState<Map<string, RecentActivity>>(new Map());
+  const [scanning, setScanning] = useState(false);
+  const [visibleCols, setVisibleCols] = useState<Set<string>>(new Set(DEFAULT_VISIBLE_COLS));
+  const [showColumns, setShowColumns] = useState(false);
+  const columnsRef = useRef<HTMLDivElement>(null);
 
-  const { colWidths, startResize, totalWidth } = useResizableColumns(TABLE_COLS);
+  const { colWidths, startResize } = useResizableColumns(ALL_TABLE_COLS);
 
-  // Percentage-based column widths for responsive layout
-  const FIXED_COL_PX = 76; // checkbox(40) + avatar(36)
-  const fullWidth = FIXED_COL_PX + totalWidth;
+  // Compute widths based on visible columns only
+  const FIXED_COL_PX = 80; // checkbox(40) + avatar(40)
+  const visibleTableCols = ALL_TABLE_COLS.filter((c) => visibleCols.has(c.key));
+  const visibleTotalWidth = visibleTableCols.reduce((sum, c) => sum + (colWidths[c.key] || c.width), 0);
+  const fullWidth = FIXED_COL_PX + visibleTotalWidth;
   const pct = (w: number) => `${((w / fullWidth) * 100).toFixed(1)}%`;
+
+  // Close columns dropdown on outside click
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
+      if (columnsRef.current && !columnsRef.current.contains(e.target as Node)) {
+        setShowColumns(false);
+      }
+    };
+    if (showColumns) document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [showColumns]);
 
   const toggleSort = (field: SortField) => {
     if (sortField === field) setSortDir(sortDir === "asc" ? "desc" : "asc");
-    else { setSortField(field); setSortDir(field === "updated_at" ? "desc" : "asc"); }
+    else { setSortField(field); setSortDir(field === "updated_at" || field === "activity" ? "desc" : "asc"); }
   };
 
   const SortIcon = ({ field }: { field: SortField }) => {
@@ -93,12 +125,20 @@ export default function InvestorsPage() {
     return sortDir === "asc" ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />;
   };
 
+  const toggleColVisibility = (key: string) => {
+    setVisibleCols((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
+
   const loadRecentActivity = useCallback(async (investorIds: string[]) => {
     if (investorIds.length === 0) return;
 
     const map = new Map<string, RecentActivity>();
 
-    // Load latest correspondence per investor
     const { data: corr } = await supabase
       .from("correspondence")
       .select("entity_id, subject, email_date")
@@ -114,7 +154,6 @@ export default function InvestorsPage() {
       }
     }
 
-    // Load latest tasks per investor — if more recent, override
     const { data: tasks } = await supabase
       .from("tasks")
       .select("entity_id, title, summary, created_at")
@@ -147,6 +186,22 @@ export default function InvestorsPage() {
   }, [loadRecentActivity]);
 
   useEffect(() => { load(); }, [load]);
+
+  const runFundraisingScanner = async () => {
+    setScanning(true);
+    try {
+      const res = await fetch("/api/agents/fundraising-scanner", { method: "POST" });
+      const data = await res.json();
+      if (data.success) {
+        // Reload investor data + activity after scan
+        await load();
+      }
+    } catch {
+      // silent fail
+    } finally {
+      setScanning(false);
+    }
+  };
 
   const updateCell = async (id: string, field: string, value: string) => {
     const { error } = await supabase.from("organizations").update({ [field]: value || null }).eq("id", id);
@@ -249,7 +304,7 @@ export default function InvestorsPage() {
 </style>
 </head><body>
   <div class="header">
-    <img src="${window.location.origin}/mim-icon.png" alt="MiM" />
+    <img src="${typeof window !== "undefined" ? window.location.origin : ""}/mim-icon.png" alt="MiM" />
     <div><h1>Investor Pipeline Report</h1><div class="meta">${dateStr} &middot; ${sorted.length} investors &middot; Sorted by recency</div></div>
   </div>
   <table>
@@ -276,6 +331,13 @@ export default function InvestorsPage() {
     if (filterPipeline === "not" && inv.pipeline_status) return false;
     return true;
   }).sort((a, b) => {
+    if (sortField === "activity") {
+      const aAct = activityMap.get(a.id);
+      const bAct = activityMap.get(b.id);
+      const aT = aAct?.date ? new Date(aAct.date).getTime() : 0;
+      const bT = bAct?.date ? new Date(bAct.date).getTime() : 0;
+      return sortDir === "asc" ? aT - bT : bT - aT;
+    }
     if (sortField === "updated_at") {
       const aT = a.updated_at ? new Date(a.updated_at).getTime() : 0;
       const bT = b.updated_at ? new Date(b.updated_at).getTime() : 0;
@@ -288,10 +350,77 @@ export default function InvestorsPage() {
 
   const inPipelineCount = investors.filter((inv) => inv.pipeline_status).length;
 
-  if (loading) return <div className="p-8"><div className="animate-pulse h-64 bg-gray-200 rounded" /></div>;
+  // ── Cell renderer for dynamic columns ──
+  const renderCell = (inv: Investor, colKey: string) => {
+    switch (colKey) {
+      case "firm": {
+        const hasWebsite = !!inv.website;
+        const href = hasWebsite
+          ? (inv.website!.startsWith("http") ? inv.website! : `https://${inv.website}`)
+          : undefined;
+        return (
+          <td key={colKey} className="px-3 py-2 overflow-hidden">
+            <div className="flex items-center gap-1.5 min-w-0">
+              <Link href={`/investors/${inv.id}`} className="shrink-0">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="/icons/more-vertical.png" alt="Details" className="h-6 w-6" />
+              </Link>
+              <div className="min-w-0 flex-1">
+                {hasWebsite ? (
+                  <a
+                    href={href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="underline text-gray-900 hover:text-blue-600 text-sm inline-flex items-center gap-1"
+                  >
+                    <span className="truncate">{inv.name}</span>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src="/icons/arrow-up-right-square.png" alt="Open website" className="h-5 w-5 shrink-0" />
+                  </a>
+                ) : (
+                  <EditableCell value={inv.name} onSave={(v) => updateCell(inv.id, "name", v)} />
+                )}
+              </div>
+            </div>
+          </td>
+        );
+      }
+      case "type":
+        return <td key={colKey} className="px-3 py-2 overflow-hidden"><EditableCell value={inv.investor_type} onSave={(v) => updateCell(inv.id, "investor_type", v)} /></td>;
+      case "connection":
+        return <td key={colKey} className="px-3 py-2 overflow-hidden"><EditableCell value={inv.connection_status} onSave={(v) => updateCell(inv.id, "connection_status", v)} type="select" options={CONNECTION_STATUSES} /></td>;
+      case "pipeline":
+        return <td key={colKey} className="px-3 py-2 overflow-hidden"><EditableCell value={inv.pipeline_status} onSave={(v) => updateCell(inv.id, "pipeline_status", v)} type="select" options={PIPELINE_STATUSES} /></td>;
+      case "activity":
+        return (
+          <td key={colKey} className="px-3 py-2 overflow-hidden">
+            {activityMap.has(inv.id) ? (
+              <div title={activityMap.get(inv.id)!.text}>
+                <p className="text-xs text-gray-600 line-clamp-2 leading-snug">{activityMap.get(inv.id)!.text}</p>
+                {activityMap.get(inv.id)!.date && (
+                  <span className="text-[10px] text-gray-400">{timeAgo(activityMap.get(inv.id)!.date)}</span>
+                )}
+              </div>
+            ) : (
+              <span className="text-gray-300 text-xs">—</span>
+            )}
+          </td>
+        );
+      case "score":
+        return <td key={colKey} className="px-3 py-2 overflow-hidden"><EditableCell value={inv.likelihood_score} onSave={(v) => updateCell(inv.id, "likelihood_score", v)} type="number" /></td>;
+      case "website":
+        return <td key={colKey} className="px-3 py-2 overflow-hidden"><EditableCell value={inv.website} onSave={(v) => updateCell(inv.id, "website", v)} /></td>;
+      case "updated_at":
+        return <td key={colKey} className="px-3 py-2 overflow-hidden text-gray-400 text-xs whitespace-nowrap">{timeAgo(inv.updated_at)}</td>;
+      default:
+        return <td key={colKey} className="px-3 py-2">—</td>;
+    }
+  };
+
+  if (loading) return <div><div className="animate-pulse h-64 bg-gray-200 rounded" /></div>;
 
   return (
-    <div className="p-8">
+    <div>
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">{labels.investorsPageTitle}</h1>
@@ -300,6 +429,13 @@ export default function InvestorsPage() {
           </p>
         </div>
         <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={runFundraisingScanner} disabled={scanning}>
+            {scanning ? (
+              <><Loader2 className="h-4 w-4 mr-1 animate-spin" /> Scanning...</>
+            ) : (
+              <><RefreshCw className="h-4 w-4 mr-1" /> Update</>
+            )}
+          </Button>
           <Button variant="outline" size="sm" onClick={exportPDF}>
             <FileDown className="h-4 w-4 mr-1" /> Export PDF
           </Button>
@@ -350,9 +486,38 @@ export default function InvestorsPage() {
         </div>
       )}
 
-      <div className="flex gap-3 mb-4">
-        <div className="relative flex-1"><Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" /><Input placeholder="Search firms..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" /></div>
+      <div className="flex gap-3 mb-4 items-center">
+        <div className="relative w-1/4 min-w-[160px]"><Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" /><Input placeholder="Search firms..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" /></div>
         <Button variant={showFilters ? "default" : "outline"} onClick={() => setShowFilters(!showFilters)}>Filters</Button>
+        <div className="relative" ref={columnsRef}>
+          <Button
+            variant={showColumns ? "default" : "outline"}
+            onClick={() => setShowColumns(!showColumns)}
+          >
+            <Columns3 className="h-4 w-4 mr-1" /> Columns
+          </Button>
+          {showColumns && (
+            <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-30 p-3 min-w-[220px]">
+              <p className="text-xs font-medium text-gray-500 mb-2 uppercase tracking-wide">Toggle columns</p>
+              {ALL_TABLE_COLS.map((col) => (
+                <label
+                  key={col.key}
+                  className={`flex items-center gap-2.5 py-1.5 text-sm ${col.locked ? "cursor-default" : "cursor-pointer hover:bg-gray-50"} rounded px-1`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={visibleCols.has(col.key)}
+                    disabled={col.locked}
+                    onChange={() => !col.locked && toggleColVisibility(col.key)}
+                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 h-3.5 w-3.5"
+                  />
+                  <span className={col.locked ? "text-gray-400" : "text-gray-700"}>{col.label}</span>
+                  {col.locked && <span className="text-[10px] text-gray-400 ml-auto">Required</span>}
+                </label>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       {showFilters && (
@@ -368,16 +533,16 @@ export default function InvestorsPage() {
           <table className="text-sm w-full" style={{ tableLayout: "fixed" }}>
             <colgroup>
               <col style={{ width: pct(40) }} />
-              <col style={{ width: pct(36) }} />
-              {TABLE_COLS.map((c) => <col key={c.key} style={{ width: pct(colWidths[c.key]) }} />)}
+              <col style={{ width: pct(40) }} />
+              {visibleTableCols.map((c) => <col key={c.key} style={{ width: pct(colWidths[c.key]) }} />)}
             </colgroup>
             <thead>
               <tr className="border-b bg-gray-50">
                 <th className="px-3 py-3"><button onClick={toggleSelectAll}>{selected.size === filtered.length && filtered.length > 0 ? <CheckSquare className="h-4 w-4 text-blue-600" /> : <Square className="h-4 w-4 text-gray-300" />}</button></th>
                 <th className="px-2 py-3"></th>
-                {TABLE_COLS.map((c) => {
-                  const sortable = c.key === "firm" || c.key === "updated_at";
-                  const sf = c.key === "firm" ? "name" : c.key === "updated_at" ? "updated_at" : null;
+                {visibleTableCols.map((c) => {
+                  const sortable = c.key === "firm" || c.key === "updated_at" || c.key === "activity";
+                  const sf = c.key === "firm" ? "name" : c.key === "updated_at" ? "updated_at" : c.key === "activity" ? "activity" : null;
                   return (
                     <th key={c.key} className={`text-left px-3 py-3 font-medium text-gray-500 text-xs uppercase tracking-wide relative whitespace-nowrap overflow-hidden ${sortable ? "cursor-pointer" : ""}`} onClick={sortable && sf ? () => toggleSort(sf as SortField) : undefined}>
                       <span className="flex items-center gap-1">{c.label} {sf && <SortIcon field={sf as SortField} />}</span>
@@ -391,26 +556,8 @@ export default function InvestorsPage() {
               {filtered.map((inv) => (
                 <tr key={inv.id} className={`border-b hover:bg-gray-50 ${selected.has(inv.id) ? "bg-blue-50" : ""}`}>
                   <td className="px-3 py-2"><button onClick={() => toggleSelect(inv.id)}>{selected.has(inv.id) ? <CheckSquare className="h-4 w-4 text-blue-600" /> : <Square className="h-4 w-4 text-gray-300" />}</button></td>
-                  <td className="px-2 py-2"><Avatar src={inv.avatar_url} name={inv.name} size="sm" /></td>
-                  <td className="px-3 py-2 overflow-hidden"><div className="flex items-center gap-1.5 min-w-0"><Link href={`/investors/${inv.id}`} className="text-blue-600 hover:underline shrink-0 text-xs">↗</Link><div className="min-w-0 flex-1"><EditableCell value={inv.name} onSave={(v) => updateCell(inv.id, "name", v)} /></div></div></td>
-                  <td className="px-3 py-2 overflow-hidden"><EditableCell value={inv.investor_type} onSave={(v) => updateCell(inv.id, "investor_type", v)} /></td>
-                  <td className="px-3 py-2 overflow-hidden"><EditableCell value={inv.connection_status} onSave={(v) => updateCell(inv.id, "connection_status", v)} type="select" options={CONNECTION_STATUSES} /></td>
-                  <td className="px-3 py-2 overflow-hidden"><EditableCell value={inv.pipeline_status} onSave={(v) => updateCell(inv.id, "pipeline_status", v)} type="select" options={PIPELINE_STATUSES} /></td>
-                  <td className="px-3 py-2 overflow-hidden">
-                    {activityMap.has(inv.id) ? (
-                      <div title={activityMap.get(inv.id)!.text}>
-                        <p className="text-xs text-gray-600 line-clamp-2 leading-snug">{activityMap.get(inv.id)!.text}</p>
-                        {activityMap.get(inv.id)!.date && (
-                          <span className="text-[10px] text-gray-400">{timeAgo(activityMap.get(inv.id)!.date)}</span>
-                        )}
-                      </div>
-                    ) : (
-                      <span className="text-gray-300 text-xs">—</span>
-                    )}
-                  </td>
-                  <td className="px-3 py-2 overflow-hidden"><EditableCell value={inv.likelihood_score} onSave={(v) => updateCell(inv.id, "likelihood_score", v)} type="number" /></td>
-                  <td className="px-3 py-2 overflow-hidden"><EditableCell value={inv.website} onSave={(v) => updateCell(inv.id, "website", v)} /></td>
-                  <td className="px-3 py-2 overflow-hidden text-gray-400 text-xs whitespace-nowrap">{timeAgo(inv.updated_at)}</td>
+                  <td className="px-2 py-2"><Avatar src={inv.avatar_url} name={inv.name} size="md" shape="square" /></td>
+                  {visibleTableCols.map((c) => renderCell(inv, c.key))}
                 </tr>
               ))}
             </tbody>

@@ -260,11 +260,11 @@ export default function ContactsPage() {
   const activeFilters = [filterSegment, filterCategory, filterRegion, filterHasEmail, filterHasPhone].filter(Boolean).length;
 
   if (loading) {
-    return <div className="p-8"><div className="animate-pulse space-y-4"><div className="h-8 bg-gray-200 rounded w-48" /><div className="h-10 bg-gray-200 rounded" />{[1,2,3,4,5].map((i) => <div key={i} className="h-12 bg-gray-200 rounded" />)}</div></div>;
+    return <div><div className="animate-pulse space-y-4"><div className="h-8 bg-gray-200 rounded w-48" /><div className="h-10 bg-gray-200 rounded" />{[1,2,3,4,5].map((i) => <div key={i} className="h-12 bg-gray-200 rounded" />)}</div></div>;
   }
 
   return (
-    <div className="p-8">
+    <div>
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">{labels.contactsPageTitle}</h1>

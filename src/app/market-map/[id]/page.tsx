@@ -78,13 +78,13 @@ export default function MarketMapDetail() {
   };
 
   if (!program) {
-    return <div className="p-8"><div className="animate-pulse h-64 bg-gray-200 rounded" /></div>;
+    return <div><div className="animate-pulse h-64 bg-gray-200 rounded" /></div>;
   }
 
   const fmt = (n: number | null) => n != null ? `$${n.toLocaleString()}` : "—";
 
   return (
-    <div className="p-8 max-w-4xl">
+    <div className="max-w-4xl">
       <Button variant="ghost" size="sm" className="mb-4" onClick={() => router.back()}>
         <ArrowLeft className="h-4 w-4 mr-1" /> Back
       </Button>

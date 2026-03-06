@@ -11,7 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Avatar } from "@/components/Avatar";
 import { EntityLinker } from "@/components/EntityLinker";
 import { CorrespondenceSection } from "@/components/CorrespondenceSection";
-import { ArrowLeft, Save, ExternalLink, X, Upload, Trash2, Users } from "lucide-react";
+import { ArrowLeft, Save, ExternalLink, X, Upload, Trash2, Users, Grid3X3, Check, Plus } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import { ORG_TYPE_OPTIONS } from "@/config/organization-constants";
@@ -51,6 +51,20 @@ interface LinkedContact {
   contact_id: string;
   role: string | null;
   contacts: { id: string; name: string; email: string | null; title: string | null };
+}
+
+interface CategoryNode {
+  id: string;
+  name: string;
+  parent_id: string | null;
+  children: CategoryNode[];
+}
+
+interface OrgCategoryLink {
+  id: string;
+  category_id: string;
+  category_name: string;
+  status: string;
 }
 
 const LEAGUE_MAP: Record<string, string> = {
@@ -217,6 +231,10 @@ export default function SoccerOrgDetail() {
 
   const orgId = params.id as string;
   const editDataRef = useRef<Record<string, unknown>>({});
+  const [allCategories, setAllCategories] = useState<CategoryNode[]>([]);
+  const [orgCategories, setOrgCategories] = useState<OrgCategoryLink[]>([]);
+  const [showCatPicker, setShowCatPicker] = useState(false);
+  const [catSaving, setCatSaving] = useState(false);
 
   const loadLinks = useCallback(async () => {
     const { data: contacts } = await supabase
@@ -226,6 +244,62 @@ export default function SoccerOrgDetail() {
     if (contacts) setLinkedContacts(contacts as unknown as LinkedContact[]);
   }, [orgId]);
 
+  const loadCategories = useCallback(async () => {
+    // All categories (tree)
+    const { data: cats } = await supabase
+      .from("community_categories")
+      .select("id, name, parent_id, sort_order")
+      .order("sort_order", { ascending: true });
+
+    if (cats) {
+      const byId = new Map<string, CategoryNode>();
+      const roots: CategoryNode[] = [];
+      cats.forEach((c: any) => byId.set(c.id, { id: c.id, name: c.name, parent_id: c.parent_id, children: [] }));
+      cats.forEach((c: any) => {
+        const node = byId.get(c.id)!;
+        if (c.parent_id && byId.has(c.parent_id)) {
+          byId.get(c.parent_id)!.children.push(node);
+        } else {
+          roots.push(node);
+        }
+      });
+      setAllCategories(roots);
+    }
+
+    // This org's category assignments
+    const { data: links } = await supabase
+      .from("org_community_relationships")
+      .select("id, category_id, status, category:community_categories!inner(name)")
+      .eq("organization_id", orgId);
+
+    if (links) {
+      setOrgCategories(links.map((l: any) => ({
+        id: l.id,
+        category_id: l.category_id,
+        category_name: l.category?.name || "—",
+        status: l.status || "active",
+      })));
+    }
+  }, [orgId]);
+
+  const assignCategory = async (categoryId: string) => {
+    setCatSaving(true);
+    const { error } = await supabase.from("org_community_relationships").insert({
+      organization_id: orgId,
+      category_id: categoryId,
+      status: "active",
+    });
+    if (!error) await loadCategories();
+    setCatSaving(false);
+  };
+
+  const unassignCategory = async (linkId: string) => {
+    setCatSaving(true);
+    const { error } = await supabase.from("org_community_relationships").delete().eq("id", linkId);
+    if (!error) await loadCategories();
+    setCatSaving(false);
+  };
+
   useEffect(() => {
     async function load() {
       const { data } = await supabase.from("organizations").select("*").eq("id", orgId).single();
@@ -233,7 +307,8 @@ export default function SoccerOrgDetail() {
     }
     load();
     loadLinks();
-  }, [orgId, loadLinks]);
+    loadCategories();
+  }, [orgId, loadLinks, loadCategories]);
 
   // --- Contact link / unlink ---
   const searchContacts = useCallback(async (q: string) => {
@@ -318,14 +393,14 @@ export default function SoccerOrgDetail() {
   const handleCancel = () => { setEditing(false); };
 
   if (!org) {
-    return <div className="p-8"><div className="animate-pulse h-64 bg-gray-200 rounded" /></div>;
+    return <div><div className="animate-pulse h-64 bg-gray-200 rounded" /></div>;
   }
 
   const fp = { editing, org, setField };
   const leagues = Object.entries(LEAGUE_MAP).filter(([key]) => org[key as keyof SoccerOrg]).map(([, label]) => label);
 
   return (
-    <div className="p-8 max-w-4xl">
+    <div className="max-w-4xl">
       <Button variant="ghost" size="sm" className="mb-4" onClick={() => router.back()}>
         <ArrowLeft className="h-4 w-4 mr-1" /> Back
       </Button>
@@ -399,6 +474,122 @@ export default function SoccerOrgDetail() {
               ) : (
                 <div className="flex flex-wrap gap-2">
                   {leagues.map((l) => <Badge key={l} variant="secondary">{l}</Badge>)}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Grid3X3 className="h-4 w-4" /> Categories
+                </CardTitle>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-xs"
+                  onClick={() => setShowCatPicker(!showCatPicker)}
+                >
+                  {showCatPicker ? <X className="h-3.5 w-3.5" /> : <><Plus className="h-3.5 w-3.5 mr-1" /> Assign</>}
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {/* Current assignments */}
+              {orgCategories.length === 0 && !showCatPicker ? (
+                <p className="text-sm text-gray-400">No categories assigned</p>
+              ) : (
+                <div className="flex flex-wrap gap-2 mb-3">
+                  {orgCategories.map((oc) => (
+                    <Badge key={oc.id} variant="secondary" className="flex items-center gap-1 pr-1">
+                      {oc.category_name}
+                      <button
+                        onClick={() => unassignCategory(oc.id)}
+                        className="ml-1 text-gray-400 hover:text-red-500 transition-colors"
+                        disabled={catSaving}
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </Badge>
+                  ))}
+                </div>
+              )}
+
+              {/* Category picker */}
+              {showCatPicker && (
+                <div className="border rounded-lg p-3 bg-gray-50 space-y-2 max-h-64 overflow-y-auto">
+                  {allCategories.map((parent) => {
+                    const assignedIds = new Set(orgCategories.map((oc) => oc.category_id));
+                    const hasChildren = parent.children.length > 0;
+
+                    return (
+                      <div key={parent.id}>
+                        {/* Parent category — only clickable if it has no children (leaf) */}
+                        <button
+                          className={`flex items-center gap-2 w-full text-left px-2 py-1.5 rounded text-sm font-medium transition-colors ${
+                            hasChildren
+                              ? "text-gray-500 cursor-default"
+                              : assignedIds.has(parent.id)
+                              ? "bg-blue-100 text-blue-800"
+                              : "hover:bg-gray-100 text-gray-700"
+                          }`}
+                          onClick={() => {
+                            if (hasChildren || catSaving) return;
+                            if (assignedIds.has(parent.id)) {
+                              const link = orgCategories.find((oc) => oc.category_id === parent.id);
+                              if (link) unassignCategory(link.id);
+                            } else {
+                              assignCategory(parent.id);
+                            }
+                          }}
+                          disabled={catSaving || hasChildren}
+                        >
+                          {!hasChildren && (
+                            <span className={`w-4 h-4 rounded border flex items-center justify-center text-xs ${
+                              assignedIds.has(parent.id) ? "bg-blue-600 border-blue-600 text-white" : "border-gray-300"
+                            }`}>
+                              {assignedIds.has(parent.id) && <Check className="h-3 w-3" />}
+                            </span>
+                          )}
+                          {parent.name}
+                        </button>
+
+                        {/* Sub-categories */}
+                        {hasChildren && (
+                          <div className="ml-4 space-y-0.5">
+                            {parent.children.map((child) => (
+                              <button
+                                key={child.id}
+                                className={`flex items-center gap-2 w-full text-left px-2 py-1 rounded text-sm transition-colors ${
+                                  assignedIds.has(child.id)
+                                    ? "bg-blue-100 text-blue-800"
+                                    : "hover:bg-gray-100 text-gray-600"
+                                }`}
+                                onClick={() => {
+                                  if (catSaving) return;
+                                  if (assignedIds.has(child.id)) {
+                                    const link = orgCategories.find((oc) => oc.category_id === child.id);
+                                    if (link) unassignCategory(link.id);
+                                  } else {
+                                    assignCategory(child.id);
+                                  }
+                                }}
+                                disabled={catSaving}
+                              >
+                                <span className={`w-4 h-4 rounded border flex items-center justify-center text-xs ${
+                                  assignedIds.has(child.id) ? "bg-blue-600 border-blue-600 text-white" : "border-gray-300"
+                                }`}>
+                                  {assignedIds.has(child.id) && <Check className="h-3 w-3" />}
+                                </span>
+                                {child.name}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </CardContent>

@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
@@ -21,16 +22,18 @@ import {
   Grid3X3,
   UserCheck,
   Shield,
-  Link as LinkIcon,
-  Camera,
-  Map,
   Palette,
   Send,
   Plug,
   Database,
-  Settings,
   Lock,
   History,
+  ChevronDown,
+  ChevronRight,
+  Building,
+  Brain,
+  BarChart3,
+  Library,
   type LucideIcon,
 } from "lucide-react";
 
@@ -53,33 +56,37 @@ interface SuperCategory {
 
 const topItems: NavItem[] = [
   { href: "/", label: labels.dashboard, icon: LayoutDashboard },
+  { href: "/all-orgs", label: "All Organizations", icon: Building },
 ];
 
 const categories: SuperCategory[] = [
   {
     label: labels.superFundraising,
     items: [
-      { href: "/pipeline", label: labels.fundraisingPipeline, icon: GitBranch },
       { href: "/investors", label: labels.investors, icon: TrendingUp },
       { href: "/investor-contacts", label: labels.investorContacts, icon: UserCheck },
+      { href: "/pipeline", label: labels.fundraisingPipeline, icon: GitBranch },
       { href: "/fundraising-activity", label: labels.fundraisingActivity, icon: Activity },
+      { href: "/fundraising/tasks", label: labels.fundraisingTasks, icon: CheckSquare, deferred: true },
     ],
   },
   {
     label: labels.superPartnerships,
     items: [
       { href: "/channel-partners", label: labels.partnerOrgs, icon: Building2 },
-      { href: "/partnerships/assignments", label: labels.categoryGeoAssignments, icon: Grid3X3 },
+      { href: "/partnerships/assignments", label: labels.partnerCategories, icon: Grid3X3 },
       { href: "/partnerships/pipeline", label: labels.partnershipPipeline, icon: Handshake },
+      { href: "/partnerships/activities", label: labels.partnershipActivities, icon: Activity, deferred: true },
+      { href: "/partnerships/tasks", label: labels.partnershipTasks, icon: CheckSquare, deferred: true },
     ],
   },
   {
     label: labels.superCommunities,
     items: [
       { href: "/soccer-orgs", label: labels.allCommunities, icon: Globe },
-      { href: "/communities/share-links", label: labels.shareLinks, icon: LinkIcon, deferred: true },
-      { href: "/communities/moments", label: labels.moments, icon: Camera, deferred: true },
-      { href: "/communities/org-map", label: labels.communityOrgMap, icon: Map, deferred: true },
+      { href: "/communities/categories", label: labels.communityCategories, icon: Grid3X3 },
+      { href: "/communities/activities", label: labels.communityActivities, icon: Activity, deferred: true },
+      { href: "/communities/tasks", label: labels.communityTasks, icon: CheckSquare, deferred: true },
     ],
   },
   {
@@ -106,9 +113,11 @@ const categories: SuperCategory[] = [
     ],
   },
   {
-    label: labels.superOrchestrations,
+    label: labels.superGophers,
     items: [
-      { href: "/applications", label: labels.applications, icon: Bot },
+      { href: "/applications", label: labels.gophers, icon: Bot },
+      { href: "/intelligence", label: labels.intelligence, icon: BarChart3 },
+      { href: "/knowledge", label: labels.knowledgeBase, icon: Library },
       { href: "/campaigns", label: labels.campaigns, icon: Send, deferred: true },
       { href: "/endpoints", label: labels.endPoints, icon: Plug, deferred: true },
     ],
@@ -116,11 +125,11 @@ const categories: SuperCategory[] = [
   {
     label: labels.superSettings,
     items: [
+      { href: "/settings/taxonomy", label: labels.taxonomy, icon: Brain },
       { href: "/settings/fields", label: labels.fieldsEnums, icon: Database, deferred: true },
       { href: "/settings/integrations", label: labels.integrations, icon: Plug, deferred: true },
       { href: "/settings/users", label: labels.usersPermissions, icon: Lock, deferred: true },
     ],
-    deferred: true,
   },
 ];
 
@@ -129,13 +138,63 @@ const categories: SuperCategory[] = [
 export function Sidebar() {
   const pathname = usePathname();
 
+  // Determine which categories should be open based on current route
+  const getInitialOpen = (): Set<string> => {
+    const open = new Set<string>();
+    for (const cat of categories) {
+      for (const item of cat.items) {
+        if (!item.deferred) {
+          const active = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
+          if (active) {
+            open.add(cat.label);
+            break;
+          }
+        }
+      }
+    }
+    return open;
+  };
+
+  const [openCategories, setOpenCategories] = useState<Set<string>>(getInitialOpen);
+
+  // Update open categories when route changes
+  useEffect(() => {
+    setOpenCategories((prev) => {
+      const next = new Set(prev);
+      for (const cat of categories) {
+        for (const item of cat.items) {
+          if (!item.deferred) {
+            const active = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
+            if (active) {
+              next.add(cat.label);
+              break;
+            }
+          }
+        }
+      }
+      return next;
+    });
+  }, [pathname]);
+
+  const toggleCategory = (label: string) => {
+    setOpenCategories((prev) => {
+      const next = new Set(prev);
+      if (next.has(label)) {
+        next.delete(label);
+      } else {
+        next.add(label);
+      }
+      return next;
+    });
+  };
+
   const renderNavItem = (item: NavItem) => {
     if (item.deferred) {
       const Icon = item.icon;
       return (
         <span
           key={item.href}
-          className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-600 cursor-default"
+          className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-gray-600 cursor-default"
         >
           <Icon className="h-4 w-4" />
           {item.label}
@@ -149,7 +208,7 @@ export function Sidebar() {
       <Link
         key={item.href}
         href={item.href}
-        className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+        className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
           active
             ? "bg-blue-600 text-white"
             : "text-gray-300 hover:bg-gray-800 hover:text-white"
@@ -163,28 +222,51 @@ export function Sidebar() {
 
   const renderSuperCategory = (category: SuperCategory, index: number) => {
     const allDeferred = category.deferred || category.items.every((i) => i.deferred);
+    const isOpen = openCategories.has(category.label);
+
+    // Check if any item in this category is active
+    const hasActiveItem = category.items.some((item) => {
+      if (item.deferred) return false;
+      return item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
+    });
 
     return (
-      <div key={category.label} className={index === 0 ? "mt-4" : "mt-5"}>
-        {/* Section header */}
-        <div className="flex items-center justify-between px-3 mb-1.5 pt-3 border-t border-gray-700/50">
+      <div key={category.label} className={index === 0 ? "mt-3" : "mt-1"}>
+        {/* Section header — clickable to expand/collapse */}
+        <button
+          onClick={() => !allDeferred && toggleCategory(category.label)}
+          className={`w-full flex items-center justify-between px-3 py-2 rounded-lg transition-colors ${
+            allDeferred
+              ? "cursor-default"
+              : "cursor-pointer hover:bg-gray-800/50"
+          } ${hasActiveItem && !isOpen ? "bg-gray-800/30" : ""}`}
+        >
           <span
-            className={`text-[10px] font-semibold tracking-wider uppercase ${
-              allDeferred ? "text-gray-600" : "text-gray-500"
+            className={`text-sm font-medium ${
+              allDeferred ? "text-gray-600" : hasActiveItem ? "text-blue-400" : "text-gray-300"
             }`}
           >
             {category.label}
           </span>
-          {allDeferred && (
-            <span className="text-[9px] text-gray-600 bg-gray-800 px-1.5 py-0.5 rounded">
-              Soon
-            </span>
-          )}
-        </div>
+          <div className="flex items-center gap-1.5">
+            {allDeferred && (
+              <span className="text-[9px] text-gray-600 bg-gray-800 px-1.5 py-0.5 rounded">
+                Soon
+              </span>
+            )}
+            {!allDeferred && (
+              isOpen ? (
+                <ChevronDown className="h-3 w-3 text-gray-500" />
+              ) : (
+                <ChevronRight className="h-3 w-3 text-gray-500" />
+              )
+            )}
+          </div>
+        </button>
 
-        {/* Section items */}
-        {!allDeferred && (
-          <div className="space-y-0.5">
+        {/* Section items — collapsible */}
+        {!allDeferred && isOpen && (
+          <div className="space-y-0.5 mt-0.5">
             {category.items.map((item) => renderNavItem(item))}
           </div>
         )}
@@ -198,10 +280,10 @@ export function Sidebar() {
         <Image src="/logo.png" alt="Every Step Together" width={220} height={22} priority />
       </div>
       <nav className="flex-1 py-4 space-y-0.5 px-3 overflow-y-auto">
-        {/* Dashboard — always at top */}
+        {/* Dashboard + All Orgs — always at top */}
         {topItems.map((item) => renderNavItem(item))}
 
-        {/* Super categories */}
+        {/* Super categories — collapsible */}
         {categories.map((category, index) =>
           renderSuperCategory(category, index)
         )}

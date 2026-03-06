@@ -107,7 +107,7 @@ export default function ContactDetail() {
 
   if (!contact) {
     return (
-      <div className="p-8">
+      <div>
         <div className="animate-pulse space-y-4">
           <div className="h-8 bg-gray-200 rounded w-48" />
           <div className="h-64 bg-gray-200 rounded" />
@@ -117,7 +117,7 @@ export default function ContactDetail() {
   }
 
   return (
-    <div className="p-8 max-w-4xl">
+    <div className="max-w-4xl">
       <Button variant="ghost" size="sm" className="mb-4" onClick={() => router.back()}>
         <ArrowLeft className="h-4 w-4 mr-1" /> Back
       </Button>

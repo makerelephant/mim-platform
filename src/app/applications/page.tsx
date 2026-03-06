@@ -101,7 +101,7 @@ export default function ApplicationsPage() {
   const deleteAgent = async (id: string, e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    if (!confirm("Delete this agent? This cannot be undone.")) return;
+    if (!confirm("Delete this gopher? This cannot be undone.")) return;
     const { error } = await supabase.from("agents").delete().eq("id", id);
     if (!error) {
       setAgents((prev) => prev.filter((a) => a.id !== id));
@@ -109,15 +109,15 @@ export default function ApplicationsPage() {
   };
 
   if (loading) {
-    return <div className="p-8"><div className="animate-pulse h-64 bg-gray-200 rounded" /></div>;
+    return <div><div className="animate-pulse h-64 bg-gray-200 rounded" /></div>;
   }
 
   return (
-    <div className="p-8">
+    <div>
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">{labels.applicationsPageTitle}</h1>
-          <p className="text-gray-500 text-sm mt-1">{agents.length} agent{agents.length !== 1 ? "s" : ""} configured</p>
+          <h1 className="text-2xl font-bold text-gray-900">{labels.gophersPageTitle}</h1>
+          <p className="text-gray-500 text-sm mt-1">{agents.length} gopher{agents.length !== 1 ? "s" : ""} configured</p>
         </div>
       </div>
 
@@ -125,7 +125,7 @@ export default function ApplicationsPage() {
         <Card>
           <CardContent className="py-12 text-center">
             <Bot className="h-10 w-10 text-gray-300 mx-auto mb-3" />
-            <p className="text-gray-400">No agents configured yet.</p>
+            <p className="text-gray-400">No gophers configured yet.</p>
           </CardContent>
         </Card>
       )}

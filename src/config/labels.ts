@@ -15,25 +15,28 @@ export const labels = {
   superActivity: "Activity",
   superPeople: "People",
   superSentiment: "Sentiment",
-  superOrchestrations: "Orchestrations",
+  superGophers: "Gophers",
   superSettings: "Settings",
 
   /* ── Fundraising section ── */
-  fundraisingPipeline: "Pipeline",
   investors: "Investors",
-  investorContacts: "Investor Contacts",
-  fundraisingActivity: "Activity",
+  investorContacts: "Contacts",
+  fundraisingPipeline: "Pipeline",
+  fundraisingActivity: "Activities",
+  fundraisingTasks: "Tasks",
 
   /* ── Partnerships section ── */
-  partnerOrgs: "Partner Orgs",
-  categoryGeoAssignments: "Category × Geo",
-  partnershipPipeline: "Partnership Pipeline",
+  partnerOrgs: "Organizations",
+  partnerCategories: "Categories",
+  partnershipPipeline: "Pipeline",
+  partnershipActivities: "Activities",
+  partnershipTasks: "Tasks",
 
   /* ── Communities section ── */
-  allCommunities: "All Communities",
-  shareLinks: "Share Links",
-  moments: "Moments",
-  communityOrgMap: "Community → Org Map",
+  allCommunities: "Organizations",
+  communityCategories: "Categories",
+  communityActivities: "Activities",
+  communityTasks: "Tasks",
 
   /* ── Activity section ── */
   tasks: "Tasks",
@@ -49,15 +52,20 @@ export const labels = {
   newsSentiment: "News Sentiment",
   research: "Research",
 
-  /* ── Orchestrations section ── */
-  applications: "Applications",
+  /* ── Gophers section ── */
+  gophers: "Gophers",
+  knowledgeBase: "Knowledge",
   campaigns: "Campaigns",
   endPoints: "End Points",
 
   /* ── Settings section ── */
+  taxonomy: "Taxonomy",
   fieldsEnums: "Fields / Enums",
   integrations: "Integrations",
   usersPermissions: "Users / Permissions",
+
+  /* ── Intelligence ── */
+  intelligence: "Intelligence",
 
   /* ── Page titles ── */
   investorsPageTitle: "Investors",
@@ -74,7 +82,7 @@ export const labels = {
   activityLogPageTitle: "Activity Log",
   newsSentimentPageTitle: "News Sentiment",
   researchPageTitle: "Research",
-  applicationsPageTitle: "Applications",
+  gophersPageTitle: "Gophers",
 
   /* ── Legacy page titles (still used by existing pages) ── */
   transactionsPageTitle: "Market Transactions",
@@ -97,12 +105,13 @@ export const labels = {
   taskStar: "Star",
   contactLastInteraction: "Last Interaction",
 
-  /* ── Applications / Agents ── */
-  agentDescription: "Description",
-  agentSystemPrompt: "System Prompt",
-  agentConfig: "Configuration",
-  agentRecentRuns: "Recent Runs",
-  agentMonitoredEmails: "Monitored Emails",
+  /* ── Gophers (detail page) ── */
+  gopherDescription: "Description",
+  gopherInstructions: "Instructions",
+  gopherGoals: "90-Day Goals",
+  gopherConfig: "Configuration",
+  gopherRecentRuns: "Recent Runs",
+  gopherMonitoredEmails: "Monitored Emails",
 
   /* ── Periodic Updates / Reports ── */
   periodicUpdates: "Periodic Updates",

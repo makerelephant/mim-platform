@@ -53,6 +53,63 @@ async function main() {
     });
   }
 
+  if (!existingSlugs.has("fundraising-scanner")) {
+    agentsToInsert.push({
+      name: "Fundraising Scanner",
+      slug: "fundraising-scanner",
+      description:
+        "Orchestrates email and Slack scanning for investor-related activity. Triggers the Gmail and Slack gophers, then surfaces correspondence and activity tied to investor organizations.",
+      agent_type: "scheduled",
+      system_prompt: null,
+      config: {
+        goals_90day: [
+          "$76K in gross revenue",
+          "Average order value of $35",
+          "Additional $250K in investment raised",
+        ],
+      },
+      status: "active",
+    });
+  }
+
+  if (!existingSlugs.has("partnership-scanner")) {
+    agentsToInsert.push({
+      name: "Partnership Scanner",
+      slug: "partnership-scanner",
+      description:
+        "Orchestrates email and Slack scanning for partnership-related activity. Triggers the Gmail and Slack gophers, then surfaces correspondence and activity tied to partner organizations.",
+      agent_type: "scheduled",
+      system_prompt: null,
+      config: {
+        goals_90day: [
+          "$76K in gross revenue",
+          "Average order value of $35",
+          "Additional $250K in investment raised",
+        ],
+      },
+      status: "active",
+    });
+  }
+
+  if (!existingSlugs.has("sentiment-scanner")) {
+    agentsToInsert.push({
+      name: "Sentiment Scanner",
+      slug: "sentiment-scanner",
+      description:
+        "Crawls news sources and analyzes sentiment for community-related topics. Identifies trends in youth sports, recreation, education, and gaming.",
+      agent_type: "scheduled",
+      system_prompt: null,
+      config: {
+        goals_90day: [
+          "$76K in gross revenue",
+          "Average order value of $35",
+          "Additional $250K in investment raised",
+        ],
+      },
+      status: "draft",
+    });
+  }
+
   if (agentsToInsert.length > 0) {
     const { data, error } = await sb
       .from("agents")

@@ -337,6 +337,7 @@ export default function TaskDetail() {
       assigned_to: (d.assigned_to as string) || null,
       goal_relevance_score: d.goal_relevance_score != null && String(d.goal_relevance_score) !== "" ? Number(d.goal_relevance_score) : null,
       goal_relevance_note: (d.goal_relevance_note as string) || null,
+      manually_edited: true,
     }).eq("id", task.id);
 
     if (!error) {
@@ -356,13 +357,13 @@ export default function TaskDetail() {
   /* ── Render ── */
 
   if (!task) {
-    return <div className="p-8"><div className="animate-pulse h-64 bg-gray-200 rounded" /></div>;
+    return <div><div className="animate-pulse h-64 bg-gray-200 rounded" /></div>;
   }
 
   const fp = { editing, task, setField };
 
   return (
-    <div className="p-8 max-w-4xl">
+    <div className="max-w-4xl">
       <Button variant="ghost" size="sm" className="mb-4" onClick={() => router.push("/tasks")}>
         <ArrowLeft className="h-4 w-4 mr-1" /> Back to Tasks
       </Button>

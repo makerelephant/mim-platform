@@ -83,7 +83,7 @@ INSERT INTO organizations (
   next_action, next_action_date
 )
 SELECT
-  id, firm_name, 'Investment Firm', '{"Investor"}', 'investors',
+  id, firm_name, 'Investment Firm', '{"Investor"}'::text[], 'investors',
   description, website, location, avatar_url, notes,
   firm_name, fund_type, investor_type, geography, sector_focus,
   check_size, portfolio_url, notable_investments, connection_status,
@@ -107,7 +107,7 @@ INSERT INTO organizations (
 )
 SELECT
   id, org_name, 'Youth Soccer',
-  CASE WHEN partner_status IS NOT NULL THEN '{"Partner"}' ELSE '{}' END,
+  CASE WHEN partner_status IS NOT NULL THEN '{"Partner"}'::text[] ELSE '{}'::text[] END,
   'soccer_orgs',
   NULL, website, address, avatar_url, notes, primary_contact,
   org_name, org_type, corporate_structure, merch_link,

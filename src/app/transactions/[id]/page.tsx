@@ -39,11 +39,11 @@ export default function TransactionDetail() {
   }, [params.id]);
 
   if (!tx) {
-    return <div className="p-8"><div className="animate-pulse h-64 bg-gray-200 rounded" /></div>;
+    return <div><div className="animate-pulse h-64 bg-gray-200 rounded" /></div>;
   }
 
   return (
-    <div className="p-8 max-w-3xl">
+    <div className="max-w-3xl">
       <Button variant="ghost" size="sm" className="mb-4" onClick={() => router.back()}>
         <ArrowLeft className="h-4 w-4 mr-1" /> Back
       </Button>
