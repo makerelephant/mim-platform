@@ -88,7 +88,10 @@ export async function POST() {
     }[] = [];
     const seenKeys = new Set<string>();
 
+    const ACTIVITY_TYPES = new Set(["email_scanned", "slack_scanned"]);
+
     for (const a of recentActivity ?? []) {
+      if (!ACTIVITY_TYPES.has(a.action_type)) continue;
       if (!a.entity_id) continue;
 
       // Collect candidate org IDs: direct match + contact→org resolution

@@ -265,7 +265,14 @@ export default function Dashboard() {
     const PARTNER_TAGS = getSignalKeywords(taxonomy, "partners");
     const CUSTOMER_TAGS = getSignalKeywords(taxonomy, "customers");
 
+    // Only these action_types represent actual business activity worth routing
+    const ACTIVITY_ACTION_TYPES = new Set(["email_scanned", "slack_scanned"]);
+
     for (const a of recentActivity ?? []) {
+      // Only process actual correspondence activity — skip scan logs,
+      // knowledge ingestions, report generations, news scans, etc.
+      if (!ACTIVITY_ACTION_TYPES.has(a.action_type)) continue;
+
       // Allow entries with null entity_id to reach tag-based routing
       // (e.g. emails from unknown senders with investor/partner/customer tags)
       const rawTags_early: string[] = Array.isArray(a.raw_data?.tags) ? a.raw_data.tags : [];
