@@ -794,10 +794,21 @@ export async function runGmailScanner(
       const fromName = extractName(details.from);
       const toEmails = parseEmailList(details.to);
       const ccEmails = parseEmailList(details.cc);
-      const allParticipantEmails = [fromEmail, ...toEmails, ...ccEmails];
 
-      // ── Resolve entities ──
-      const allMatches = resolver.resolveMultiple(allParticipantEmails);
+      // Filter out user's own emails from entity resolution.
+      // The entity of interest is the COUNTERPARTY, not the user themselves.
+      // Without this, Mark/Walt's contact records absorb every email they participate in.
+      const counterpartyEmails = [fromEmail, ...toEmails, ...ccEmails]
+        .filter((e) => !userEmails.has(e.toLowerCase().trim()));
+
+      // ── Resolve entities — prefer counterparty, fall back to all ──
+      let allMatches = resolver.resolveMultiple(counterpartyEmails);
+
+      // If no counterparty matches, try all participants as a final fallback
+      if (allMatches.length === 0) {
+        const allParticipantEmails = [fromEmail, ...toEmails, ...ccEmails];
+        allMatches = resolver.resolveMultiple(allParticipantEmails);
+      }
 
       // Auto-create contact for unresolved sender (skip user's own emails)
       if (allMatches.length === 0 && !userEmails.has(fromEmail)) {

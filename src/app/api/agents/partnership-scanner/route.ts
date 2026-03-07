@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { loadTaxonomy, getSignalKeywords } from "@/lib/taxonomy-loader";
+import { runGmailScanner } from "@/lib/gmail-scanner";
+import { runSlackScanner } from "@/lib/slack-scanner";
 
 export const maxDuration = 120;
 
@@ -25,25 +27,21 @@ export async function POST() {
 
     const sb = createClient(supabaseUrl, supabaseServiceKey);
 
-    // 1. Trigger gmail + slack scanners if available
+    // 1. Trigger gmail + slack scanners directly (bypasses Vercel deployment protection)
     try {
-      const baseUrl = process.env.VERCEL_URL
-        ? `https://${process.env.VERCEL_URL}`
-        : process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-
-      await fetch(`${baseUrl}/api/agents/gmail-scanner`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ scanHours: 24 }),
-      }).catch(() => {});
-
-      await fetch(`${baseUrl}/api/agents/slack-scanner`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ scanHours: 24 }),
-      }).catch(() => {});
+      await runGmailScanner(sb, 24).catch((e: unknown) => {
+        console.log("[partnership-scanner] Gmail scanner skipped:", e instanceof Error ? e.message : String(e));
+      });
     } catch {
-      // Non-fatal — scanners may not be configured yet
+      // Non-fatal — Gmail scanner may not be configured
+    }
+
+    try {
+      await runSlackScanner(sb, 24).catch((e: unknown) => {
+        console.log("[partnership-scanner] Slack scanner skipped:", e instanceof Error ? e.message : String(e));
+      });
+    } catch {
+      // Non-fatal — Slack scanner may not be configured
     }
 
     // 2. Fetch partner orgs

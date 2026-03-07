@@ -193,6 +193,7 @@ export default function Dashboard() {
   const [scanningInvestors, setScanningInvestors] = useState(false);
   const [scanningCustomers, setScanningCustomers] = useState(false);
   const [scanningSentiment, setScanningSentiment] = useState(false);
+  const [scanError, setScanError] = useState<string | null>(null);
 
   // Ticker
   const [tickerOffset, setTickerOffset] = useState(0);
@@ -265,7 +266,10 @@ export default function Dashboard() {
     const CUSTOMER_TAGS = getSignalKeywords(taxonomy, "customers");
 
     for (const a of recentActivity ?? []) {
-      if (!a.entity_id) continue;
+      // Allow entries with null entity_id to reach tag-based routing
+      // (e.g. emails from unknown senders with investor/partner/customer tags)
+      const rawTags_early: string[] = Array.isArray(a.raw_data?.tags) ? a.raw_data.tags : [];
+      if (!a.entity_id && rawTags_early.length === 0) continue;
 
       // Collect all org IDs this activity might belong to:
       // 1. Direct org match (entity_id IS an org id)
@@ -418,15 +422,18 @@ export default function Dashboard() {
 
   const runPartnershipScanner = async () => {
     setScanningPartners(true);
+    setScanError(null);
     try {
       const res = await fetch("/api/agents/partnership-scanner", { method: "POST" });
       const data = await res.json();
       if (data.success && data.activity) {
         setPartnerActivity(data.activity);
+      } else if (!data.success) {
+        setScanError(`Partners: ${data.error || "Scanner failed"}`);
       }
       await loadData();
-    } catch {
-      // silent fail — data stays as-is
+    } catch (err) {
+      setScanError(`Partners: ${err instanceof Error ? err.message : "Network error"}`);
     } finally {
       setScanningPartners(false);
     }
@@ -436,15 +443,18 @@ export default function Dashboard() {
 
   const runFundraisingScanner = async () => {
     setScanningInvestors(true);
+    setScanError(null);
     try {
       const res = await fetch("/api/agents/fundraising-scanner", { method: "POST" });
       const data = await res.json();
       if (data.success && data.activity) {
         setInvestorActivity(data.activity);
+      } else if (!data.success) {
+        setScanError(`Investors: ${data.error || "Scanner failed"}`);
       }
       await loadData();
-    } catch {
-      // silent fail
+    } catch (err) {
+      setScanError(`Investors: ${err instanceof Error ? err.message : "Network error"}`);
     } finally {
       setScanningInvestors(false);
     }
@@ -454,15 +464,18 @@ export default function Dashboard() {
 
   const runCustomerScanner = async () => {
     setScanningCustomers(true);
+    setScanError(null);
     try {
       const res = await fetch("/api/agents/customer-scanner", { method: "POST" });
       const data = await res.json();
       if (data.success && data.activity) {
         setCustomerActivity(data.activity);
+      } else if (!data.success) {
+        setScanError(`Customers: ${data.error || "Scanner failed"}`);
       }
       await loadData();
-    } catch {
-      // silent fail
+    } catch (err) {
+      setScanError(`Customers: ${err instanceof Error ? err.message : "Network error"}`);
     } finally {
       setScanningCustomers(false);
     }
@@ -472,12 +485,16 @@ export default function Dashboard() {
 
   const runSentimentScanner = async () => {
     setScanningSentiment(true);
+    setScanError(null);
     try {
-      await fetch("/api/agents/sentiment-scanner", { method: "POST" });
-      // Reload articles from knowledge_base after scan
+      const res = await fetch("/api/agents/sentiment-scanner", { method: "POST" });
+      const data = await res.json();
+      if (!data.success) {
+        setScanError(`Sentiment: ${data.error || "Scanner failed"}`);
+      }
       await loadNewsArticles();
-    } catch {
-      // silent fail
+    } catch (err) {
+      setScanError(`Sentiment: ${err instanceof Error ? err.message : "Network error"}`);
     } finally {
       setScanningSentiment(false);
     }
@@ -613,6 +630,16 @@ export default function Dashboard() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Scanner error banner */}
+      {scanError && (
+        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center justify-between">
+          <p className="text-xs text-red-700">Scanner error: {scanError}</p>
+          <button onClick={() => setScanError(null)} className="text-red-400 hover:text-red-600 ml-2">
+            <X className="h-3 w-3" />
+          </button>
+        </div>
+      )}
 
       {/* ── Partnership, Fundraising & Customer Activity (3-col) ── */}
       <div className="grid grid-cols-3 gap-4 mb-6">
