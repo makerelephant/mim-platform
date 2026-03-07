@@ -632,7 +632,8 @@ export async function runGmailScanner(
       if (cfg) {
         if (typeof cfg.model === "string") agentModel = cfg.model;
         if (typeof cfg.max_tokens === "number") agentMaxTokens = cfg.max_tokens;
-        if (typeof cfg.scan_hours === "number") scanHours = cfg.scan_hours;
+        // Only use agents table scan_hours as default; explicit parameter takes priority
+        if (typeof cfg.scan_hours === "number" && scanHoursParam === 24) scanHours = cfg.scan_hours;
         if (Array.isArray(cfg.monitored_emails)) userEmailsList = cfg.monitored_emails as string[];
       }
       addLog("Loaded config from agents table");
