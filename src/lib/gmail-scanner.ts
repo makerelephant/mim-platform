@@ -892,8 +892,10 @@ export async function runGmailScanner(
             await sb.from("tasks").update({ updated_at: new Date().toISOString() }).eq("id", newestTask.id);
 
             // Use the existing task's entity info for activity logging
-            const skipEntityType = (newestTask as Record<string, unknown>).entity_type as string || primaryEntity?.entity_type || "contacts";
-            const skipEntityId = (newestTask as Record<string, unknown>).entity_id as string || primaryEntity?.entity_id || null;
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const taskData = newestTask as any;
+            const skipEntityType: string = taskData.entity_type || primaryEntity?.entity_type || "contacts";
+            const skipEntityId: string | null = taskData.entity_id || primaryEntity?.entity_id || null;
 
             // Still create an activity_log entry so the dashboard surfaces this conversation
             const skipDirection = determineDirection(fromEmail, userEmails);
