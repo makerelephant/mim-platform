@@ -11,6 +11,7 @@ import { SupabaseClient } from "@supabase/supabase-js";
 import { preFilterGmail } from "./scanner-prefilter";
 import { buildEntityDossier } from "./entity-dossier";
 import { computeFeedbackForEntities } from "./feedback-engine";
+import { loadTaxonomy, matchTaxonomyCategory } from "./taxonomy-loader";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -953,8 +954,92 @@ export async function runGmailScanner(
         } catch { /* ignore */ }
       }
 
-      const entityType = result.primary_silo;
-      const entityId = result.primary_entity_id;
+      let entityType = result.primary_silo;
+      let entityId = result.primary_entity_id;
+
+      // ── Auto-create organization when entity is unresolved ──
+      // If the classifier couldn't find a matching org, but the email has
+      // meaningful tags and a non-free-email domain, create the org and
+      // link the contact — so "10X Venture Partners" becomes an Investor org.
+      if (!entityId && result.tags.length > 0 && !userEmails.has(fromEmail)) {
+        try {
+          const taxonomy = await loadTaxonomy(sb);
+          const matchedCategory = matchTaxonomyCategory(result.tags, taxonomy);
+
+          if (matchedCategory?.org_type_match) {
+            const senderDomain = fromEmail.includes("@")
+              ? fromEmail.split("@")[1].toLowerCase().trim()
+              : null;
+
+            if (senderDomain && !FREE_EMAIL_DOMAINS.has(senderDomain)) {
+              // Check if an org with this domain already exists
+              const { data: existingOrg } = await sb
+                .from("organizations")
+                .select("id, name, org_type")
+                .or(`website.ilike.%${senderDomain}%,website.ilike.%${senderDomain.replace(/\.\w+$/, "")}%`)
+                .limit(1);
+
+              let orgId: string | null = null;
+
+              if (existingOrg && existingOrg.length > 0) {
+                orgId = existingOrg[0].id;
+                addLog(`  Linked to existing org: ${existingOrg[0].name}`);
+              } else {
+                // Derive org name from domain (e.g. "10xvp.com" → "10xvp")
+                // or from the sender's display name if it looks like a company
+                const domainName = senderDomain.replace(/\.\w+$/, "");
+                const orgName = fromName && fromName.length > domainName.length
+                  ? result.primary_entity_name || domainName
+                  : domainName;
+
+                const { data: newOrg } = await sb.from("organizations").insert({
+                  name: orgName,
+                  org_type: [matchedCategory.org_type_match],
+                  website: senderDomain,
+                  lifecycle_status: "prospect",
+                  source: "gmail-scanner",
+                }).select("id").single();
+
+                if (newOrg) {
+                  orgId = newOrg.id;
+                  addLog(`  Auto-created org: "${orgName}" [${matchedCategory.org_type_match}] from domain ${senderDomain}`);
+                }
+              }
+
+              if (orgId) {
+                // Link the sender's contact to the new org
+                const senderContact = allMatches.find(
+                  (m) => m.entity_type === "contacts" && m.match_method === "auto_created"
+                ) || allMatches.find((m) => m.entity_type === "contacts");
+
+                if (senderContact) {
+                  // Check if link already exists
+                  const { data: existingLink } = await sb
+                    .from("organization_contacts")
+                    .select("id")
+                    .eq("contact_id", senderContact.entity_id)
+                    .eq("organization_id", orgId)
+                    .limit(1);
+
+                  if (!existingLink || existingLink.length === 0) {
+                    await sb.from("organization_contacts").insert({
+                      contact_id: senderContact.entity_id,
+                      organization_id: orgId,
+                    });
+                    addLog(`  Linked contact ${senderContact.entity_name} → org ${orgId}`);
+                  }
+                }
+
+                // Update entity references for this email
+                entityType = "organizations";
+                entityId = orgId;
+              }
+            }
+          }
+        } catch (e) {
+          addLog(`  Auto-org creation failed: ${e instanceof Error ? e.message : String(e)}`);
+        }
+      }
 
       // Track processed entities for feedback computation
       if (entityId) {
