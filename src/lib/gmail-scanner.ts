@@ -802,14 +802,8 @@ export async function runGmailScanner(
       const counterpartyEmails = [fromEmail, ...toEmails, ...ccEmails]
         .filter((e) => !userEmails.has(e.toLowerCase().trim()));
 
-      // ── Resolve entities — prefer counterparty, fall back to all ──
+      // ── Resolve entities — counterparty only (never fall back to user's own email) ──
       let allMatches = resolver.resolveMultiple(counterpartyEmails);
-
-      // If no counterparty matches, try all participants as a final fallback
-      if (allMatches.length === 0) {
-        const allParticipantEmails = [fromEmail, ...toEmails, ...ccEmails];
-        allMatches = resolver.resolveMultiple(allParticipantEmails);
-      }
 
       // Auto-create contact for unresolved sender (skip user's own emails)
       if (allMatches.length === 0 && !userEmails.has(fromEmail)) {
@@ -880,7 +874,7 @@ export async function runGmailScanner(
       if (details.thread_id) {
         const { data: existingThreadTasks } = await sb
           .from("tasks")
-          .select("id, title, status, priority, created_at")
+          .select("id, title, status, priority, created_at, entity_type, entity_id")
           .eq("gmail_thread_id", details.thread_id)
           .in("status", ["todo", "in_progress"])
           .order("created_at", { ascending: false })
@@ -892,11 +886,53 @@ export async function runGmailScanner(
           const fortyEightHoursMs = 48 * 60 * 60 * 1000;
 
           if (taskAgeMs < fortyEightHoursMs) {
-            // Recent open task exists — skip creating new task, just update existing
+            // Recent open task exists — skip creating new task, but still log activity
             threadSkipped++;
-            addLog(`  Thread skip: "${newestTask.title.slice(0, 50)}" already open (${Math.round(taskAgeMs / 3600000)}h ago)`);
+            addLog(`  Thread skip (task): "${newestTask.title.slice(0, 50)}" already open (${Math.round(taskAgeMs / 3600000)}h ago)`);
             await sb.from("tasks").update({ updated_at: new Date().toISOString() }).eq("id", newestTask.id);
-            // Log the skip
+
+            // Use the existing task's entity info for activity logging
+            const skipEntityType = (newestTask as Record<string, unknown>).entity_type as string || primaryEntity?.entity_type || "contacts";
+            const skipEntityId = (newestTask as Record<string, unknown>).entity_id as string || primaryEntity?.entity_id || null;
+
+            // Still create an activity_log entry so the dashboard surfaces this conversation
+            const skipDirection = determineDirection(fromEmail, userEmails);
+            await sb.from("activity_log").insert({
+              agent_name: "gmail-scanner",
+              action_type: "email_scanned",
+              entity_type: skipEntityType,
+              entity_id: skipEntityId,
+              summary: `${details.subject.slice(0, 120)} (thread update)`,
+              raw_data: {
+                subject: details.subject,
+                from: details.from,
+                direction: skipDirection,
+                tags: [],
+                thread_skip: true,
+              },
+              source_id: `gmail_${msgId}`,
+            });
+
+            // Still create correspondence entry so it's tracked
+            if (skipEntityId) {
+              await sb.from("correspondence").insert({
+                entity_type: skipEntityType,
+                entity_id: skipEntityId,
+                direction: skipDirection,
+                subject: details.subject,
+                snippet: details.body?.slice(0, 200) || null,
+                sender_email: fromEmail,
+                sender_name: fromName,
+                recipient_email: toEmails[0] || null,
+                source: "gmail",
+                gmail_message_id: msgId,
+                source_message_id: msgId,
+              });
+            }
+
+            recordsUpdated++;
+            addLog(`Processed (thread-update): ${details.subject.slice(0, 60)} → [${skipEntityType}] (0 tasks)`);
+
             try {
               await sb.from("classification_log").insert({
                 source: "gmail",
