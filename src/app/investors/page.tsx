@@ -285,7 +285,7 @@ export default function InvestorsPage() {
 
     // 2. Set type + create profile in parallel
     await Promise.all([
-      supabase.schema('core').from("org_types").insert({ org_id: orgId, type: "investor" }),
+      supabase.schema('core').from("org_types").insert({ org_id: orgId, type: "Investor" }),
       supabase.schema('intel').from("investor_profile").insert({
         org_id: orgId,
         investor_type: newType || null,

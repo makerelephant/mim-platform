@@ -274,7 +274,7 @@ export async function runSheetsScanner(opts?: {
           // Insert org type
           await sb.schema('core').from("org_types").insert({
             org_id: newOrg.id,
-            type: "investor",
+            type: "Investor",
             status: "active",
           });
           // Insert pipeline entry
