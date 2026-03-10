@@ -18,6 +18,8 @@ import { labels } from "@/config/labels";
 import { timeAgo } from "@/lib/timeAgo";
 import { loadTaxonomy, getSignalKeywords, tagsMatchKeywords } from "@/lib/taxonomy-loader";
 import { ApprovalQueue } from "@/components/ApprovalQueue";
+import { BrainCardRow, sortBrainItems } from "@/components/BrainCard";
+import { AlertBanner } from "@/components/AlertBanner";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -49,6 +51,12 @@ interface OrgActivityRow {
   date: string;
   suggested_action: string | null;
   suggested_deadline: string | null;
+  // Phase 3: enriched intelligence fields
+  priority?: string | null;
+  sentiment?: string | null;
+  goal_relevance?: number | null;
+  tags?: string[];
+  recommended_action?: string | null;
 }
 
 type PeriodType = "day" | "week" | "month";
@@ -177,6 +185,9 @@ export default function Dashboard() {
   // Approval queue state
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [pendingTasks, setPendingTasks] = useState<any[]>([]);
+
+  // Real KPI state (Phase 3D)
+  const [kpis, setKpis] = useState({ openTasks: 0, pendingReview: 0, totalOrgs: 0, totalContacts: 0, pipelineDeals: 0 });
 
   // Report generation state
   const [generating, setGenerating] = useState(false);
@@ -353,6 +364,11 @@ export default function Dashboard() {
             date: a.created_at,
             suggested_action: (a.metadata?.recommended_action as string) || null,
             suggested_deadline: null,
+            priority: (a.metadata?.priority as string) || null,
+            sentiment: (a.metadata?.sentiment as string) || null,
+            goal_relevance: (a.metadata?.goal_relevance as number) || null,
+            tags: Array.isArray(a.metadata?.tags) ? (a.metadata!.tags as string[]) : [],
+            recommended_action: (a.metadata?.recommended_action as string) || null,
           };
 
           if (taxonomyCardKey === "investor") {
@@ -478,6 +494,22 @@ export default function Dashboard() {
         }
       }
     }
+
+    // ── Real KPI queries (Phase 3D) ──
+    const [openTasksRes, pendingReviewRes, totalContactsRes, pipelineDealsRes] = await Promise.all([
+      supabase.schema("brain").from("tasks").select("id", { count: "exact", head: true }).in("status", ["todo", "in_progress"]),
+      supabase.schema("brain").from("tasks").select("id", { count: "exact", head: true }).eq("status", "pending_review"),
+      supabase.schema("core").from("contacts").select("id", { count: "exact", head: true }),
+      supabase.schema("crm").from("pipeline").select("id", { count: "exact", head: true }).neq("status", "closed"),
+    ]);
+
+    setKpis({
+      openTasks: openTasksRes.count ?? 0,
+      pendingReview: pendingReviewRes.count ?? 0,
+      totalOrgs: (orgResult.data || []).length,
+      totalContacts: totalContactsRes.count ?? 0,
+      pipelineDeals: pipelineDealsRes.count ?? 0,
+    });
 
     setReports(reportsData ?? []);
     setInvestorActivity(investorRows.slice(0, 10));
@@ -715,35 +747,26 @@ export default function Dashboard() {
         ))}
       </div>
 
-      {/* ── KPI Row 2 ── */}
-      <div className="grid grid-cols-2 gap-4 mb-6">
-        <Card>
-          <CardContent className="py-3 px-4">
-            <div className="flex items-center justify-between mb-1">
-              <span className="text-xs font-medium text-gray-500">New Creators</span>
-              <Smartphone className="h-4 w-4 text-teal-600" />
-            </div>
-            <div className="text-2xl font-bold text-gray-900">—</div>
-            <p className="text-[10px] text-gray-400 mt-0.5">Cumulative App Downloads &middot; TBD</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="py-3 px-4">
-            <div className="flex items-center justify-between mb-1">
-              <span className="text-xs font-medium text-gray-500">Latest Products Created</span>
-              <ImageIcon className="h-4 w-4 text-pink-600" />
-            </div>
-            <div className="flex items-center gap-2 mt-1">
-              {/* Placeholder image carousel */}
-              {[1, 2, 3, 4, 5].map((i) => (
-                <div key={i} className="w-12 h-12 rounded-lg bg-gray-100 border border-gray-200 flex items-center justify-center">
-                  <ImageIcon className="h-5 w-5 text-gray-300" />
-                </div>
-              ))}
-              <span className="text-xs text-gray-400 ml-1">TBD</span>
-            </div>
-          </CardContent>
-        </Card>
+      {/* ── KPI Row 2 — Real Operational Data (Phase 3D) ── */}
+      <div className="grid grid-cols-5 gap-4 mb-6">
+        {[
+          { label: "Open Tasks", value: kpis.openTasks, icon: Clock, color: "text-blue-600", sub: "todo + in progress" },
+          { label: "Pending Review", value: kpis.pendingReview, icon: AlertCircle, color: "text-amber-600", sub: "awaiting approval" },
+          { label: "Pipeline Deals", value: kpis.pipelineDeals, icon: TrendingUp, color: "text-green-600", sub: "active pipeline" },
+          { label: "Organizations", value: kpis.totalOrgs, icon: Handshake, color: "text-emerald-600", sub: "all org types" },
+          { label: "Contacts", value: kpis.totalContacts, icon: Users, color: "text-purple-600", sub: "total in CRM" },
+        ].map(({ label, value, icon: Icon, color, sub }) => (
+          <Card key={label}>
+            <CardContent className="py-3 px-4">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs font-medium text-gray-500">{label}</span>
+                <Icon className={`h-4 w-4 ${color}`} />
+              </div>
+              <div className="text-2xl font-bold text-gray-900">{value}</div>
+              <p className="text-[10px] text-gray-400 mt-0.5">{sub}</p>
+            </CardContent>
+          </Card>
+        ))}
       </div>
 
       {/* Scanner error banner */}
@@ -754,6 +777,15 @@ export default function Dashboard() {
             <X className="h-3 w-3" />
           </button>
         </div>
+      )}
+
+      {/* ── Alert Banner (Phase 3C) ── */}
+      {pendingTasks.filter((t) => t.priority === "critical" || t.priority === "high").length > 0 && (
+        <AlertBanner
+          items={pendingTasks
+            .filter((t) => t.priority === "critical" || t.priority === "high")
+            .map((t) => ({ id: t.id, title: t.title, priority: t.priority, entity_name: t.entity_name, source: t.source }))}
+        />
       )}
 
       {/* ── Approval Queue (Phase 2) ── */}
@@ -814,18 +846,8 @@ export default function Dashboard() {
               </div>
             ) : (
               <div className="space-y-0">
-                {partnerActivity.slice(0, 6).map((row, idx) => (
-                  <div key={idx} className="flex items-start gap-2 py-2 border-b last:border-0 text-xs">
-                    <div className="flex-1 min-w-0">
-                      <Link href={`/soccer-orgs/${row.org_id}`} className="font-medium text-gray-900 hover:text-blue-600 truncate block">
-                        {row.org_name}
-                      </Link>
-                      <span className="text-gray-500 line-clamp-2 text-[11px]" title={row.summary}>
-                        {row.summary}
-                      </span>
-                    </div>
-                    <span className="text-gray-400 shrink-0 text-[10px] mt-0.5">{timeAgo(row.date)}</span>
-                  </div>
+                {sortBrainItems(partnerActivity).slice(0, 6).map((row, idx) => (
+                  <BrainCardRow key={idx} item={row} linkPrefix="/soccer-orgs" />
                 ))}
               </div>
             )}
@@ -868,18 +890,8 @@ export default function Dashboard() {
               </div>
             ) : (
               <div className="space-y-0">
-                {investorActivity.slice(0, 6).map((row, idx) => (
-                  <div key={idx} className="flex items-start gap-2 py-2 border-b last:border-0 text-xs">
-                    <div className="flex-1 min-w-0">
-                      <Link href={`/investors/${row.org_id}`} className="font-medium text-gray-900 hover:text-blue-600 truncate block">
-                        {row.org_name}
-                      </Link>
-                      <span className="text-gray-500 line-clamp-2 text-[11px]" title={row.summary}>
-                        {row.summary}
-                      </span>
-                    </div>
-                    <span className="text-gray-400 shrink-0 text-[10px] mt-0.5">{timeAgo(row.date)}</span>
-                  </div>
+                {sortBrainItems(investorActivity).slice(0, 6).map((row, idx) => (
+                  <BrainCardRow key={idx} item={row} linkPrefix="/investors" />
                 ))}
               </div>
             )}
@@ -922,18 +934,8 @@ export default function Dashboard() {
               </div>
             ) : (
               <div className="space-y-0">
-                {customerActivity.slice(0, 6).map((row, idx) => (
-                  <div key={idx} className="flex items-start gap-2 py-2 border-b last:border-0 text-xs">
-                    <div className="flex-1 min-w-0">
-                      <Link href={`/soccer-orgs/${row.org_id}`} className="font-medium text-gray-900 hover:text-blue-600 truncate block">
-                        {row.org_name}
-                      </Link>
-                      <span className="text-gray-500 line-clamp-2 text-[11px]" title={row.summary}>
-                        {row.summary}
-                      </span>
-                    </div>
-                    <span className="text-gray-400 shrink-0 text-[10px] mt-0.5">{timeAgo(row.date)}</span>
-                  </div>
+                {sortBrainItems(customerActivity).slice(0, 6).map((row, idx) => (
+                  <BrainCardRow key={idx} item={row} linkPrefix="/soccer-orgs" />
                 ))}
               </div>
             )}
