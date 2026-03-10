@@ -318,11 +318,48 @@ export default function Dashboard() {
         }
       }
 
-      // Extract tags from raw_data for intent-based routing
+      // Extract tags and taxonomy card key for routing
       const rawTags: string[] = Array.isArray(a.metadata?.tags) ? (a.metadata!.tags as string[]) : [];
+      const taxonomyCardKey = (a.metadata?.taxonomy_card_key as string) || null;
 
-      if (candidateOrgIds.length > 0) {
-        // ── Org-type routing: activity linked to known orgs ──
+      // ── Phase 1D: Content-aware routing via taxonomy_card_key ──
+      // taxonomy_card_key is set by the classifier based on email CONTENT,
+      // so an Anthropic payment email gets routed to "customer" card regardless
+      // of Anthropic's org_type being "investor".
+      if (taxonomyCardKey) {
+        const dedupKey = `${a.id}:taxonomy`;
+        if (!seenKeys.has(dedupKey)) {
+          seenKeys.add(dedupKey);
+          // Find the best org name to display
+          const primaryOrgId = candidateOrgIds[0] || a.entity_id;
+          const orgEntry = allOrgMap.get(primaryOrgId);
+          const fromLabel = orgEntry?.name || (a.metadata?.from as string) || "Unknown";
+          const orgStatus = orgEntry
+            ? (investorMap.get(primaryOrgId)?.pipeline_status ??
+               partnerMap.get(primaryOrgId)?.partner_status ??
+               customerMap.get(primaryOrgId)?.partner_status ?? null)
+            : null;
+
+          const row: OrgActivityRow = {
+            org_id: primaryOrgId,
+            org_name: fromLabel,
+            org_status: orgStatus,
+            summary: activitySummary,
+            date: a.created_at,
+            suggested_action: (a.metadata?.recommended_action as string) || null,
+            suggested_deadline: null,
+          };
+
+          if (taxonomyCardKey === "investor") {
+            investorRows.push(row);
+          } else if (taxonomyCardKey === "partner") {
+            partnerRows.push(row);
+          } else if (taxonomyCardKey === "customer") {
+            customerRows.push(row);
+          }
+        }
+      } else if (candidateOrgIds.length > 0) {
+        // ── Fallback: Org-type routing for activities without taxonomy_card_key ──
         for (const orgId of candidateOrgIds) {
           const dedupKey = `${a.id}:${orgId}`;
           if (seenKeys.has(dedupKey)) continue;

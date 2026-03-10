@@ -23,6 +23,7 @@ import {
   Users,
   Building2,
   Star,
+  MessageSquare,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -74,7 +75,7 @@ interface LinkedOrganization {
 /* ── Constants ── */
 
 const PRIORITY_OPTIONS = ["low", "medium", "high", "critical"];
-const STATUS_OPTIONS = ["todo", "in_progress", "done", "blocked"];
+const STATUS_OPTIONS = ["pending_review", "todo", "in_progress", "done", "blocked", "dismissed"];
 
 const PRIORITY_COLORS: Record<string, string> = {
   low: "bg-gray-100 text-gray-700",
@@ -84,17 +85,21 @@ const PRIORITY_COLORS: Record<string, string> = {
 };
 
 const STATUS_ICONS: Record<string, React.ReactNode> = {
+  pending_review: <MessageSquare className="h-4 w-4 text-amber-500" />,
   todo: <Circle className="h-4 w-4 text-gray-400" />,
   in_progress: <Clock className="h-4 w-4 text-blue-500" />,
   done: <Check className="h-4 w-4 text-green-500" />,
   blocked: <AlertCircle className="h-4 w-4 text-red-500" />,
+  dismissed: <Circle className="h-4 w-4 text-gray-300" />,
 };
 
 const STATUS_LABELS: Record<string, string> = {
+  pending_review: "Pending Review",
   todo: "To Do",
   in_progress: "In Progress",
   done: "Done",
   blocked: "Blocked",
+  dismissed: "Dismissed",
 };
 
 const GOAL_COLORS = (score: number): string => {

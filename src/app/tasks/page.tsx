@@ -48,10 +48,12 @@ const GOAL_COLORS = (score: number): string => {
 };
 
 const STATUS_ICONS: Record<string, React.ReactNode> = {
+  pending_review: <MessageSquare className="h-4 w-4 text-amber-500" />,
   todo: <Circle className="h-4 w-4 text-gray-400" />,
   in_progress: <Clock className="h-4 w-4 text-blue-500" />,
   done: <Check className="h-4 w-4 text-green-500" />,
   blocked: <AlertCircle className="h-4 w-4 text-red-500" />,
+  dismissed: <Circle className="h-4 w-4 text-gray-300" />,
 };
 
 function relativeTime(dateStr: string): string {
@@ -153,7 +155,7 @@ export default function TasksPage() {
   const toggleStatus = async (e: React.MouseEvent, task: Task) => {
     e.preventDefault();
     e.stopPropagation();
-    const nextStatus = task.status === "todo" ? "in_progress" : task.status === "in_progress" ? "done" : "todo";
+    const nextStatus = task.status === "pending_review" ? "todo" : task.status === "todo" ? "in_progress" : task.status === "in_progress" ? "done" : "todo";
     await supabase.schema('brain').from("tasks").update({ status: nextStatus }).eq("id", task.id);
     setTasks((prev) => prev.map((t) => (t.id === task.id ? { ...t, status: nextStatus } : t)));
   };
@@ -261,9 +263,9 @@ export default function TasksPage() {
       )}
 
       <div className="flex gap-2 mb-4 flex-wrap">
-        {["", "todo", "in_progress", "done", "blocked"].map((s) => (
+        {["", "pending_review", "todo", "in_progress", "done", "blocked", "dismissed"].map((s) => (
           <Button key={s} variant={filterStatus === s ? "default" : "outline"} size="sm" onClick={() => setFilterStatus(s)}>
-            {s === "" ? "All" : s === "in_progress" ? "In Progress" : s.charAt(0).toUpperCase() + s.slice(1)}
+            {s === "" ? "All" : s === "pending_review" ? "Review" : s === "in_progress" ? "In Progress" : s.charAt(0).toUpperCase() + s.slice(1)}
           </Button>
         ))}
         <div className="w-px bg-gray-200 mx-1" />

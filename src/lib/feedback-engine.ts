@@ -77,9 +77,11 @@ export async function computeEntityFeedback(
     if (task.status === "done") tasksCompleted++;
     if (task.manually_edited) tasksManuallyEdited++;
 
-    // "Ignored" = still in todo after 7+ days, not starred
-    if (
-      task.status === "todo" &&
+    // "Ignored" = dismissed, or still in todo/pending_review after 7+ days (not starred)
+    if (task.status === "dismissed") {
+      tasksIgnored++;
+    } else if (
+      (task.status === "todo" || task.status === "pending_review") &&
       !task.is_starred &&
       now - new Date(task.created_at).getTime() > sevenDaysMs
     ) {

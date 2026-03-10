@@ -445,20 +445,58 @@ export function buildTaxonomyPromptSection(
   taxonomy: TaxonomyCategory[],
 ): string {
   const lines: string[] = [
-    "ENTITY CATEGORIES (from the company's inference taxonomy):",
+    "BUSINESS TAXONOMY — Use these categories to classify messages and tag appropriately:",
     "",
   ];
 
   for (const cat of taxonomy) {
     if (cat.prompt_fragment) {
-      lines.push(`### ${cat.category}`);
+      lines.push(`### ${cat.category}${cat.org_type_match ? ` (org type: ${cat.org_type_match})` : ""}`);
       lines.push(cat.prompt_fragment);
       if (cat.signal_keywords.length > 0) {
-        lines.push(`Common tags: ${cat.signal_keywords.slice(0, 10).join(", ")}`);
+        lines.push(`Signal tags: ${cat.signal_keywords.slice(0, 12).join(", ")}`);
+      }
+      if (cat.priority_rules.length > 0) {
+        lines.push("Priority escalation:");
+        for (const rule of cat.priority_rules) {
+          lines.push(`  - If "${rule.condition}" detected → ${rule.priority}`);
+        }
       }
       lines.push("");
     }
   }
 
   return lines.join("\n");
+}
+
+/**
+ * Post-classification priority enforcement.
+ * Checks classifier tags against taxonomy priority_rules and escalates
+ * priority if rules match. Only escalates up, never down.
+ */
+export function enforcePriorityRules(
+  tags: string[],
+  currentPriority: string,
+  taxonomy: TaxonomyCategory[],
+): string {
+  const priorityRank: Record<string, number> = {
+    low: 0, medium: 1, high: 2, critical: 3,
+  };
+  let maxPriority = priorityRank[currentPriority] ?? 1;
+
+  const lowerTags = tags.map((t) => t.toLowerCase());
+
+  for (const cat of taxonomy) {
+    for (const rule of cat.priority_rules) {
+      const condLower = rule.condition.toLowerCase();
+      if (lowerTags.some((t) => t.includes(condLower) || condLower.includes(t))) {
+        const rulePriority = priorityRank[rule.priority] ?? 1;
+        if (rulePriority > maxPriority) {
+          maxPriority = rulePriority;
+        }
+      }
+    }
+  }
+
+  return Object.entries(priorityRank).find(([, v]) => v === maxPriority)?.[0] ?? currentPriority;
 }

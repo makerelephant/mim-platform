@@ -11,7 +11,7 @@ import { SupabaseClient } from "@supabase/supabase-js";
 import { preFilterGmail } from "./scanner-prefilter";
 import { buildEntityDossier } from "./entity-dossier";
 import { computeFeedbackForEntities } from "./feedback-engine";
-import { loadTaxonomy, matchTaxonomyCategory } from "./taxonomy-loader";
+import { loadTaxonomy, matchTaxonomyCategory, buildTaxonomyPromptSection, enforcePriorityRules } from "./taxonomy-loader";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -97,11 +97,10 @@ const CLASSIFIER_SYSTEM_PROMPT = `You are an AI assistant that classifies busine
 MiM is a platform that enables youth sports organizations and community groups to create and sell custom branded merchandise through "Drop" links — on-demand, zero-inventory storefronts.
 
 MiM works with these entity types:
-1. **Organizations** — includes three main categories:
-   - *Investors*: venture capital firms, angel investors, seed funds. Communications about fundraising, cap tables, term sheets, due diligence, pitch decks, portfolio updates, financial projections.
-   - *Partners (Channel Partners)*: distribution partners, resellers, platform integrators, affiliates. Communications about partnership agreements, revenue sharing, integration, co-marketing, referrals.
-   - *Communities (Customers)*: youth sports organizations, clubs, leagues, schools, recreation centers, civic groups. Communications about merchandise, tournaments, player registrations, outreach, sponsorships, uniforms, team stores, Drop links.
+1. **Organizations** — classified by the business taxonomy below
 2. **Contacts** — general contacts, networking, personal relationships that don't clearly fit an organization.
+
+{{TAXONOMY_SECTION}}
 
 You will receive:
 - The message content (subject, body, sender)
@@ -429,9 +428,10 @@ async function loadOrgContext(sb: SupabaseClient): Promise<string> {
     const status = pipelineMap.get(org.id) ?? "";
     const label = status ? `${org.name} (${status}) [id:${org.id}]` : `${org.name} [id:${org.id}]`;
 
-    if (types.includes("investor")) investors.push(label);
-    if (types.includes("partner")) partners.push(label);
-    if (types.includes("customer") || types.length === 0) communities.push(label);
+    const lowerTypes = types.map((t: string) => t.toLowerCase());
+    if (lowerTypes.includes("investor")) investors.push(label);
+    if (lowerTypes.includes("partner")) partners.push(label);
+    if (lowerTypes.includes("customer") || types.length === 0) communities.push(label);
   }
 
   let ctx = "KNOWN ORGANIZATIONS IN OUR CRM (use these IDs when you find a name match):\n\n";
@@ -692,6 +692,12 @@ export async function runGmailScanner(
     const goalsBlock = `MiM's 90-DAY STRATEGIC GOALS:\n${goals.map((g) => `• ${g}`).join("\n")}\n\n`;
     agentSystemPrompt = agentSystemPrompt.replace("GOAL RELEVANCE SCORING:", goalsBlock + "GOAL RELEVANCE SCORING:");
     addLog(`Injected ${goals.length} goals into classifier prompt`);
+
+    // ── Inject business taxonomy into system prompt ──
+    const taxonomy = await loadTaxonomy(sb);
+    const taxonomySection = buildTaxonomyPromptSection(taxonomy);
+    agentSystemPrompt = agentSystemPrompt.replace("{{TAXONOMY_SECTION}}", taxonomySection);
+    addLog(`Injected taxonomy (${taxonomy.length} categories) into classifier prompt`);
 
     const userEmails = new Set(userEmailsList.map((e) => e.toLowerCase().trim()));
 
@@ -1032,6 +1038,16 @@ export async function runGmailScanner(
       let entityType = result.primary_silo;
       let entityId = result.primary_entity_id;
 
+      // ── Taxonomy matching & priority enforcement (Phase 1C/1D/1F) ──
+      const matchedCategory = matchTaxonomyCategory(result.tags, taxonomy);
+      const taxonomySlug = matchedCategory?.slug ?? null;
+      const taxonomyCardKey = matchedCategory?.org_type_match?.toLowerCase() ?? null;
+      const enforcedPriority = enforcePriorityRules(
+        result.tags,
+        result.action_items[0]?.priority ?? "medium",
+        taxonomy,
+      );
+
       // ── Auto-create organization when entity is unresolved ──
       // If the classifier couldn't find a matching org, but the email has
       // meaningful tags and a non-free-email domain, create the org and
@@ -1181,11 +1197,15 @@ export async function runGmailScanner(
         });
       }
 
-      // ── Create tasks ──
+      // ── Create tasks (Phase 1C: enforced priority, 1E: pending_review, 1F: taxonomy_category) ──
       for (const action of result.action_items) {
+        // Enforce taxonomy priority rules — only escalates, never downgrades
+        const taskPriority = enforcePriorityRules(result.tags, action.priority, taxonomy);
+
         const taskPayload: Record<string, unknown> = {
           title: action.title,
-          priority: action.priority,
+          priority: taskPriority,
+          status: "pending_review",
           source: "gmail-scanner",
         };
         if (action.summary) taskPayload.summary = action.summary;
@@ -1199,13 +1219,14 @@ export async function runGmailScanner(
         taskPayload.gmail_message_id = msgId;
         taskPayload.thread_id = details.thread_id || null;
         taskPayload.source_message_id = msgId;
+        if (taxonomySlug) taskPayload.taxonomy_category = taxonomySlug;
 
         await sb.schema('brain').from("tasks").insert(taskPayload);
         tasksCreated++;
-        addLog(`  Task created [${action.priority}]: ${action.title.slice(0, 80)}`);
+        addLog(`  Task created [${taskPriority}${taskPriority !== action.priority ? ` ↑ from ${action.priority}` : ""}]: ${action.title.slice(0, 80)}`);
       }
 
-      // ── Log activity ──
+      // ── Log activity (Phase 1D: enriched metadata for content-aware routing) ──
       await sb.schema('brain').from("activity").insert({
         entity_type: entityType,
         entity_id: entityId,
@@ -1220,6 +1241,11 @@ export async function runGmailScanner(
           sentiment: result.sentiment,
           action_count: result.action_items.length,
           source_id: `gmail_${msgId}`,
+          taxonomy_slug: taxonomySlug,
+          taxonomy_card_key: taxonomyCardKey,
+          priority: enforcedPriority,
+          goal_relevance: result.action_items[0]?.goal_relevance_score ?? null,
+          recommended_action: result.action_items[0]?.recommended_action ?? null,
         },
       });
 
