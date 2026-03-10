@@ -10,7 +10,7 @@ import {
   TrendingUp, Handshake, FileText, Loader2, ChevronDown, ChevronUp,
   Download, X, Copy, Check, DollarSign, ShoppingCart, BarChart3, Link2,
   Percent, Smartphone, ImageIcon, Activity, Clock, Newspaper,
-  Bookmark, Send, Calendar, ChevronRight,
+  Bookmark, Send, Calendar, ChevronRight, Share2,
   AlertCircle, Users,
 } from "lucide-react";
 import { formatDistanceToNow, format } from "date-fns";
@@ -1142,6 +1142,24 @@ export default function Dashboard() {
                                 <Bookmark className="h-3 w-3 mr-0.5" /> Knowledge
                               </Button>
                             </Link>
+                            {article.source_ref && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-5 text-[9px] px-1.5 text-gray-400 hover:text-green-600"
+                                onClick={() => {
+                                  navigator.clipboard.writeText(article.source_ref!);
+                                  setCopiedId(article.id);
+                                  setTimeout(() => setCopiedId(null), 2000);
+                                }}
+                              >
+                                {copiedId === article.id ? (
+                                  <><Check className="h-3 w-3 mr-0.5" /> Copied!</>
+                                ) : (
+                                  <><Share2 className="h-3 w-3 mr-0.5" /> Share</>
+                                )}
+                              </Button>
+                            )}
                           </div>
                         </div>
                       </div>
