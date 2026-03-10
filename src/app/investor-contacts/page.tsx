@@ -37,7 +37,7 @@ export default function InvestorContactsPage() {
 
     // 1. Get investor org IDs
     const { data: typeRows } = await supabase
-      .schema('core').from("org_types").select("org_id").eq("type", "Investor");
+      .schema('core').from("org_types").select("org_id").ilike("type", "Investor");
     const investorIds = (typeRows || []).map((r) => r.org_id);
     if (investorIds.length === 0) { setContacts([]); setLoading(false); return; }
 

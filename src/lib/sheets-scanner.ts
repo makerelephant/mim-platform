@@ -149,7 +149,7 @@ export async function runSheetsScanner(opts?: {
 
     // ── Load existing investors from DB ──
     // Step 1: Get org_ids with type='investor'
-    const { data: investorTypes } = await sb.schema('core').from("org_types").select("org_id").eq("type", "Investor");
+    const { data: investorTypes } = await sb.schema('core').from("org_types").select("org_id").ilike("type", "Investor");
     const investorOrgIds = (investorTypes ?? []).map((t) => t.org_id);
 
     // Step 2: Load those orgs + their pipeline data
@@ -250,7 +250,7 @@ export async function runSheetsScanner(opts?: {
           if (Object.keys(pipelineUpdates).length > 0) {
             await sb.schema('crm').from("pipeline").upsert({
               org_id: existing.id,
-              pipeline_type: "investor",
+              pipeline_type: "Investor",
               ...pipelineUpdates,
             }, { onConflict: "org_id,pipeline_type" });
           }
@@ -274,13 +274,13 @@ export async function runSheetsScanner(opts?: {
           // Insert org type
           await sb.schema('core').from("org_types").insert({
             org_id: newOrg.id,
-            type: "investor",
+            type: "Investor",
             status: "active",
           });
           // Insert pipeline entry
           await sb.schema('crm').from("pipeline").insert({
             org_id: newOrg.id,
-            pipeline_type: "investor",
+            pipeline_type: "Investor",
             status: pipelineStatus,
             connection_status: connectionStatus,
             likelihood_score: validScore,

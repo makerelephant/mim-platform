@@ -156,7 +156,9 @@ export default function AllOrgsPage() {
     } else if (field === "pipeline_status") {
       await supabase.schema('crm').from("pipeline").delete().eq("org_id", id);
       if (value) {
-        await supabase.schema('crm').from("pipeline").insert({ org_id: id, status: value });
+        const org = orgs.find((o) => o.id === id);
+        const pipelineType = org?.org_type.includes("Investor") ? "Investor" : org?.org_type.includes("Partner") ? "Partner" : "Investor";
+        await supabase.schema('crm').from("pipeline").insert({ org_id: id, pipeline_type: pipelineType, status: value });
       }
       setOrgs((prev) => prev.map((o) => (o.id === id ? { ...o, pipeline_status: value || null } : o)));
     } else {
@@ -228,7 +230,11 @@ export default function AllOrgsPage() {
     } else if (bulkField === "pipeline_status") {
       await supabase.schema('crm').from("pipeline").delete().in("org_id", ids);
       if (bulkValue) {
-        await supabase.schema('crm').from("pipeline").insert(ids.map((id) => ({ org_id: id, status: bulkValue })));
+        await supabase.schema('crm').from("pipeline").insert(ids.map((id) => {
+          const org = orgs.find((o) => o.id === id);
+          const pipelineType = org?.org_type.some((t) => t.toLowerCase() === "investor") ? "Investor" : org?.org_type.some((t) => t.toLowerCase() === "partner") ? "Partner" : "Investor";
+          return { org_id: id, pipeline_type: pipelineType, status: bulkValue };
+        }));
       }
       setOrgs((prev) => prev.map((o) => selected.has(o.id) ? { ...o, pipeline_status: bulkValue || null } : o));
     }

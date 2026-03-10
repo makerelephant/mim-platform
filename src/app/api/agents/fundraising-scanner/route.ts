@@ -45,7 +45,7 @@ export async function POST() {
     }
 
     // 2. Fetch investor orgs via org_types
-    const { data: investorTypeRows } = await sb.schema('core').from("org_types").select("org_id").eq("type", "Investor");
+    const { data: investorTypeRows } = await sb.schema('core').from("org_types").select("org_id").ilike("type", "Investor");
     const investorOrgIds = (investorTypeRows ?? []).map((t) => t.org_id);
 
     const [orgResult, pipelineResult] = investorOrgIds.length > 0

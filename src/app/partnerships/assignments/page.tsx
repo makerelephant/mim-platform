@@ -117,7 +117,7 @@ export default function CategoryGeoAssignmentsPage() {
 
   const loadPartnerIds = useCallback(async () => {
     const { data } = await supabase
-      .schema('core').from("org_types").select("org_id").eq("type", "Partner");
+      .schema('core').from("org_types").select("org_id").ilike("type", "Partner");
     partnerIdsRef.current = (data || []).map((r) => r.org_id);
   }, []);
 

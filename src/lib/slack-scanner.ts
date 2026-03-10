@@ -10,6 +10,7 @@ import { SupabaseClient } from "@supabase/supabase-js";
 import { preFilterSlack } from "./scanner-prefilter";
 import { buildEntityDossier } from "./entity-dossier";
 import { computeFeedbackForEntities } from "./feedback-engine";
+import { loadTaxonomy, matchTaxonomyCategory, buildTaxonomyPromptSection, enforcePriorityRules } from "./taxonomy-loader";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -38,6 +39,7 @@ interface ClassificationResult {
   action_items: ActionItem[];
   tags: string[];
   sentiment: string;
+  draft_reply: string | null;
 }
 
 export interface SlackScannerResult {
@@ -82,11 +84,10 @@ const CLASSIFIER_SYSTEM_PROMPT = `You are an AI assistant that classifies Slack 
 MiM is a platform that enables youth sports organizations and community groups to create and sell custom branded merchandise through "Drop" links — on-demand, zero-inventory storefronts.
 
 MiM works with these entity types:
-1. **Organizations** — includes three main categories:
-   - *Investors*: venture capital firms, angel investors, seed funds. Messages about fundraising, cap tables, term sheets, due diligence, pitch decks, portfolio updates, financial projections.
-   - *Partners (Channel Partners)*: distribution partners, resellers, platform integrators, affiliates. Messages about partnership agreements, revenue sharing, integration, co-marketing, referrals.
-   - *Communities (Customers)*: youth sports organizations, clubs, leagues, schools, recreation centers, civic groups. Messages about merchandise, tournaments, player registrations, outreach, sponsorships, uniforms, team stores, Drop links.
+1. **Organizations** — classified by the business taxonomy below
 2. **Contacts** — general contacts, networking, personal relationships that don't clearly fit an organization.
+
+{{TAXONOMY_SECTION}}
 
 You will receive:
 - The Slack message content (channel name, sender, text)
@@ -131,7 +132,8 @@ Respond with ONLY a JSON object in this exact format:
       "goal_relevance_score": 1-10 | null
     }
   ],
-  "tags": ["follow-up", "meeting-request", "deal-update", "partnership", "intro-request", "merch", "newsletter", "fundraising", "order", "team-store", etc.]
+  "tags": ["follow-up", "meeting-request", "deal-update", "partnership", "intro-request", "merch", "newsletter", "fundraising", "order", "team-store", etc.],
+  "draft_reply": "A ready-to-send 2-3 sentence reply to this message, or null if no reply is needed"
 }
 
 IMPORTANT:
@@ -141,6 +143,7 @@ IMPORTANT:
 - Skip bot messages, automated notifications, and trivial chatter
 - For threaded conversations, focus on the latest actionable content
 - When you find an org name mentioned in the message that matches the known org list, use that org as the primary entity even if the sender wasn't matched
+- Generate a "draft_reply" — a ready-to-send 2-3 sentence Slack reply when the message warrants a response. Write it as if Mark (the CEO) is replying. Set to null for bot messages, automated notifications, or messages that don't need a reply.
 
 For each action item, separate CONTEXT from ACTION:
 - "summary" = the background/situation
@@ -172,7 +175,8 @@ Example 1 — Investor update in Slack:
       "goal_relevance_score": 10
     }
   ],
-  "tags": ["fundraising", "deal-update", "follow-up"]
+  "tags": ["fundraising", "deal-update", "follow-up"],
+  "draft_reply": "On it — I'll have the updated financials ready by Friday EOD."
 }
 
 Example 2 — Partner discussion:
@@ -192,7 +196,8 @@ Example 2 — Partner discussion:
       "goal_relevance_score": 8
     }
   ],
-  "tags": ["partnership", "team-store", "merch", "meeting-request"]
+  "tags": ["partnership", "team-store", "merch", "meeting-request"],
+  "draft_reply": "Great lead — I'll reach out to Bay State FC today to set up a demo call."
 }
 
 Example 3 — Bot/trivial (skip):
@@ -203,7 +208,8 @@ Example 3 — Bot/trivial (skip):
   "summary": "Automated deployment notification",
   "sentiment": "neutral",
   "action_items": [],
-  "tags": ["automated"]
+  "tags": ["automated"],
+  "draft_reply": null
 }`;
 
 // ─── Org Context Loader ──────────────────────────────────────────────────────
@@ -239,9 +245,10 @@ async function loadOrgContext(sb: SupabaseClient): Promise<string> {
     const status = pipelineMap.get(org.id) ?? "";
     const label = status ? `${org.name} (${status}) [id:${org.id}]` : `${org.name} [id:${org.id}]`;
 
-    if (types.includes("investor")) investors.push(label);
-    if (types.includes("partner")) partners.push(label);
-    if (types.includes("customer") || types.length === 0) communities.push(label);
+    const lowerTypes = types.map((t: string) => t.toLowerCase());
+    if (lowerTypes.includes("investor")) investors.push(label);
+    if (lowerTypes.includes("partner")) partners.push(label);
+    if (lowerTypes.includes("customer") || types.length === 0) communities.push(label);
   }
 
   let ctx = "KNOWN ORGANIZATIONS IN OUR CRM (use these IDs when you find a name match):\n\n";
@@ -383,6 +390,7 @@ async function classifySlackMessage(
       action_items: actionItems,
       tags: data.tags || [],
       sentiment: data.sentiment || "neutral",
+      draft_reply: data.draft_reply || null,
       prompt_tokens: response.usage?.input_tokens,
       completion_tokens: response.usage?.output_tokens,
     };
@@ -396,6 +404,7 @@ async function classifySlackMessage(
       action_items: [],
       tags: ["unclassified"],
       sentiment: "neutral",
+      draft_reply: null,
     };
   }
 }
@@ -468,6 +477,12 @@ export async function runSlackScanner(
     const goalsBlock = `MiM's 90-DAY STRATEGIC GOALS:\n${goals.map((g) => `• ${g}`).join("\n")}\n\n`;
     agentSystemPrompt = agentSystemPrompt.replace("GOAL RELEVANCE SCORING:", goalsBlock + "GOAL RELEVANCE SCORING:");
     addLog(`Injected ${goals.length} goals into classifier prompt`);
+
+    // ── Inject business taxonomy into system prompt ──
+    const taxonomy = await loadTaxonomy(sb);
+    const taxonomySection = buildTaxonomyPromptSection(taxonomy);
+    agentSystemPrompt = agentSystemPrompt.replace("{{TAXONOMY_SECTION}}", taxonomySection);
+    addLog(`Injected taxonomy (${taxonomy.length} categories) into classifier prompt`);
 
     // ── Slack client ──
     const slack = new WebClient(slackToken);
@@ -705,6 +720,16 @@ export async function runSlackScanner(
           const entityType = result.primary_silo;
           const entityId = result.primary_entity_id;
 
+          // ── Taxonomy matching & priority enforcement (Phase 1C/1D/1F) ──
+          const matchedCategory = matchTaxonomyCategory(result.tags, taxonomy);
+          const taxonomySlug = matchedCategory?.slug ?? null;
+          const taxonomyCardKey = matchedCategory?.org_type_match?.toLowerCase() ?? null;
+          const enforcedPriority = enforcePriorityRules(
+            result.tags,
+            result.action_items[0]?.priority ?? "medium",
+            taxonomy,
+          );
+
           // Track processed entities for feedback computation
           if (entityId) {
             processedEntities.push({ entity_type: entityType, entity_id: entityId });
@@ -758,11 +783,15 @@ export async function runSlackScanner(
             });
           }
 
-          // ── Create tasks ──
+          // ── Create tasks (Phase 1C: enforced priority, 1E: pending_review, 1F: taxonomy_category) ──
           for (const action of result.action_items) {
+            // Enforce taxonomy priority rules — only escalates, never downgrades
+            const taskPriority = enforcePriorityRules(result.tags, action.priority, taxonomy);
+
             const taskPayload: Record<string, unknown> = {
               title: action.title,
-              priority: action.priority,
+              priority: taskPriority,
+              status: "pending_review",
               source: "slack-scanner",
             };
             if (action.summary) taskPayload.summary = action.summary;
@@ -773,13 +802,15 @@ export async function runSlackScanner(
             if (action.goal_relevance_score != null) taskPayload.goal_relevance_score = action.goal_relevance_score;
             taskPayload.thread_id = slackThreadId ? `slack_${channel.id}_${slackThreadId}` : null;
             taskPayload.source_message_id = msgId;
+            if (taxonomySlug) taskPayload.taxonomy_category = taxonomySlug;
+            if (result.draft_reply) taskPayload.draft_reply = result.draft_reply;
 
             await sb.schema('brain').from("tasks").insert(taskPayload);
             tasksCreated++;
-            addLog(`  Task created [${action.priority}]: ${action.title.slice(0, 80)}`);
+            addLog(`  Task created [${taskPriority}${taskPriority !== action.priority ? ` ↑ from ${action.priority}` : ""}]: ${action.title.slice(0, 80)}`);
           }
 
-          // ── Log activity ──
+          // ── Log activity (Phase 1D: enriched metadata for content-aware routing) ──
           await sb.schema('brain').from("activity").insert({
             entity_type: entityType,
             entity_id: entityId,
@@ -793,6 +824,11 @@ export async function runSlackScanner(
               sentiment: result.sentiment,
               action_count: result.action_items.length,
               source_id: msgId,
+              taxonomy_slug: taxonomySlug,
+              taxonomy_card_key: taxonomyCardKey,
+              priority: enforcedPriority,
+              goal_relevance: result.action_items[0]?.goal_relevance_score ?? null,
+              recommended_action: result.action_items[0]?.recommended_action ?? null,
             },
           });
 

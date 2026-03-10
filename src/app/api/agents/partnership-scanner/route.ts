@@ -45,7 +45,7 @@ export async function POST() {
     }
 
     // 2. Fetch partner orgs via org_types
-    const { data: partnerTypeRows } = await sb.schema('core').from("org_types").select("org_id").eq("type", "Partner");
+    const { data: partnerTypeRows } = await sb.schema('core').from("org_types").select("org_id").ilike("type", "Partner");
     const partnerOrgIds = (partnerTypeRows ?? []).map((t) => t.org_id);
 
     const [orgResult, partnerProfileResult] = partnerOrgIds.length > 0

@@ -11,13 +11,16 @@ import {
   TrendingUp, Handshake, FileText, Loader2, ChevronDown, ChevronUp,
   Download, X, Copy, Check, DollarSign, ShoppingCart, BarChart3, Link2,
   Percent, Smartphone, ImageIcon, Activity, Clock, Newspaper,
-  Bookmark, Send, Calendar, ChevronRight,
+  Bookmark, Send, Calendar, ChevronRight, Share2,
   AlertCircle, Users,
 } from "lucide-react";
 import { formatDistanceToNow, format } from "date-fns";
 import { labels } from "@/config/labels";
 import { timeAgo } from "@/lib/timeAgo";
 import { loadTaxonomy, getSignalKeywords, tagsMatchKeywords } from "@/lib/taxonomy-loader";
+import { ApprovalQueue } from "@/components/ApprovalQueue";
+import { BrainCardRow, sortBrainItems } from "@/components/BrainCard";
+import { AlertBanner } from "@/components/AlertBanner";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -25,20 +28,10 @@ interface ActivityEntry {
   id: string;
   actor: string;
   action: string;
-  metadata: {
-    summary?: string;
-    from?: string;
-    tags?: string[];
-    subject?: string;
-    direction?: string;
-    sentiment?: string;
-    source_id?: string;
-    action_count?: number;
-    [key: string]: unknown;
-  } | null;
+  entity_type: string | null;
+  entity_id: string | null;
+  metadata: Record<string, unknown> | null;
   created_at: string;
-  entity_type?: string;
-  entity_id?: string;
 }
 
 interface Report {
@@ -59,6 +52,12 @@ interface OrgActivityRow {
   date: string;
   suggested_action: string | null;
   suggested_deadline: string | null;
+  // Phase 3: enriched intelligence fields
+  priority?: string | null;
+  sentiment?: string | null;
+  goal_relevance?: number | null;
+  tags?: string[];
+  recommended_action?: string | null;
 }
 
 type PeriodType = "day" | "week" | "month";
@@ -184,6 +183,12 @@ export default function Dashboard() {
   const [investorActivity, setInvestorActivity] = useState<OrgActivityRow[]>([]);
   const [customerActivity, setCustomerActivity] = useState<OrgActivityRow[]>([]);
 
+  // Approval queue state
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [pendingTasks, setPendingTasks] = useState<any[]>([]);
+
+  // KPI state — placeholder until Firestore is wired up
+
   // Report generation state
   const [generating, setGenerating] = useState(false);
   const [periodType, setPeriodType] = useState<PeriodType>("week");
@@ -302,9 +307,12 @@ export default function Dashboard() {
       // knowledge ingestions, report generations, news scans, etc.
       if (!ACTIVITY_ACTION_TYPES.has(a.action)) continue;
 
+      // Extract summary from metadata JSONB (not a top-level column)
+      const activitySummary = (a.metadata?.summary as string) || "";
+
       // Allow entries with null entity_id to reach tag-based routing
       // (e.g. emails from unknown senders with investor/partner/customer tags)
-      const rawTags_early: string[] = Array.isArray(a.metadata?.tags) ? a.metadata.tags : [];
+      const rawTags_early: string[] = Array.isArray(a.metadata?.tags) ? (a.metadata!.tags as string[]) : [];
       if (!a.entity_id && rawTags_early.length === 0) continue;
 
       // Collect all org IDs this activity might belong to:
@@ -326,11 +334,53 @@ export default function Dashboard() {
         }
       }
 
-      // Extract tags from metadata for intent-based routing
-      const rawTags: string[] = Array.isArray(a.metadata?.tags) ? a.metadata.tags : [];
+      // Extract tags and taxonomy card key for routing
+      const rawTags: string[] = Array.isArray(a.metadata?.tags) ? (a.metadata!.tags as string[]) : [];
+      const taxonomyCardKey = (a.metadata?.taxonomy_card_key as string) || null;
 
-      if (candidateOrgIds.length > 0) {
-        // ── Org-type routing: activity linked to known orgs ──
+      // ── Phase 1D: Content-aware routing via taxonomy_card_key ──
+      // taxonomy_card_key is set by the classifier based on email CONTENT,
+      // so an Anthropic payment email gets routed to "customer" card regardless
+      // of Anthropic's org_type being "investor".
+      if (taxonomyCardKey) {
+        const dedupKey = `${a.id}:taxonomy`;
+        if (!seenKeys.has(dedupKey)) {
+          seenKeys.add(dedupKey);
+          // Find the best org name to display
+          const primaryOrgId = candidateOrgIds[0] || a.entity_id;
+          const orgEntry = allOrgMap.get(primaryOrgId);
+          const fromLabel = orgEntry?.name || (a.metadata?.from as string) || "Unknown";
+          const orgStatus = orgEntry
+            ? (investorMap.get(primaryOrgId)?.pipeline_status ??
+               partnerMap.get(primaryOrgId)?.partner_status ??
+               customerMap.get(primaryOrgId)?.partner_status ?? null)
+            : null;
+
+          const row: OrgActivityRow = {
+            org_id: primaryOrgId,
+            org_name: fromLabel,
+            org_status: orgStatus,
+            summary: activitySummary,
+            date: a.created_at,
+            suggested_action: (a.metadata?.recommended_action as string) || null,
+            suggested_deadline: null,
+            priority: (a.metadata?.priority as string) || null,
+            sentiment: (a.metadata?.sentiment as string) || null,
+            goal_relevance: (a.metadata?.goal_relevance as number) || null,
+            tags: Array.isArray(a.metadata?.tags) ? (a.metadata!.tags as string[]) : [],
+            recommended_action: (a.metadata?.recommended_action as string) || null,
+          };
+
+          if (taxonomyCardKey === "investor") {
+            investorRows.push(row);
+          } else if (taxonomyCardKey === "partner") {
+            partnerRows.push(row);
+          } else if (taxonomyCardKey === "customer") {
+            customerRows.push(row);
+          }
+        }
+      } else if (candidateOrgIds.length > 0) {
+        // ── Fallback: Org-type routing for activities without taxonomy_card_key ──
         for (const orgId of candidateOrgIds) {
           const dedupKey = `${a.id}:${orgId}`;
           if (seenKeys.has(dedupKey)) continue;
@@ -342,31 +392,29 @@ export default function Dashboard() {
               org_id: org.id,
               org_name: org.name,
               org_status: org.pipeline_status,
-              summary: a.metadata?.summary || a.metadata?.subject || "",
+              summary: activitySummary,
               date: a.created_at,
               suggested_action: null,
               suggested_deadline: null,
             });
-          }
-          if (partnerMap.has(orgId)) {
+          } else if (partnerMap.has(orgId)) {
             const org = partnerMap.get(orgId)!;
             partnerRows.push({
               org_id: org.id,
               org_name: org.name,
               org_status: org.partner_status,
-              summary: a.metadata?.summary || a.metadata?.subject || "",
+              summary: activitySummary,
               date: a.created_at,
               suggested_action: null,
               suggested_deadline: null,
             });
-          }
-          if (customerMap.has(orgId)) {
+          } else if (customerMap.has(orgId)) {
             const org = customerMap.get(orgId)!;
             customerRows.push({
               org_id: org.id,
               org_name: org.name,
               org_status: org.partner_status,
-              summary: a.metadata?.summary || a.metadata?.subject || "",
+              summary: activitySummary,
               date: a.created_at,
               suggested_action: null,
               suggested_deadline: null,
@@ -380,13 +428,12 @@ export default function Dashboard() {
         if (seenKeys.has(dedupKey)) continue;
         seenKeys.add(dedupKey);
 
-        const summaryText = a.metadata?.summary || a.metadata?.subject || "";
-        const fromLabel = a.metadata?.from || summaryText.split(" ").slice(0, 3).join(" ") || "Unknown";
+        const fromLabel = (a.metadata?.from as string) || activitySummary?.split(" ").slice(0, 3).join(" ") || "Unknown";
         const intentRow: OrgActivityRow = {
           org_id: a.entity_id,
           org_name: `📨 ${fromLabel}`,
           org_status: null,
-          summary: summaryText,
+          summary: activitySummary,
           date: a.created_at,
           suggested_action: null,
           suggested_deadline: null,
@@ -402,10 +449,57 @@ export default function Dashboard() {
       }
     }
 
+    // ── Load pending_review tasks for approval queue ──
+    const { data: pendingData } = await supabase
+      .schema("brain")
+      .from("tasks")
+      .select("id, title, summary, recommended_action, draft_reply, priority, entity_type, entity_id, goal_relevance_score, taxonomy_category, source, created_at")
+      .eq("status", "pending_review")
+      .order("created_at", { ascending: false })
+      .limit(50);
+
+    // Resolve entity names for pending tasks
+    const pendingWithNames = (pendingData || []).map((t) => {
+      let entityName: string | null = null;
+      if (t.entity_type === "organizations" && t.entity_id) {
+        entityName = allOrgMap.get(t.entity_id)?.name ?? null;
+      }
+      return { ...t, entity_name: entityName, tags: [] as string[], sentiment: null as string | null };
+    });
+
+    // Enrich with tags/sentiment from classification_log if available
+    const taskMsgIds = (pendingData || [])
+      .map((t: Record<string, unknown>) => t.source_message_id as string)
+      .filter(Boolean);
+    if (taskMsgIds.length > 0) {
+      const { data: clsLogs } = await supabase
+        .from("classification_log")
+        .select("source_message_id, classification_result")
+        .in("source_message_id", taskMsgIds.slice(0, 50));
+      if (clsLogs) {
+        const logMap = new Map<string, { tags: string[]; sentiment: string }>();
+        for (const cl of clsLogs) {
+          const cr = cl.classification_result as Record<string, unknown> | null;
+          logMap.set(cl.source_message_id, {
+            tags: Array.isArray(cr?.tags) ? (cr.tags as string[]) : [],
+            sentiment: (cr?.sentiment as string) || "neutral",
+          });
+        }
+        for (const task of pendingWithNames) {
+          const log = logMap.get((task as Record<string, unknown>).source_message_id as string);
+          if (log) {
+            task.tags = log.tags;
+            task.sentiment = log.sentiment;
+          }
+        }
+      }
+    }
+
     setReports(reportsData ?? []);
     setInvestorActivity(investorRows.slice(0, 10));
     setPartnerActivity(partnerRows.slice(0, 10));
     setCustomerActivity(customerRows.slice(0, 10));
+    setPendingTasks(pendingWithNames);
     setLoading(false);
   }, []);
 
@@ -638,35 +732,26 @@ export default function Dashboard() {
         ))}
       </div>
 
-      {/* ── KPI Row 2 ── */}
-      <div className="grid grid-cols-2 gap-4 mb-6">
-        <Card>
-          <CardContent className="py-3 px-4">
-            <div className="flex items-center justify-between mb-1">
-              <span className="text-xs font-medium text-gray-500">New Creators</span>
-              <Smartphone className="h-4 w-4 text-teal-600" />
-            </div>
-            <div className="text-2xl font-bold text-gray-900">—</div>
-            <p className="text-[10px] text-gray-400 mt-0.5">Cumulative App Downloads &middot; TBD</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="py-3 px-4">
-            <div className="flex items-center justify-between mb-1">
-              <span className="text-xs font-medium text-gray-500">Latest Products Created</span>
-              <ImageIcon className="h-4 w-4 text-pink-600" />
-            </div>
-            <div className="flex items-center gap-2 mt-1">
-              {/* Placeholder image carousel */}
-              {[1, 2, 3, 4, 5].map((i) => (
-                <div key={i} className="w-12 h-12 rounded-lg bg-gray-100 border border-gray-200 flex items-center justify-center">
-                  <ImageIcon className="h-5 w-5 text-gray-300" />
-                </div>
-              ))}
-              <span className="text-xs text-gray-400 ml-1">TBD</span>
-            </div>
-          </CardContent>
-        </Card>
+      {/* ── KPI Row 2 — Operational KPIs (placeholder until Firestore) ── */}
+      <div className="grid grid-cols-5 gap-4 mb-6">
+        {[
+          { label: "Open Tasks", value: "—", icon: Clock, color: "text-blue-600", sub: "TBD" },
+          { label: "Pending Review", value: "—", icon: AlertCircle, color: "text-amber-600", sub: "TBD" },
+          { label: "Pipeline Deals", value: "—", icon: TrendingUp, color: "text-green-600", sub: "TBD" },
+          { label: "Organizations", value: "—", icon: Handshake, color: "text-emerald-600", sub: "TBD" },
+          { label: "Contacts", value: "—", icon: Users, color: "text-purple-600", sub: "TBD" },
+        ].map(({ label, value, icon: Icon, color, sub }) => (
+          <Card key={label}>
+            <CardContent className="py-3 px-4">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs font-medium text-gray-500">{label}</span>
+                <Icon className={`h-4 w-4 ${color}`} />
+              </div>
+              <div className="text-2xl font-bold text-gray-900">{value}</div>
+              <p className="text-[10px] text-gray-400 mt-0.5">{sub}</p>
+            </CardContent>
+          </Card>
+        ))}
       </div>
 
       {/* Scanner error banner */}
@@ -676,6 +761,35 @@ export default function Dashboard() {
           <button onClick={() => setScanError(null)} className="text-red-400 hover:text-red-600 ml-2">
             <X className="h-3 w-3" />
           </button>
+        </div>
+      )}
+
+      {/* ── Alert Banner (Phase 3C) ── */}
+      {pendingTasks.filter((t) => t.priority === "critical" || t.priority === "high").length > 0 && (
+        <AlertBanner
+          items={pendingTasks
+            .filter((t) => t.priority === "critical" || t.priority === "high")
+            .map((t) => ({ id: t.id, title: t.title, priority: t.priority, entity_name: t.entity_name, source: t.source }))}
+        />
+      )}
+
+      {/* ── Approval Queue (Phase 2) ── */}
+      {pendingTasks.length > 0 && (
+        <div className="mb-6">
+          <ApprovalQueue
+            tasks={pendingTasks}
+            onTaskUpdate={(taskId, updates) => {
+              if (updates.status === "todo" || updates.status === "dismissed") {
+                // Remove from pending queue
+                setPendingTasks((prev) => prev.filter((t) => t.id !== taskId));
+              } else {
+                // Update in place (edit)
+                setPendingTasks((prev) =>
+                  prev.map((t) => (t.id === taskId ? { ...t, ...updates } : t))
+                );
+              }
+            }}
+          />
         </div>
       )}
 
@@ -717,18 +831,8 @@ export default function Dashboard() {
               </div>
             ) : (
               <div className="space-y-0">
-                {partnerActivity.slice(0, 6).map((row, idx) => (
-                  <div key={idx} className="flex items-start gap-2 py-2 border-b last:border-0 text-xs">
-                    <div className="flex-1 min-w-0">
-                      <Link href={`/soccer-orgs/${row.org_id}`} className="font-medium text-gray-900 hover:text-blue-600 truncate block">
-                        {row.org_name}
-                      </Link>
-                      <span className="text-gray-500 line-clamp-2 text-[11px]" title={row.summary}>
-                        {row.summary}
-                      </span>
-                    </div>
-                    <span className="text-gray-400 shrink-0 text-[10px] mt-0.5">{timeAgo(row.date)}</span>
-                  </div>
+                {sortBrainItems(partnerActivity).slice(0, 6).map((row, idx) => (
+                  <BrainCardRow key={idx} item={row} linkPrefix="/soccer-orgs" />
                 ))}
               </div>
             )}
@@ -771,18 +875,8 @@ export default function Dashboard() {
               </div>
             ) : (
               <div className="space-y-0">
-                {investorActivity.slice(0, 6).map((row, idx) => (
-                  <div key={idx} className="flex items-start gap-2 py-2 border-b last:border-0 text-xs">
-                    <div className="flex-1 min-w-0">
-                      <Link href={`/investors/${row.org_id}`} className="font-medium text-gray-900 hover:text-blue-600 truncate block">
-                        {row.org_name}
-                      </Link>
-                      <span className="text-gray-500 line-clamp-2 text-[11px]" title={row.summary}>
-                        {row.summary}
-                      </span>
-                    </div>
-                    <span className="text-gray-400 shrink-0 text-[10px] mt-0.5">{timeAgo(row.date)}</span>
-                  </div>
+                {sortBrainItems(investorActivity).slice(0, 6).map((row, idx) => (
+                  <BrainCardRow key={idx} item={row} linkPrefix="/investors" />
                 ))}
               </div>
             )}
@@ -825,18 +919,8 @@ export default function Dashboard() {
               </div>
             ) : (
               <div className="space-y-0">
-                {customerActivity.slice(0, 6).map((row, idx) => (
-                  <div key={idx} className="flex items-start gap-2 py-2 border-b last:border-0 text-xs">
-                    <div className="flex-1 min-w-0">
-                      <Link href={`/soccer-orgs/${row.org_id}`} className="font-medium text-gray-900 hover:text-blue-600 truncate block">
-                        {row.org_name}
-                      </Link>
-                      <span className="text-gray-500 line-clamp-2 text-[11px]" title={row.summary}>
-                        {row.summary}
-                      </span>
-                    </div>
-                    <span className="text-gray-400 shrink-0 text-[10px] mt-0.5">{timeAgo(row.date)}</span>
-                  </div>
+                {sortBrainItems(customerActivity).slice(0, 6).map((row, idx) => (
+                  <BrainCardRow key={idx} item={row} linkPrefix="/soccer-orgs" />
                 ))}
               </div>
             )}
@@ -1158,6 +1242,24 @@ export default function Dashboard() {
                                 <Bookmark className="h-3 w-3 mr-0.5" /> Knowledge
                               </Button>
                             </Link>
+                            {article.source_ref && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-5 text-[9px] px-1.5 text-gray-400 hover:text-green-600"
+                                onClick={() => {
+                                  navigator.clipboard.writeText(article.source_ref!);
+                                  setCopiedId(article.id);
+                                  setTimeout(() => setCopiedId(null), 2000);
+                                }}
+                              >
+                                {copiedId === article.id ? (
+                                  <><Check className="h-3 w-3 mr-0.5" /> Copied!</>
+                                ) : (
+                                  <><Share2 className="h-3 w-3 mr-0.5" /> Share</>
+                                )}
+                              </Button>
+                            )}
                           </div>
                         </div>
                       </div>

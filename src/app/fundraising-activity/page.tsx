@@ -54,7 +54,7 @@ export default function FundraisingActivityPage() {
 
     // 1. Get all investor org IDs from core.org_types
     const { data: typeRows } = await supabase
-      .schema('core').from("org_types").select("org_id").eq("type", "Investor");
+      .schema('core').from("org_types").select("org_id").ilike("type", "Investor");
     const investorIds = (typeRows || []).map((r) => r.org_id);
     if (investorIds.length === 0) {
       setInvestorOrgs([]);

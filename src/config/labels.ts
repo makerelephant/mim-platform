@@ -98,6 +98,14 @@ export const labels = {
   taskDetails: "Task Details",
   taskSourceInfo: "Source",
 
+  /* ── Task statuses ── */
+  taskStatusPendingReview: "Pending Review",
+  taskStatusTodo: "To Do",
+  taskStatusInProgress: "In Progress",
+  taskStatusDone: "Done",
+  taskStatusBlocked: "Blocked",
+  taskStatusDismissed: "Dismissed",
+
   /* ── Batch A additions ── */
   taskScanButton: "Scan for new Tasks",
   taskLastScanned: "Last scanned",

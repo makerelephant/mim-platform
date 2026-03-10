@@ -184,7 +184,7 @@ export default function InvestorsPage() {
     const { data: typeRows } = await supabase
       .schema('core').from("org_types")
       .select("org_id")
-      .eq("type", "Investor");
+      .ilike("type", "Investor");
     const investorOrgIds = (typeRows ?? []).map((t) => t.org_id);
 
     if (investorOrgIds.length === 0) { setInvestors([]); setLoading(false); return; }
@@ -285,7 +285,7 @@ export default function InvestorsPage() {
 
     // 2. Set type + create profile in parallel
     await Promise.all([
-      supabase.schema('core').from("org_types").insert({ org_id: orgId, type: "investor" }),
+      supabase.schema('core').from("org_types").insert({ org_id: orgId, type: "Investor" }),
       supabase.schema('intel').from("investor_profile").insert({
         org_id: orgId,
         investor_type: newType || null,

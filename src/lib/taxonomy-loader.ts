@@ -107,6 +107,215 @@ export const DEFAULT_TAXONOMY: TaxonomyCategory[] = [
     active: true,
     sort_order: 3,
   },
+  {
+    id: "default-youth-sports",
+    category: "Youth Sports",
+    slug: "youth-sports",
+    description: "Youth sports industry news, trends, leagues, clubs, tournaments, and sub-sport categories",
+    signal_keywords: [
+      "youth-sports", "youth-soccer", "youth-hockey", "youth-basketball", "youth-lacrosse",
+      "youth-volleyball", "club-sports", "travel-sports", "tournament", "aau", "usys",
+      "ecnl", "ga-league", "mlsnext", "usclub", "little-league", "pop-warner",
+    ],
+    org_type_match: null,
+    dashboard_card_key: "sentiment",
+    prompt_fragment: "Youth sports industry: any news about youth soccer, hockey, basketball, lacrosse, volleyball, or other youth athletics. Includes leagues (ECNL, GA, MLS NEXT, USYS, AAU), clubs, tournaments, travel sports, and youth development programs.",
+    priority_rules: [],
+    actions: { create_task: false, route_to_card: true, send_alert: false },
+    icon: "Trophy",
+    color: "text-orange-600",
+    active: true,
+    sort_order: 4,
+  },
+  {
+    id: "default-generative-commerce",
+    category: "Generative Commerce",
+    slug: "generative-commerce",
+    description: "AI-powered commerce models, generative product design, on-demand manufacturing, personalized merchandise",
+    signal_keywords: [
+      "generative-commerce", "ai-commerce", "on-demand", "print-on-demand", "personalization",
+      "custom-merch", "ai-design", "generative-design", "dynamic-pricing", "ai-retail",
+      "commerce-ai", "product-generation", "mass-customization",
+    ],
+    org_type_match: null,
+    dashboard_card_key: "sentiment",
+    prompt_fragment: "Generative commerce and new commerce models leveraging AI: on-demand manufacturing, AI-powered product design, personalized merchandise, dynamic pricing, AI retail innovations.",
+    priority_rules: [],
+    actions: { create_task: false, route_to_card: true, send_alert: false },
+    icon: "Sparkles",
+    color: "text-pink-600",
+    active: true,
+    sort_order: 5,
+  },
+  {
+    id: "default-ai-innovation",
+    category: "AI Innovation",
+    slug: "ai-innovation",
+    description: "Major AI announcements, model releases, breakthroughs, benchmarks, and industry shifts",
+    signal_keywords: [
+      "ai-innovation", "ai-announcement", "llm", "foundation-model", "gpt", "claude",
+      "gemini", "llama", "mistral", "openai", "anthropic", "deepmind", "meta-ai",
+      "ai-breakthrough", "benchmark", "ai-safety", "reasoning-model",
+    ],
+    org_type_match: null,
+    dashboard_card_key: "sentiment",
+    prompt_fragment: "AI innovation announcements: new model releases, capability breakthroughs, benchmark results, research papers, safety developments from OpenAI, Anthropic, Google DeepMind, Meta, Mistral, and others.",
+    priority_rules: [],
+    actions: { create_task: false, route_to_card: true, send_alert: false },
+    icon: "Zap",
+    color: "text-violet-600",
+    active: true,
+    sort_order: 6,
+  },
+  {
+    id: "default-ai-thought-leaders",
+    category: "AI Thought Leaders",
+    slug: "ai-thought-leaders",
+    description: "Opinions, interviews, and updates from key AI leaders: Dario Amodei, Sam Altman, and others",
+    signal_keywords: [
+      "dario-amodei", "sam-altman", "demis-hassabis", "yann-lecun", "ilya-sutskever",
+      "jensen-huang", "satya-nadella", "thought-leader", "ai-leadership", "ai-policy",
+    ],
+    org_type_match: null,
+    dashboard_card_key: "sentiment",
+    prompt_fragment: "AI thought leaders: commentary, interviews, and announcements from Dario Amodei (Anthropic), Sam Altman (OpenAI), Demis Hassabis (DeepMind), Jensen Huang (NVIDIA), and other influential AI voices.",
+    priority_rules: [],
+    actions: { create_task: false, route_to_card: true, send_alert: false },
+    icon: "Mic",
+    color: "text-amber-600",
+    active: true,
+    sort_order: 7,
+  },
+  {
+    id: "default-agentic-commerce",
+    category: "Agentic Commerce",
+    slug: "agentic-commerce",
+    description: "AI agents in commerce: autonomous shopping, agent-to-agent transactions, agentic workflows in retail",
+    signal_keywords: [
+      "agentic-commerce", "ai-agent", "autonomous-shopping", "agent-workflow",
+      "agent-to-agent", "commerce-agent", "agentic-workflow", "agentic-ai",
+      "autonomous-commerce", "agent-framework", "tool-use",
+    ],
+    org_type_match: null,
+    dashboard_card_key: "sentiment",
+    prompt_fragment: "Agentic commerce: AI agents that autonomously browse, compare, purchase, and transact. Agent-to-agent commerce, agentic workflows in retail, and the emerging agent economy.",
+    priority_rules: [],
+    actions: { create_task: false, route_to_card: true, send_alert: false },
+    icon: "Bot",
+    color: "text-cyan-600",
+    active: true,
+    sort_order: 8,
+  },
+  {
+    id: "default-openclaw",
+    category: "OpenClaw",
+    slug: "openclaw",
+    description: "OpenClaw project news, updates, and related open-source AI initiatives",
+    signal_keywords: ["openclaw", "open-claw", "open-source-ai", "oss-ai"],
+    org_type_match: null,
+    dashboard_card_key: "sentiment",
+    prompt_fragment: "OpenClaw: any news, updates, releases, or discussions related to the OpenClaw project.",
+    priority_rules: [],
+    actions: { create_task: false, route_to_card: true, send_alert: false },
+    icon: "Cog",
+    color: "text-red-600",
+    active: true,
+    sort_order: 9,
+  },
+  {
+    id: "default-mit",
+    category: "MIT",
+    slug: "mit",
+    description: "MIT research, alumni news, CSAIL, Media Lab, and MIT-affiliated AI/tech developments",
+    signal_keywords: [
+      "mit", "massachusetts-institute-of-technology", "csail", "mit-media-lab",
+      "mit-sloan", "mit-research", "mit-alumni", "mit-technology-review",
+    ],
+    org_type_match: null,
+    dashboard_card_key: "sentiment",
+    prompt_fragment: "MIT (Massachusetts Institute of Technology): research publications, alumni news, CSAIL and Media Lab developments, MIT Sloan, MIT Technology Review articles, and MIT-affiliated AI or tech breakthroughs.",
+    priority_rules: [],
+    actions: { create_task: false, route_to_card: true, send_alert: false },
+    icon: "GraduationCap",
+    color: "text-red-700",
+    active: true,
+    sort_order: 10,
+  },
+  {
+    id: "default-ai-ui-ux",
+    category: "AI + UI/UX",
+    slug: "ai-ui-ux",
+    description: "The intersection of AI with user interfaces and user experience design",
+    signal_keywords: [
+      "ai-ux", "ai-ui", "ai-interface", "generative-ui", "conversational-ui",
+      "ai-design-system", "copilot-ux", "ai-assistant-ui", "natural-language-ui",
+      "adaptive-interface", "human-ai-interaction", "prompt-ui",
+    ],
+    org_type_match: null,
+    dashboard_card_key: "sentiment",
+    prompt_fragment: "The intersection of AI and UI/UX: generative user interfaces, conversational UI, AI copilot experiences, adaptive interfaces, human-AI interaction design, and how AI is transforming frontend and user experience.",
+    priority_rules: [],
+    actions: { create_task: false, route_to_card: true, send_alert: false },
+    icon: "Palette",
+    color: "text-indigo-600",
+    active: true,
+    sort_order: 11,
+  },
+  {
+    id: "default-local-models",
+    category: "Local Models",
+    slug: "local-models",
+    description: "On-device AI, local inference, edge models, and self-hosted LLM developments",
+    signal_keywords: [
+      "local-model", "on-device-ai", "edge-ai", "ollama", "llama-cpp", "gguf",
+      "quantization", "mlx", "local-inference", "self-hosted-llm", "private-ai",
+      "small-language-model", "slm",
+    ],
+    org_type_match: null,
+    dashboard_card_key: "sentiment",
+    prompt_fragment: "Local and on-device AI models: Ollama, llama.cpp, MLX, quantized models, GGUF, edge deployment, self-hosted LLMs, small language models (SLMs), and the movement toward private, local AI inference.",
+    priority_rules: [],
+    actions: { create_task: false, route_to_card: true, send_alert: false },
+    icon: "HardDrive",
+    color: "text-slate-600",
+    active: true,
+    sort_order: 12,
+  },
+  {
+    id: "default-mcp",
+    category: "MCP",
+    slug: "mcp",
+    description: "Model Context Protocol news, server implementations, integrations, and ecosystem developments",
+    signal_keywords: [
+      "mcp", "model-context-protocol", "mcp-server", "mcp-client", "mcp-tool",
+      "claude-mcp", "mcp-integration", "mcp-ecosystem", "context-protocol",
+    ],
+    org_type_match: null,
+    dashboard_card_key: "sentiment",
+    prompt_fragment: "MCP (Model Context Protocol): news about the standard, new MCP server implementations, client integrations, ecosystem growth, and how MCP enables AI agents to interact with external systems.",
+    priority_rules: [],
+    actions: { create_task: false, route_to_card: true, send_alert: false },
+    icon: "Plug",
+    color: "text-purple-600",
+    active: true,
+    sort_order: 13,
+  },
+  {
+    id: "default-crawl4ai",
+    category: "Crawl4AI",
+    slug: "crawl4ai",
+    description: "Crawl4AI project updates, web scraping for AI, and structured data extraction",
+    signal_keywords: ["crawl4ai", "crawl-4-ai", "web-scraping-ai", "ai-crawler", "structured-extraction"],
+    org_type_match: null,
+    dashboard_card_key: "sentiment",
+    prompt_fragment: "Crawl4AI: updates, releases, and discussions about the Crawl4AI project for web scraping and structured data extraction for AI applications.",
+    priority_rules: [],
+    actions: { create_task: false, route_to_card: true, send_alert: false },
+    icon: "Globe",
+    color: "text-teal-600",
+    active: true,
+    sort_order: 14,
+  },
 ];
 
 // ─── Load Taxonomy from Database ────────────────────────────────────────────
@@ -236,20 +445,58 @@ export function buildTaxonomyPromptSection(
   taxonomy: TaxonomyCategory[],
 ): string {
   const lines: string[] = [
-    "ENTITY CATEGORIES (from the company's inference taxonomy):",
+    "BUSINESS TAXONOMY — Use these categories to classify messages and tag appropriately:",
     "",
   ];
 
   for (const cat of taxonomy) {
     if (cat.prompt_fragment) {
-      lines.push(`### ${cat.category}`);
+      lines.push(`### ${cat.category}${cat.org_type_match ? ` (org type: ${cat.org_type_match})` : ""}`);
       lines.push(cat.prompt_fragment);
       if (cat.signal_keywords.length > 0) {
-        lines.push(`Common tags: ${cat.signal_keywords.slice(0, 10).join(", ")}`);
+        lines.push(`Signal tags: ${cat.signal_keywords.slice(0, 12).join(", ")}`);
+      }
+      if (cat.priority_rules.length > 0) {
+        lines.push("Priority escalation:");
+        for (const rule of cat.priority_rules) {
+          lines.push(`  - If "${rule.condition}" detected → ${rule.priority}`);
+        }
       }
       lines.push("");
     }
   }
 
   return lines.join("\n");
+}
+
+/**
+ * Post-classification priority enforcement.
+ * Checks classifier tags against taxonomy priority_rules and escalates
+ * priority if rules match. Only escalates up, never down.
+ */
+export function enforcePriorityRules(
+  tags: string[],
+  currentPriority: string,
+  taxonomy: TaxonomyCategory[],
+): string {
+  const priorityRank: Record<string, number> = {
+    low: 0, medium: 1, high: 2, critical: 3,
+  };
+  let maxPriority = priorityRank[currentPriority] ?? 1;
+
+  const lowerTags = tags.map((t) => t.toLowerCase());
+
+  for (const cat of taxonomy) {
+    for (const rule of cat.priority_rules) {
+      const condLower = rule.condition.toLowerCase();
+      if (lowerTags.some((t) => t.includes(condLower) || condLower.includes(t))) {
+        const rulePriority = priorityRank[rule.priority] ?? 1;
+        if (rulePriority > maxPriority) {
+          maxPriority = rulePriority;
+        }
+      }
+    }
+  }
+
+  return Object.entries(priorityRank).find(([, v]) => v === maxPriority)?.[0] ?? currentPriority;
 }

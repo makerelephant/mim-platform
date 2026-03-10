@@ -82,7 +82,7 @@ export default function SoccerOrgsPage() {
   const load = useCallback(async () => {
     // 1. Get Customer org IDs
     const { data: typeRows } = await supabase
-      .schema('core').from("org_types").select("org_id").eq("type", "Customer");
+      .schema('core').from("org_types").select("org_id").ilike("type", "Customer");
     const customerIds = (typeRows || []).map((r) => r.org_id);
     if (customerIds.length === 0) { setOrgs([]); setLoading(false); return; }
 

@@ -406,6 +406,7 @@ export default function InvestorDetail() {
       if (pipelineStatus) {
         promises.push(supabase.schema('crm').from("pipeline").insert({
           org_id: investor.id,
+          pipeline_type: "Investor",
           status: pipelineStatus,
           next_action: nextAction || null,
           next_action_date: nextActionDate || null,
