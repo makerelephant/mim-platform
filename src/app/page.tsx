@@ -186,8 +186,7 @@ export default function Dashboard() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [pendingTasks, setPendingTasks] = useState<any[]>([]);
 
-  // Real KPI state (Phase 3D)
-  const [kpis, setKpis] = useState({ openTasks: 0, pendingReview: 0, totalOrgs: 0, totalContacts: 0, pipelineDeals: 0 });
+  // KPI state — placeholder until Firestore is wired up
 
   // Report generation state
   const [generating, setGenerating] = useState(false);
@@ -495,22 +494,6 @@ export default function Dashboard() {
       }
     }
 
-    // ── Real KPI queries (Phase 3D) ──
-    const [openTasksRes, pendingReviewRes, totalContactsRes, pipelineDealsRes] = await Promise.all([
-      supabase.schema("brain").from("tasks").select("id", { count: "exact", head: true }).in("status", ["todo", "in_progress"]),
-      supabase.schema("brain").from("tasks").select("id", { count: "exact", head: true }).eq("status", "pending_review"),
-      supabase.schema("core").from("contacts").select("id", { count: "exact", head: true }),
-      supabase.schema("crm").from("pipeline").select("id", { count: "exact", head: true }).neq("status", "closed"),
-    ]);
-
-    setKpis({
-      openTasks: openTasksRes.count ?? 0,
-      pendingReview: pendingReviewRes.count ?? 0,
-      totalOrgs: (orgResult.data || []).length,
-      totalContacts: totalContactsRes.count ?? 0,
-      pipelineDeals: pipelineDealsRes.count ?? 0,
-    });
-
     setReports(reportsData ?? []);
     setInvestorActivity(investorRows.slice(0, 10));
     setPartnerActivity(partnerRows.slice(0, 10));
@@ -747,14 +730,14 @@ export default function Dashboard() {
         ))}
       </div>
 
-      {/* ── KPI Row 2 — Real Operational Data (Phase 3D) ── */}
+      {/* ── KPI Row 2 — Operational KPIs (placeholder until Firestore) ── */}
       <div className="grid grid-cols-5 gap-4 mb-6">
         {[
-          { label: "Open Tasks", value: kpis.openTasks, icon: Clock, color: "text-blue-600", sub: "todo + in progress" },
-          { label: "Pending Review", value: kpis.pendingReview, icon: AlertCircle, color: "text-amber-600", sub: "awaiting approval" },
-          { label: "Pipeline Deals", value: kpis.pipelineDeals, icon: TrendingUp, color: "text-green-600", sub: "active pipeline" },
-          { label: "Organizations", value: kpis.totalOrgs, icon: Handshake, color: "text-emerald-600", sub: "all org types" },
-          { label: "Contacts", value: kpis.totalContacts, icon: Users, color: "text-purple-600", sub: "total in CRM" },
+          { label: "Open Tasks", value: "—", icon: Clock, color: "text-blue-600", sub: "TBD" },
+          { label: "Pending Review", value: "—", icon: AlertCircle, color: "text-amber-600", sub: "TBD" },
+          { label: "Pipeline Deals", value: "—", icon: TrendingUp, color: "text-green-600", sub: "TBD" },
+          { label: "Organizations", value: "—", icon: Handshake, color: "text-emerald-600", sub: "TBD" },
+          { label: "Contacts", value: "—", icon: Users, color: "text-purple-600", sub: "TBD" },
         ].map(({ label, value, icon: Icon, color, sub }) => (
           <Card key={label}>
             <CardContent className="py-3 px-4">
