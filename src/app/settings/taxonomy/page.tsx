@@ -41,6 +41,10 @@ const CARD_KEY_OPTIONS = [
   { value: "investors", label: "Fundraising (Investors)" },
   { value: "partners", label: "Partnerships (Partners)" },
   { value: "customers", label: "Communities (Customers)" },
+  { value: "sentiment", label: "Sentiment (News & Articles)" },
+  { value: "knowledge", label: "Knowledge Base" },
+  { value: "tasks", label: "Tasks" },
+  { value: "activity", label: "Activity Log" },
 ];
 
 // ─── Component ──────────────────────────────────────────────────────────────
