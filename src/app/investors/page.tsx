@@ -184,7 +184,7 @@ export default function InvestorsPage() {
     const { data: typeRows } = await supabase
       .schema('core').from("org_types")
       .select("org_id")
-      .eq("type", "Investor");
+      .ilike("type", "Investor");
     const investorOrgIds = (typeRows ?? []).map((t) => t.org_id);
 
     if (investorOrgIds.length === 0) { setInvestors([]); setLoading(false); return; }

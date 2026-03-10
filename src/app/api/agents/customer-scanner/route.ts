@@ -45,7 +45,7 @@ export async function POST() {
     }
 
     // 2. Fetch customer orgs via org_types
-    const { data: customerTypeRows } = await sb.schema('core').from("org_types").select("org_id").eq("type", "Customer");
+    const { data: customerTypeRows } = await sb.schema('core').from("org_types").select("org_id").ilike("type", "Customer");
     const customerOrgIds = (customerTypeRows ?? []).map((t) => t.org_id);
 
     const [orgResult, pipelineResult] = customerOrgIds.length > 0

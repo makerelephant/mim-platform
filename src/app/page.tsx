@@ -22,12 +22,12 @@ import { loadTaxonomy, getSignalKeywords, tagsMatchKeywords } from "@/lib/taxono
 
 interface ActivityEntry {
   id: string;
-  agent_name: string;
-  action_type: string;
-  summary: string;
+  actor: string;
+  action: string;
+  entity_type: string | null;
+  entity_id: string | null;
+  metadata: Record<string, unknown> | null;
   created_at: string;
-  entity_type?: string;
-  entity_id?: string;
 }
 
 interface Report {
@@ -289,11 +289,14 @@ export default function Dashboard() {
     for (const a of recentActivity ?? []) {
       // Only process actual correspondence activity — skip scan logs,
       // knowledge ingestions, report generations, news scans, etc.
-      if (!ACTIVITY_ACTION_TYPES.has(a.action_type)) continue;
+      if (!ACTIVITY_ACTION_TYPES.has(a.action)) continue;
+
+      // Extract summary from metadata JSONB (not a top-level column)
+      const activitySummary = (a.metadata?.summary as string) || "";
 
       // Allow entries with null entity_id to reach tag-based routing
       // (e.g. emails from unknown senders with investor/partner/customer tags)
-      const rawTags_early: string[] = Array.isArray(a.raw_data?.tags) ? a.raw_data.tags : [];
+      const rawTags_early: string[] = Array.isArray(a.metadata?.tags) ? (a.metadata!.tags as string[]) : [];
       if (!a.entity_id && rawTags_early.length === 0) continue;
 
       // Collect all org IDs this activity might belong to:
@@ -316,7 +319,7 @@ export default function Dashboard() {
       }
 
       // Extract tags from raw_data for intent-based routing
-      const rawTags: string[] = Array.isArray(a.raw_data?.tags) ? a.raw_data.tags : [];
+      const rawTags: string[] = Array.isArray(a.metadata?.tags) ? (a.metadata!.tags as string[]) : [];
 
       if (candidateOrgIds.length > 0) {
         // ── Org-type routing: activity linked to known orgs ──
@@ -331,31 +334,29 @@ export default function Dashboard() {
               org_id: org.id,
               org_name: org.name,
               org_status: org.pipeline_status,
-              summary: a.summary,
+              summary: activitySummary,
               date: a.created_at,
               suggested_action: null,
               suggested_deadline: null,
             });
-          }
-          if (partnerMap.has(orgId)) {
+          } else if (partnerMap.has(orgId)) {
             const org = partnerMap.get(orgId)!;
             partnerRows.push({
               org_id: org.id,
               org_name: org.name,
               org_status: org.partner_status,
-              summary: a.summary,
+              summary: activitySummary,
               date: a.created_at,
               suggested_action: null,
               suggested_deadline: null,
             });
-          }
-          if (customerMap.has(orgId)) {
+          } else if (customerMap.has(orgId)) {
             const org = customerMap.get(orgId)!;
             customerRows.push({
               org_id: org.id,
               org_name: org.name,
               org_status: org.partner_status,
-              summary: a.summary,
+              summary: activitySummary,
               date: a.created_at,
               suggested_action: null,
               suggested_deadline: null,
@@ -369,12 +370,12 @@ export default function Dashboard() {
         if (seenKeys.has(dedupKey)) continue;
         seenKeys.add(dedupKey);
 
-        const fromLabel = a.raw_data?.from || a.summary?.split(" ").slice(0, 3).join(" ") || "Unknown";
+        const fromLabel = (a.metadata?.from as string) || activitySummary?.split(" ").slice(0, 3).join(" ") || "Unknown";
         const intentRow: OrgActivityRow = {
           org_id: a.entity_id,
           org_name: `📨 ${fromLabel}`,
           org_status: null,
-          summary: a.summary,
+          summary: activitySummary,
           date: a.created_at,
           suggested_action: null,
           suggested_deadline: null,

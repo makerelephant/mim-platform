@@ -55,7 +55,7 @@ export default function PartnershipPipelinePage() {
   const load = useCallback(async () => {
     // 1. Get Partner org IDs
     const { data: typeRows } = await supabase
-      .schema('core').from("org_types").select("org_id").eq("type", "Partner");
+      .schema('core').from("org_types").select("org_id").ilike("type", "Partner");
     const partnerIds = (typeRows || []).map((r) => r.org_id);
     if (partnerIds.length === 0) { setAllPartnerOrgs([]); setPipelineOrgs([]); setLoading(false); return; }
 

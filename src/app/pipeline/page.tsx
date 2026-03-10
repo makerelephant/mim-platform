@@ -67,7 +67,7 @@ export default function PipelinePage() {
     const { data: typeRows } = await supabase
       .schema('core').from("org_types")
       .select("org_id")
-      .eq("type", "Investor");
+      .ilike("type", "Investor");
     const investorOrgIds = (typeRows ?? []).map((t) => t.org_id);
 
     if (investorOrgIds.length === 0) { setAllInvestors([]); setInvestors([]); setLoading(false); return; }
@@ -127,7 +127,7 @@ export default function PipelinePage() {
     } else if (field === "pipeline_status") {
       await supabase.schema('crm').from("pipeline").delete().eq("org_id", id);
       if (value) {
-        ({ error } = await supabase.schema('crm').from("pipeline").insert({ org_id: id, status: value }));
+        ({ error } = await supabase.schema('crm').from("pipeline").insert({ org_id: id, pipeline_type: "Investor", status: value }));
       }
     } else {
       ({ error } = await supabase.schema('core').from("organizations").update({ [field]: value || null }).eq("id", id));
@@ -246,7 +246,7 @@ export default function PipelinePage() {
     if (!draggedId) return;
     // Update pipeline row
     await supabase.schema('crm').from("pipeline").delete().eq("org_id", draggedId);
-    await supabase.schema('crm').from("pipeline").insert({ org_id: draggedId, status });
+    await supabase.schema('crm').from("pipeline").insert({ org_id: draggedId, pipeline_type: "Investor", status });
     setInvestors((prev) => prev.map((inv) => (inv.id === draggedId ? { ...inv, pipeline_status: status } : inv)));
     setAllInvestors((prev) => prev.map((inv) => (inv.id === draggedId ? { ...inv, pipeline_status: status } : inv)));
     setDraggedId(null);
