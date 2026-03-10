@@ -39,6 +39,7 @@ interface ClassificationResult {
   action_items: ActionItem[];
   tags: string[];
   sentiment: string;
+  draft_reply: string | null;
 }
 
 export interface SlackScannerResult {
@@ -131,7 +132,8 @@ Respond with ONLY a JSON object in this exact format:
       "goal_relevance_score": 1-10 | null
     }
   ],
-  "tags": ["follow-up", "meeting-request", "deal-update", "partnership", "intro-request", "merch", "newsletter", "fundraising", "order", "team-store", etc.]
+  "tags": ["follow-up", "meeting-request", "deal-update", "partnership", "intro-request", "merch", "newsletter", "fundraising", "order", "team-store", etc.],
+  "draft_reply": "A ready-to-send 2-3 sentence reply to this message, or null if no reply is needed"
 }
 
 IMPORTANT:
@@ -141,6 +143,7 @@ IMPORTANT:
 - Skip bot messages, automated notifications, and trivial chatter
 - For threaded conversations, focus on the latest actionable content
 - When you find an org name mentioned in the message that matches the known org list, use that org as the primary entity even if the sender wasn't matched
+- Generate a "draft_reply" — a ready-to-send 2-3 sentence Slack reply when the message warrants a response. Write it as if Mark (the CEO) is replying. Set to null for bot messages, automated notifications, or messages that don't need a reply.
 
 For each action item, separate CONTEXT from ACTION:
 - "summary" = the background/situation
@@ -172,7 +175,8 @@ Example 1 — Investor update in Slack:
       "goal_relevance_score": 10
     }
   ],
-  "tags": ["fundraising", "deal-update", "follow-up"]
+  "tags": ["fundraising", "deal-update", "follow-up"],
+  "draft_reply": "On it — I'll have the updated financials ready by Friday EOD."
 }
 
 Example 2 — Partner discussion:
@@ -192,7 +196,8 @@ Example 2 — Partner discussion:
       "goal_relevance_score": 8
     }
   ],
-  "tags": ["partnership", "team-store", "merch", "meeting-request"]
+  "tags": ["partnership", "team-store", "merch", "meeting-request"],
+  "draft_reply": "Great lead — I'll reach out to Bay State FC today to set up a demo call."
 }
 
 Example 3 — Bot/trivial (skip):
@@ -203,7 +208,8 @@ Example 3 — Bot/trivial (skip):
   "summary": "Automated deployment notification",
   "sentiment": "neutral",
   "action_items": [],
-  "tags": ["automated"]
+  "tags": ["automated"],
+  "draft_reply": null
 }`;
 
 // ─── Org Context Loader ──────────────────────────────────────────────────────
@@ -384,6 +390,7 @@ async function classifySlackMessage(
       action_items: actionItems,
       tags: data.tags || [],
       sentiment: data.sentiment || "neutral",
+      draft_reply: data.draft_reply || null,
       prompt_tokens: response.usage?.input_tokens,
       completion_tokens: response.usage?.output_tokens,
     };
@@ -397,6 +404,7 @@ async function classifySlackMessage(
       action_items: [],
       tags: ["unclassified"],
       sentiment: "neutral",
+      draft_reply: null,
     };
   }
 }
@@ -795,6 +803,7 @@ export async function runSlackScanner(
             taskPayload.thread_id = slackThreadId ? `slack_${channel.id}_${slackThreadId}` : null;
             taskPayload.source_message_id = msgId;
             if (taxonomySlug) taskPayload.taxonomy_category = taxonomySlug;
+            if (result.draft_reply) taskPayload.draft_reply = result.draft_reply;
 
             await sb.schema('brain').from("tasks").insert(taskPayload);
             tasksCreated++;

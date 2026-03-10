@@ -17,6 +17,7 @@ import { formatDistanceToNow, format } from "date-fns";
 import { labels } from "@/config/labels";
 import { timeAgo } from "@/lib/timeAgo";
 import { loadTaxonomy, getSignalKeywords, tagsMatchKeywords } from "@/lib/taxonomy-loader";
+import { ApprovalQueue } from "@/components/ApprovalQueue";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -172,6 +173,10 @@ export default function Dashboard() {
   const [partnerActivity, setPartnerActivity] = useState<OrgActivityRow[]>([]);
   const [investorActivity, setInvestorActivity] = useState<OrgActivityRow[]>([]);
   const [customerActivity, setCustomerActivity] = useState<OrgActivityRow[]>([]);
+
+  // Approval queue state
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [pendingTasks, setPendingTasks] = useState<any[]>([]);
 
   // Report generation state
   const [generating, setGenerating] = useState(false);
@@ -428,10 +433,57 @@ export default function Dashboard() {
       }
     }
 
+    // ── Load pending_review tasks for approval queue ──
+    const { data: pendingData } = await supabase
+      .schema("brain")
+      .from("tasks")
+      .select("id, title, summary, recommended_action, draft_reply, priority, entity_type, entity_id, goal_relevance_score, taxonomy_category, source, created_at")
+      .eq("status", "pending_review")
+      .order("created_at", { ascending: false })
+      .limit(50);
+
+    // Resolve entity names for pending tasks
+    const pendingWithNames = (pendingData || []).map((t) => {
+      let entityName: string | null = null;
+      if (t.entity_type === "organizations" && t.entity_id) {
+        entityName = allOrgMap.get(t.entity_id)?.name ?? null;
+      }
+      return { ...t, entity_name: entityName, tags: [] as string[], sentiment: null as string | null };
+    });
+
+    // Enrich with tags/sentiment from classification_log if available
+    const taskMsgIds = (pendingData || [])
+      .map((t: Record<string, unknown>) => t.source_message_id as string)
+      .filter(Boolean);
+    if (taskMsgIds.length > 0) {
+      const { data: clsLogs } = await supabase
+        .from("classification_log")
+        .select("source_message_id, classification_result")
+        .in("source_message_id", taskMsgIds.slice(0, 50));
+      if (clsLogs) {
+        const logMap = new Map<string, { tags: string[]; sentiment: string }>();
+        for (const cl of clsLogs) {
+          const cr = cl.classification_result as Record<string, unknown> | null;
+          logMap.set(cl.source_message_id, {
+            tags: Array.isArray(cr?.tags) ? (cr.tags as string[]) : [],
+            sentiment: (cr?.sentiment as string) || "neutral",
+          });
+        }
+        for (const task of pendingWithNames) {
+          const log = logMap.get((task as Record<string, unknown>).source_message_id as string);
+          if (log) {
+            task.tags = log.tags;
+            task.sentiment = log.sentiment;
+          }
+        }
+      }
+    }
+
     setReports(reportsData ?? []);
     setInvestorActivity(investorRows.slice(0, 10));
     setPartnerActivity(partnerRows.slice(0, 10));
     setCustomerActivity(customerRows.slice(0, 10));
+    setPendingTasks(pendingWithNames);
     setLoading(false);
   }, []);
 
@@ -701,6 +753,26 @@ export default function Dashboard() {
           <button onClick={() => setScanError(null)} className="text-red-400 hover:text-red-600 ml-2">
             <X className="h-3 w-3" />
           </button>
+        </div>
+      )}
+
+      {/* ── Approval Queue (Phase 2) ── */}
+      {pendingTasks.length > 0 && (
+        <div className="mb-6">
+          <ApprovalQueue
+            tasks={pendingTasks}
+            onTaskUpdate={(taskId, updates) => {
+              if (updates.status === "todo" || updates.status === "dismissed") {
+                // Remove from pending queue
+                setPendingTasks((prev) => prev.filter((t) => t.id !== taskId));
+              } else {
+                // Update in place (edit)
+                setPendingTasks((prev) =>
+                  prev.map((t) => (t.id === taskId ? { ...t, ...updates } : t))
+                );
+              }
+            }}
+          />
         </div>
       )}
 
