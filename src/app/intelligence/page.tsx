@@ -92,10 +92,10 @@ export default function IntelligencePage() {
         const contactIds = feedback.filter((f) => f.entity_type === "contacts").map((f) => f.entity_id);
 
         const { data: orgs } = orgIds.length > 0
-          ? await supabase.from("organizations").select("id, name").in("id", orgIds)
+          ? await supabase.schema('core').from("organizations").select("id, name").in("id", orgIds)
           : { data: [] };
         const { data: contacts } = contactIds.length > 0
-          ? await supabase.from("contacts").select("id, first_name, last_name").in("id", contactIds)
+          ? await supabase.schema('core').from("contacts").select("id, first_name, last_name").in("id", contactIds)
           : { data: [] };
 
         const nameMap = new Map<string, string>();

@@ -44,10 +44,12 @@ export default function CategoryGeoAssignmentsPage() {
   const [addStatus, setAddStatus] = useState("active");
   const [saving, setSaving] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const partnerIdsRef = useRef<string[]>([]);
 
   const fetchAssignments = useCallback(async () => {
     setLoading(true);
 
+    // org_community_relationships stays in public schema
     const { data, error } = await supabase
       .from("org_community_relationships")
       .select(`
@@ -58,7 +60,6 @@ export default function CategoryGeoAssignmentsPage() {
         tier,
         owner,
         start_date,
-        organization:organizations!inner(name),
         category:community_categories!inner(name),
         geography:geographies(name)
       `)
@@ -70,10 +71,19 @@ export default function CategoryGeoAssignmentsPage() {
       return;
     }
 
+    // Load org names from core.organizations (separate query - cross-schema embed not supported)
+    const orgIds = [...new Set((data || []).map((r: any) => r.organization_id))];
+    let orgNameMap = new Map<string, string>();
+    if (orgIds.length > 0) {
+      const { data: orgData } = await supabase
+        .schema('core').from("organizations").select("id, name").in("id", orgIds);
+      for (const o of orgData || []) orgNameMap.set(o.id, o.name);
+    }
+
     const mapped: Assignment[] = (data || []).map((r: any) => ({
       id: r.id,
       organization_id: r.organization_id,
-      org_name: r.organization?.name || "—",
+      org_name: orgNameMap.get(r.organization_id) || "—",
       category_id: r.category_id,
       category_name: r.category?.name || "—",
       geography_name: r.geography?.name || null,
@@ -88,6 +98,7 @@ export default function CategoryGeoAssignmentsPage() {
   }, []);
 
   const fetchCategoryOptions = useCallback(async () => {
+    // community_categories stays in public schema
     const { data } = await supabase
       .from("community_categories")
       .select("id, name, parent_id, sort_order")
@@ -104,17 +115,25 @@ export default function CategoryGeoAssignmentsPage() {
     }
   }, []);
 
+  const loadPartnerIds = useCallback(async () => {
+    const { data } = await supabase
+      .schema('core').from("org_types").select("org_id").eq("type", "Partner");
+    partnerIdsRef.current = (data || []).map((r) => r.org_id);
+  }, []);
+
   useEffect(() => {
     fetchAssignments();
     fetchCategoryOptions();
-  }, [fetchAssignments, fetchCategoryOptions]);
+    loadPartnerIds();
+  }, [fetchAssignments, fetchCategoryOptions, loadPartnerIds]);
 
   const searchOrgs = async (q: string) => {
     if (q.length < 1) { setOrgResults([]); return; }
+    if (partnerIdsRef.current.length === 0) { setOrgResults([]); return; }
     const { data } = await supabase
-      .from("organizations")
+      .schema('core').from("organizations")
       .select("id, name")
-      .contains("org_type", ["Partner"])
+      .in("id", partnerIdsRef.current)
       .ilike("name", `%${q}%`)
       .order("name")
       .limit(10);
@@ -131,6 +150,7 @@ export default function CategoryGeoAssignmentsPage() {
   const handleAddAssignment = async () => {
     if (!selectedOrg || !selectedCategoryId) return;
     setSaving(true);
+    // org_community_relationships stays in public schema
     const { error } = await supabase.from("org_community_relationships").insert({
       organization_id: selectedOrg.id,
       category_id: selectedCategoryId,

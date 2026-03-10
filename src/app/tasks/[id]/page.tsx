@@ -245,7 +245,7 @@ export default function TaskDetail() {
       return;
     }
     const { data } = await supabase
-      .from("tasks")
+      .schema('brain').from("tasks")
       .select("id, title, status, priority, created_at")
       .eq("gmail_thread_id", threadId)
       .neq("id", taskId)
@@ -255,7 +255,7 @@ export default function TaskDetail() {
 
   useEffect(() => {
     async function load() {
-      const { data } = await supabase.from("tasks").select("*").eq("id", taskId).single();
+      const { data } = await supabase.schema('brain').from("tasks").select("*").eq("id", taskId).single();
       if (data) {
         setTask(data);
         loadRelatedTasks(data.gmail_thread_id);
@@ -271,7 +271,7 @@ export default function TaskDetail() {
     if (!task) return;
     const newStarred = !task.is_starred;
     setTask((prev) => prev ? { ...prev, is_starred: newStarred } : prev);
-    const { error } = await supabase.from("tasks").update({ is_starred: newStarred }).eq("id", task.id);
+    const { error } = await supabase.schema('brain').from("tasks").update({ is_starred: newStarred }).eq("id", task.id);
     if (error) {
       setTask((prev) => prev ? { ...prev, is_starred: !newStarred } : prev);
     }
@@ -280,13 +280,13 @@ export default function TaskDetail() {
   /* ── Entity link/unlink handlers ── */
 
   const searchContacts = useCallback(async (q: string) => {
-    const { data } = await supabase.from("contacts").select("id, name, email, organization").ilike("name", `%${q}%`).limit(10);
-    return (data || []).map((c) => ({ id: c.id, label: c.name, sub: c.organization || c.email || undefined }));
+    const { data } = await supabase.schema('core').from("contacts").select("id, first_name, last_name, email").ilike("first_name", `%${q}%`).limit(10);
+    return (data || []).map((c) => ({ id: c.id, label: [c.first_name, c.last_name].filter(Boolean).join(" "), sub: c.email || undefined }));
   }, []);
 
   const searchOrganizations = useCallback(async (q: string) => {
-    const { data } = await supabase.from("organizations").select("id, name, org_category, org_type").ilike("name", `%${q}%`).limit(10);
-    return (data || []).map((o) => ({ id: o.id, label: o.name, sub: o.org_category || undefined }));
+    const { data } = await supabase.schema('core').from("organizations").select("id, name").ilike("name", `%${q}%`).limit(10);
+    return (data || []).map((o) => ({ id: o.id, label: o.name }));
   }, []);
 
   const linkContact = useCallback(async (contactId: string) => {
@@ -326,7 +326,7 @@ export default function TaskDetail() {
     if (!task) return;
     setSaving(true);
     const d = editDataRef.current;
-    const { error } = await supabase.from("tasks").update({
+    const { error } = await supabase.schema('brain').from("tasks").update({
       title: (d.title as string) || task.title,
       summary: (d.summary as string) || null,
       recommended_action: (d.recommended_action as string) || null,

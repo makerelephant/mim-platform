@@ -12,12 +12,11 @@ import { Activity, Search, Play, Loader2, Mail, MessageSquare, CheckCircle2, XCi
 
 interface ActivityEntry {
   id: string;
-  agent_name: string;
-  action_type: string;
+  actor: string;
+  action: string;
   entity_type: string | null;
   entity_id: string | null;
-  summary: string;
-  raw_data: Record<string, unknown> | null;
+  metadata: Record<string, unknown> | null;
   created_at: string;
 }
 
@@ -25,9 +24,8 @@ interface AgentRun {
   id: string;
   agent_name: string;
   status: string;
-  records_processed: number | null;
-  records_updated: number | null;
-  error_message: string | null;
+  output: Record<string, unknown> | null;
+  error: string | null;
   created_at: string;
   completed_at: string | null;
 }
@@ -89,8 +87,8 @@ export default function ActivityPage() {
 
   async function loadData() {
     const [activityRes, runsRes] = await Promise.all([
-      supabase.from("activity_log").select("*").order("created_at", { ascending: false }).limit(200),
-      supabase.from("agent_runs").select("*").order("created_at", { ascending: false }).limit(20),
+      supabase.schema('brain').from("activity").select("*").order("created_at", { ascending: false }).limit(200),
+      supabase.schema('brain').from("agent_runs").select("*").order("created_at", { ascending: false }).limit(20),
     ]);
     if (activityRes.data) setActivities(activityRes.data);
     if (runsRes.data) setAgentRuns(runsRes.data);
@@ -147,13 +145,14 @@ export default function ActivityPage() {
     }
   };
 
-  const agents = [...new Set(activities.map((a) => a.agent_name))];
+  const agents = [...new Set(activities.map((a) => a.actor))];
   const entityTypes = [...new Set(activities.map((a) => a.entity_type).filter(Boolean))] as string[];
 
   const filtered = activities.filter((a) => {
-    if (filterAgent && a.agent_name !== filterAgent) return false;
+    if (filterAgent && a.actor !== filterAgent) return false;
     if (filterEntity && a.entity_type !== filterEntity) return false;
-    if (search && !a.summary?.toLowerCase().includes(search.toLowerCase())) return false;
+    const summary = (a.metadata?.summary as string) || "";
+    if (search && !summary.toLowerCase().includes(search.toLowerCase())) return false;
     return true;
   });
 
@@ -305,10 +304,10 @@ export default function ActivityPage() {
                     {run.agent_name}
                   </Badge>
                   <span className="text-gray-500">
-                    {run.records_processed != null ? `${run.records_processed} processed` : ""}
-                    {run.records_updated != null ? `, ${run.records_updated} updated` : ""}
+                    {run.output && (run.output as Record<string, unknown>).records_processed != null ? `${(run.output as Record<string, unknown>).records_processed} processed` : ""}
+                    {run.output && (run.output as Record<string, unknown>).records_updated != null ? `, ${(run.output as Record<string, unknown>).records_updated} updated` : ""}
                   </span>
-                  {run.error_message && <span className="text-red-500 truncate max-w-xs">{run.error_message}</span>}
+                  {run.error && <span className="text-red-500 truncate max-w-xs">{run.error}</span>}
                   <span className="text-gray-400 ml-auto">
                     {formatDistanceToNow(new Date(run.created_at), { addSuffix: true })}
                   </span>
@@ -350,9 +349,9 @@ export default function ActivityPage() {
               <CardContent className="py-3 flex items-start gap-3">
                 <div className="w-2 h-2 rounded-full bg-blue-500 mt-2 shrink-0" />
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm text-gray-800">{a.summary}</p>
+                  <p className="text-sm text-gray-800">{(a.metadata?.summary as string) || a.action}</p>
                   <div className="flex items-center gap-2 mt-1">
-                    <Badge className={AGENT_COLORS[a.agent_name] || "bg-gray-100 text-gray-700"} >{a.agent_name}</Badge>
+                    <Badge className={AGENT_COLORS[a.actor] || "bg-gray-100 text-gray-700"} >{a.actor}</Badge>
                     {a.entity_type && <Badge variant="outline" className="text-xs">{a.entity_type}</Badge>}
                     <span className="text-xs text-gray-400">
                       {formatDistanceToNow(new Date(a.created_at), { addSuffix: true })}

@@ -42,12 +42,17 @@ interface Investor {
 
 interface LinkedContact {
   contact_id: string;
-  role: string | null;
-  contacts: { id: string; name: string; email: string | null; title: string | null };
+  relationship_type: string | null;
+  contacts: { id: string; first_name: string | null; last_name: string | null; email: string | null; role: string | null };
 }
 
 const PIPELINE_STATUSES = ["Prospect", "Qualified", "Engaged", "First Meeting", "In Closing", "Closed", "Passed"];
 const CONNECTION_STATUSES = ["Active", "Stale", "Need Introduction", "Warm Intro", "Cold"];
+
+/** Fields stored in intel.investor_profile */
+const PROFILE_FIELDS = new Set(["investor_type", "fund_type", "geography", "location", "sector_focus", "check_size", "portfolio_url", "notable_investments", "connection_status", "likelihood_score", "last_contact_date"]);
+/** Fields stored in core.organizations */
+const ORG_FIELDS = new Set(["name", "description", "website", "avatar_url", "source", "notes"]);
 
 /*
  * Field components use UNCONTROLLED inputs (defaultValue + onChange → ref).
@@ -188,7 +193,6 @@ function AvatarUpload({
     reader.onload = () => {
       const img = document.createElement("img");
       img.onload = () => {
-        // Resize to 200x200 max
         const size = 200;
         const canvas = document.createElement("canvas");
         const scale = Math.min(size / img.width, size / img.height, 1);
@@ -255,6 +259,11 @@ function AvatarUpload({
   );
 }
 
+/* ── Helper: assemble contact display name ── */
+function contactName(c: { first_name: string | null; last_name: string | null }): string {
+  return [c.first_name, c.last_name].filter(Boolean).join(" ") || "(unnamed)";
+}
+
 /* ── Main component ── */
 
 export default function InvestorDetail() {
@@ -268,22 +277,55 @@ export default function InvestorDetail() {
   const investorId = params.id as string;
 
   // Edit data stored in a ref — mutations never trigger re-renders.
-  // This is the core fix: typing updates the ref silently, so the parent
-  // never re-renders and child components are never destroyed.
   const editDataRef = useRef<Record<string, unknown>>({});
 
   const loadLinks = useCallback(async () => {
     const { data: contacts } = await supabase
-      .from("organization_contacts")
-      .select("contact_id, role, contacts(id, name, email, title)")
-      .eq("organization_id", investorId);
+      .schema('core').from("relationships")
+      .select("contact_id, relationship_type, contacts(id, first_name, last_name, email, role)")
+      .eq("org_id", investorId);
     if (contacts) setLinkedContacts(contacts as unknown as LinkedContact[]);
   }, [investorId]);
 
   useEffect(() => {
     async function load() {
-      const { data: inv } = await supabase.from("organizations").select("*").eq("id", investorId).single();
-      if (inv) setInvestor(inv);
+      // Load org + profile + pipeline in parallel
+      const [orgResult, profileResult, pipelineResult] = await Promise.all([
+        supabase.schema('core').from("organizations").select("*").eq("id", investorId).single(),
+        supabase.schema('intel').from("investor_profile").select("*").eq("org_id", investorId).maybeSingle(),
+        supabase.schema('crm').from("pipeline").select("*").eq("org_id", investorId).maybeSingle(),
+      ]);
+
+      if (orgResult.data) {
+        const org = orgResult.data;
+        const profile = profileResult.data || {};
+        const pipeline = pipelineResult.data;
+
+        const assembled: Investor = {
+          id: org.id,
+          name: org.name,
+          description: org.description || null,
+          fund_type: profile.fund_type || null,
+          investor_type: profile.investor_type || null,
+          geography: profile.geography || null,
+          location: profile.location || null,
+          sector_focus: profile.sector_focus || null,
+          check_size: profile.check_size || null,
+          portfolio_url: profile.portfolio_url || null,
+          website: org.website || null,
+          notable_investments: profile.notable_investments || null,
+          connection_status: profile.connection_status || null,
+          pipeline_status: pipeline?.status || null,
+          likelihood_score: profile.likelihood_score || null,
+          source: org.source || profile.source || null,
+          notes: org.notes || null,
+          last_contact_date: profile.last_contact_date || null,
+          next_action: pipeline?.next_action || null,
+          next_action_date: pipeline?.next_action_date || null,
+          avatar_url: org.avatar_url || null,
+        };
+        setInvestor(assembled);
+      }
     }
     load();
     loadLinks();
@@ -293,20 +335,24 @@ export default function InvestorDetail() {
 
   const searchContacts = useCallback(async (q: string) => {
     const { data } = await supabase
-      .from("contacts")
-      .select("id, name, email, organization")
-      .ilike("name", `%${q}%`)
+      .schema('core').from("contacts")
+      .select("id, first_name, last_name, email")
+      .or(`first_name.ilike.%${q}%,last_name.ilike.%${q}%,email.ilike.%${q}%`)
       .limit(10);
-    return (data || []).map((c) => ({ id: c.id, label: c.name, sub: c.organization || c.email || undefined }));
+    return (data || []).map((c) => ({
+      id: c.id,
+      label: contactName(c),
+      sub: c.email || undefined,
+    }));
   }, []);
 
   const linkContact = useCallback(async (contactId: string) => {
-    await supabase.from("organization_contacts").insert({ organization_id: investorId, contact_id: contactId });
+    await supabase.schema('core').from("relationships").insert({ org_id: investorId, contact_id: contactId });
     await loadLinks();
   }, [investorId, loadLinks]);
 
   const unlinkContact = useCallback(async (contactId: string) => {
-    await supabase.from("organization_contacts").delete().eq("organization_id", investorId).eq("contact_id", contactId);
+    await supabase.schema('core').from("relationships").delete().eq("org_id", investorId).eq("contact_id", contactId);
     await loadLinks();
   }, [investorId, loadLinks]);
 
@@ -317,7 +363,6 @@ export default function InvestorDetail() {
 
   const startEditing = useCallback(() => {
     if (investor) {
-      // Snapshot current investor data into the ref
       editDataRef.current = { ...investor };
       setEditing(true);
     }
@@ -327,62 +372,71 @@ export default function InvestorDetail() {
     if (!investor) return;
     setSaving(true);
     const d = editDataRef.current;
-    const basePayload = {
-      name: (d.name as string) || investor.name,
-      description: (d.description as string) || null,
-      fund_type: (d.fund_type as string) || null,
-      investor_type: (d.investor_type as string) || null,
-      geography: (d.geography as string) || null,
-      location: (d.location as string) || null,
-      sector_focus: (d.sector_focus as string) || null,
-      check_size: (d.check_size as string) || null,
-      portfolio_url: (d.portfolio_url as string) || null,
-      website: (d.website as string) || null,
-      notable_investments: (d.notable_investments as string) || null,
-      connection_status: (d.connection_status as string) || null,
-      pipeline_status: (d.pipeline_status as string) || null,
-      likelihood_score: d.likelihood_score != null && String(d.likelihood_score) !== "" ? Number(d.likelihood_score) : null,
-      source: (d.source as string) || null,
-      notes: (d.notes as string) || null,
-      last_contact_date: (d.last_contact_date as string) || null,
-      next_action: (d.next_action as string) || null,
-      avatar_url: (d.avatar_url as string) || null,
-    };
 
-    // Try with next_action_date first; if column doesn't exist yet, retry without it
-    let { error } = await supabase.from("organizations").update({
-      ...basePayload,
-      next_action_date: (d.next_action_date as string) || null,
-    }).eq("id", investor.id);
+    // Route fields to correct tables
+    const orgPayload: Record<string, unknown> = {};
+    const profilePayload: Record<string, unknown> = {};
+    const pipelineStatus = d.pipeline_status as string | null;
+    const nextAction = d.next_action as string | null;
+    const nextActionDate = d.next_action_date as string | null;
 
-    if (error?.message?.includes("next_action_date")) {
-      ({ error } = await supabase.from("organizations").update(basePayload).eq("id", investor.id));
-    }
-
-    if (!error) {
-      // Calendar reminder — non-blocking
-      const newDate = (d.next_action_date as string) || null;
-      const oldDate = investor.next_action_date;
-      if (newDate && newDate !== oldDate) {
-        fetch("/api/calendar/create-event", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            title: `[MiM] Follow up: ${(d.name as string) || investor.name}`,
-            date: newDate,
-            description: `Next action: ${(d.next_action as string) || investor.next_action || ""}\nFirm: ${(d.name as string) || investor.name}`,
-          }),
-        }).catch(() => {});
+    for (const [key, val] of Object.entries(d)) {
+      if (ORG_FIELDS.has(key)) orgPayload[key] = val || null;
+      else if (PROFILE_FIELDS.has(key)) {
+        profilePayload[key] = key === "likelihood_score"
+          ? (val != null && String(val) !== "" ? Number(val) : null)
+          : (val || null);
       }
-
-      const updated = {
-        ...investor,
-        ...d,
-        likelihood_score: d.likelihood_score != null && String(d.likelihood_score) !== "" ? Number(d.likelihood_score) : null,
-      };
-      setInvestor(updated as Investor);
-      setEditing(false);
     }
+
+    // Update all tables in parallel
+    const promises: PromiseLike<unknown>[] = [];
+
+    if (Object.keys(orgPayload).length > 0) {
+      promises.push(supabase.schema('core').from("organizations").update(orgPayload).eq("id", investor.id));
+    }
+
+    if (Object.keys(profilePayload).length > 0) {
+      promises.push(supabase.schema('intel').from("investor_profile").update(profilePayload).eq("org_id", investor.id));
+    }
+
+    // Pipeline: upsert or delete
+    if (pipelineStatus !== investor.pipeline_status || nextAction !== investor.next_action || nextActionDate !== investor.next_action_date) {
+      await supabase.schema('crm').from("pipeline").delete().eq("org_id", investor.id);
+      if (pipelineStatus) {
+        promises.push(supabase.schema('crm').from("pipeline").insert({
+          org_id: investor.id,
+          status: pipelineStatus,
+          next_action: nextAction || null,
+          next_action_date: nextActionDate || null,
+        }));
+      }
+    }
+
+    await Promise.all(promises);
+
+    // Calendar reminder — non-blocking
+    const newDate = nextActionDate;
+    const oldDate = investor.next_action_date;
+    if (newDate && newDate !== oldDate) {
+      fetch("/api/calendar/create-event", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: `[MiM] Follow up: ${(d.name as string) || investor.name}`,
+          date: newDate,
+          description: `Next action: ${nextAction || investor.next_action || ""}\nFirm: ${(d.name as string) || investor.name}`,
+        }),
+      }).catch(() => {});
+    }
+
+    const updated = {
+      ...investor,
+      ...d,
+      likelihood_score: d.likelihood_score != null && String(d.likelihood_score) !== "" ? Number(d.likelihood_score) : null,
+    };
+    setInvestor(updated as Investor);
+    setEditing(false);
     setSaving(false);
   };
 
@@ -520,10 +574,10 @@ export default function InvestorDetail() {
             icon={<Users className="h-4 w-4" />}
             items={linkedContacts.map((lc) => ({
               id: lc.contacts.id,
-              label: lc.contacts.name,
-              sub: lc.contacts.email || lc.contacts.title || undefined,
+              label: contactName(lc.contacts),
+              sub: lc.contacts.email || lc.contacts.role || undefined,
               href: `/contacts/${lc.contacts.id}`,
-              role: lc.role,
+              role: lc.relationship_type,
               linkId: lc.contact_id,
             }))}
             onLink={linkContact}

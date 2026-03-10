@@ -209,25 +209,39 @@ Example 3 — Bot/trivial (skip):
 // ─── Org Context Loader ──────────────────────────────────────────────────────
 
 async function loadOrgContext(sb: SupabaseClient): Promise<string> {
-  const { data: orgs } = await sb
-    .from("organizations")
-    .select("id, name, org_type, lifecycle_status, partner_status, pipeline_status")
-    .order("name");
+  const [orgResult, typesResult, pipelineResult] = await Promise.all([
+    sb.schema('core').from("organizations").select("id, name").order("name"),
+    sb.schema('core').from("org_types").select("org_id, type"),
+    sb.schema('crm').from("pipeline").select("org_id, status, lifecycle_status"),
+  ]);
 
+  const orgs = orgResult.data;
   if (!orgs || orgs.length === 0) return "";
+
+  // Build lookup maps
+  const orgTypeMap = new Map<string, string[]>();
+  for (const t of typesResult.data ?? []) {
+    const arr = orgTypeMap.get(t.org_id) ?? [];
+    arr.push(t.type);
+    orgTypeMap.set(t.org_id, arr);
+  }
+  const pipelineMap = new Map<string, string>();
+  for (const p of pipelineResult.data ?? []) {
+    pipelineMap.set(p.org_id, p.status || p.lifecycle_status || "");
+  }
 
   const investors: string[] = [];
   const partners: string[] = [];
   const communities: string[] = [];
 
   for (const org of orgs) {
-    const types = (org.org_type as string[]) || [];
-    const status = org.pipeline_status || org.partner_status || org.lifecycle_status || "";
+    const types = orgTypeMap.get(org.id) ?? [];
+    const status = pipelineMap.get(org.id) ?? "";
     const label = status ? `${org.name} (${status}) [id:${org.id}]` : `${org.name} [id:${org.id}]`;
 
-    if (types.includes("Investor")) investors.push(label);
-    if (types.includes("Partner")) partners.push(label);
-    if (types.includes("Customer") || types.length === 0) communities.push(label);
+    if (types.includes("investor")) investors.push(label);
+    if (types.includes("partner")) partners.push(label);
+    if (types.includes("customer") || types.length === 0) communities.push(label);
   }
 
   let ctx = "KNOWN ORGANIZATIONS IN OUR CRM (use these IDs when you find a name match):\n\n";
@@ -248,30 +262,16 @@ class SlackEntityResolver {
 
   async load(): Promise<void> {
     const { data: contacts } = await this.sb
-      .from("contacts")
-      .select("id, name, email");
+      .schema('core').from("contacts")
+      .select("id, first_name, last_name, email");
 
     for (const c of contacts || []) {
+      const fullName = [c.first_name, c.last_name].filter(Boolean).join(" ") || "Unknown";
       if (c.email) {
-        this.emailToContacts.set(c.email.toLowerCase().trim(), { id: c.id, name: c.name });
+        this.emailToContacts.set(c.email.toLowerCase().trim(), { id: c.id, name: fullName });
       }
-      if (c.name) {
-        this.nameToContacts.set(c.name.toLowerCase().trim(), { id: c.id, name: c.name });
-      }
-    }
-
-    // Also load contact_emails junction
-    const { data: contactEmails } = await this.sb
-      .from("contact_emails")
-      .select("contact_id, email");
-
-    for (const ce of contactEmails || []) {
-      const emailLower = ce.email.toLowerCase().trim();
-      if (!this.emailToContacts.has(emailLower)) {
-        const match = (contacts || []).find((c: { id: string }) => c.id === ce.contact_id);
-        if (match) {
-          this.emailToContacts.set(emailLower, { id: match.id, name: match.name });
-        }
+      if (fullName && fullName !== "Unknown") {
+        this.nameToContacts.set(fullName.toLowerCase().trim(), { id: c.id, name: fullName });
       }
     }
   }
@@ -415,7 +415,7 @@ export async function runSlackScanner(
 
   try {
     // ── Start agent run ──
-    const { data: runData } = await sb.from("agent_runs").insert({
+    const { data: runData } = await sb.schema('brain').from("agent_runs").insert({
       agent_name: "slack-scanner",
       status: "running",
     }).select("id").single();
@@ -563,9 +563,9 @@ export async function runSlackScanner(
 
           // ── Deduplication ──
           const { data: dupeCheck } = await sb
-            .from("correspondence")
+            .schema('brain').from("correspondence")
             .select("id")
-            .eq("source_message_id", msgId)
+            .contains("metadata", { source_message_id: msgId })
             .limit(1);
 
           if (dupeCheck && dupeCheck.length > 0) {
@@ -640,10 +640,10 @@ export async function runSlackScanner(
           if (slackThreadId) {
             const threadMsgId = `slack_${channel.id}_${slackThreadId}`;
             const { data: existingThreadTasks } = await sb
-              .from("tasks")
+              .schema('brain').from("tasks")
               .select("id, title, status, priority, created_at")
               .eq("thread_id", threadMsgId)
-              .in("status", ["todo", "in_progress"])
+              .in("status", ["todo", "in_progress", "open"])
               .order("created_at", { ascending: false })
               .limit(3);
 
@@ -655,7 +655,7 @@ export async function runSlackScanner(
               if (taskAgeMs < fortyEightHoursMs) {
                 threadSkipped++;
                 addLog(`  Thread skip: "${newestTask.title.slice(0, 50)}" already open (${Math.round(taskAgeMs / 3600000)}h ago)`);
-                await sb.from("tasks").update({ updated_at: new Date().toISOString() }).eq("id", newestTask.id);
+                await sb.schema('brain').from("tasks").update({ updated_at: new Date().toISOString() }).eq("id", newestTask.id);
                 try {
                   await sb.from("classification_log").insert({
                     source: "slack",
@@ -741,17 +741,20 @@ export async function runSlackScanner(
           const messageDate = msg.ts ? new Date(parseFloat(msg.ts) * 1000).toISOString() : null;
 
           if (entityId) {
-            await sb.from("correspondence").insert({
+            await sb.schema('brain').from("correspondence").insert({
               entity_type: entityType,
               entity_id: entityId,
+              channel: "slack",
               direction: "inbound",
               subject: `Slack: #${channel.name}`,
-              snippet: (msg.text || "").slice(0, 200),
-              sender_email: userProfile.email,
-              sender_name: userProfile.name,
-              email_date: messageDate,
-              source: "slack",
-              source_message_id: msgId,
+              body: (msg.text || "").slice(0, 200),
+              from_address: userProfile.email,
+              to_address: null,
+              sent_at: messageDate,
+              metadata: {
+                sender_name: userProfile.name,
+                source_message_id: msgId,
+              },
             });
           }
 
@@ -771,26 +774,26 @@ export async function runSlackScanner(
             taskPayload.thread_id = slackThreadId ? `slack_${channel.id}_${slackThreadId}` : null;
             taskPayload.source_message_id = msgId;
 
-            await sb.from("tasks").insert(taskPayload);
+            await sb.schema('brain').from("tasks").insert(taskPayload);
             tasksCreated++;
             addLog(`  Task created [${action.priority}]: ${action.title.slice(0, 80)}`);
           }
 
           // ── Log activity ──
-          await sb.from("activity_log").insert({
-            agent_name: "slack-scanner",
-            action_type: "slack_scanned",
+          await sb.schema('brain').from("activity").insert({
             entity_type: entityType,
             entity_id: entityId,
-            summary: result.summary,
-            raw_data: {
+            action: "slack_scanned",
+            actor: "slack-scanner",
+            metadata: {
+              summary: result.summary,
               channel: channel.name,
               user: userProfile.name,
               tags: result.tags,
               sentiment: result.sentiment,
               action_count: result.action_items.length,
+              source_id: msgId,
             },
-            source_id: msgId,
           });
 
           recordsProcessed++;
@@ -816,11 +819,10 @@ export async function runSlackScanner(
 
     // ── Complete run ──
     if (runId) {
-      await sb.from("agent_runs").update({
+      await sb.schema('brain').from("agent_runs").update({
         status: "completed",
         completed_at: new Date().toISOString(),
-        records_processed: totalMessages,
-        records_updated: recordsProcessed,
+        output: { records_processed: totalMessages, records_updated: recordsProcessed },
       }).eq("id", runId);
     }
 
@@ -843,10 +845,10 @@ export async function runSlackScanner(
 
     if (runId) {
       try {
-        await sb.from("agent_runs").update({
+        await sb.schema('brain').from("agent_runs").update({
           status: "failed",
           completed_at: new Date().toISOString(),
-          error_message: errMsg,
+          error: errMsg,
         }).eq("id", runId);
       } catch { /* ignore */ }
     }

@@ -56,7 +56,7 @@ export async function runSheetsScanner(opts?: {
     const sb = createClient(sbUrl, sbKey);
 
     // ── Log agent run ──
-    const { data: runData } = await sb.from("agent_runs").insert({
+    const { data: runData } = await sb.schema('brain').from("agent_runs").insert({
       agent_name: "sheets-scanner",
       status: "running",
       started_at: new Date().toISOString(),
@@ -148,12 +148,36 @@ export async function runSheetsScanner(opts?: {
     addLog(`Parsed ${totalRows} investor rows from sheet`);
 
     // ── Load existing investors from DB ──
-    const { data: existingInvestors } = await sb.from("organizations").select("id, name, description, connection_status, pipeline_status, likelihood_score, next_action").contains("org_type", ["Investor"]);
-    const firmMap = new Map<string, typeof existingInvestors extends (infer T)[] | null ? T : never>();
-    if (existingInvestors) {
-      for (const inv of existingInvestors) {
-        firmMap.set(inv.name.toLowerCase().trim(), inv);
-      }
+    // Step 1: Get org_ids with type='investor'
+    const { data: investorTypes } = await sb.schema('core').from("org_types").select("org_id").eq("type", "Investor");
+    const investorOrgIds = (investorTypes ?? []).map((t) => t.org_id);
+
+    // Step 2: Load those orgs + their pipeline data
+    const [orgResult, pipelineResult] = investorOrgIds.length > 0
+      ? await Promise.all([
+          sb.schema('core').from("organizations").select("id, name, description").in("id", investorOrgIds),
+          sb.schema('crm').from("pipeline").select("org_id, status, connection_status, likelihood_score, next_action").in("org_id", investorOrgIds),
+        ])
+      : [{ data: [] }, { data: [] }];
+
+    const pipelineMap = new Map<string, { status: string | null; connection_status: string | null; likelihood_score: number | null; next_action: string | null }>();
+    for (const p of pipelineResult.data ?? []) {
+      pipelineMap.set(p.org_id, p);
+    }
+
+    interface ExistingInvestor { id: string; name: string; description: string | null; pipeline_status: string | null; connection_status: string | null; likelihood_score: number | null; next_action: string | null; }
+    const firmMap = new Map<string, ExistingInvestor>();
+    for (const org of orgResult.data ?? []) {
+      const pl = pipelineMap.get(org.id);
+      firmMap.set(org.name.toLowerCase().trim(), {
+        id: org.id,
+        name: org.name,
+        description: org.description,
+        pipeline_status: pl?.status ?? null,
+        connection_status: pl?.connection_status ?? null,
+        likelihood_score: pl?.likelihood_score ?? null,
+        next_action: pl?.next_action ?? null,
+      });
     }
     addLog(`Loaded ${firmMap.size} existing investors from DB`);
 
@@ -204,49 +228,64 @@ export async function runSheetsScanner(opts?: {
 
       if (existing) {
         // ── Update existing investor ──
-        const updates: Record<string, unknown> = {};
+        const orgUpdates: Record<string, unknown> = {};
+        const pipelineUpdates: Record<string, unknown> = {};
 
-        // Only update fields that are empty in DB but have data in sheet
-        if (!existing.pipeline_status && pipelineStatus) updates.pipeline_status = pipelineStatus;
-        if (!existing.connection_status && connectionStatus) updates.connection_status = connectionStatus;
-        if (!existing.likelihood_score && validScore) updates.likelihood_score = validScore;
-        if (!existing.next_action && si.update) updates.next_action = si.update;
-
-        // Always update description if sheet has richer data
+        // Description goes to core.organizations
         if (description && (!existing.description || description.length > (existing.description || "").length)) {
-          updates.description = description;
+          orgUpdates.description = description;
         }
 
-        // If sheet has explicit pipeline_status and DB differs, prefer sheet
-        if (pipelineStatus && existing.pipeline_status !== pipelineStatus) {
-          updates.pipeline_status = pipelineStatus;
-        }
+        // Pipeline fields go to crm.pipeline
+        if (pipelineStatus && existing.pipeline_status !== pipelineStatus) pipelineUpdates.status = pipelineStatus;
+        if (!existing.connection_status && connectionStatus) pipelineUpdates.connection_status = connectionStatus;
+        if (!existing.likelihood_score && validScore) pipelineUpdates.likelihood_score = validScore;
+        if (!existing.next_action && si.update) pipelineUpdates.next_action = si.update;
 
-        if (Object.keys(updates).length > 0) {
-          await sb.from("organizations").update(updates).eq("id", existing.id);
+        const changed = Object.keys(orgUpdates).length + Object.keys(pipelineUpdates).length;
+        if (changed > 0) {
+          if (Object.keys(orgUpdates).length > 0) {
+            await sb.schema('core').from("organizations").update(orgUpdates).eq("id", existing.id);
+          }
+          if (Object.keys(pipelineUpdates).length > 0) {
+            await sb.schema('crm').from("pipeline").upsert({
+              org_id: existing.id,
+              pipeline_type: "investor",
+              ...pipelineUpdates,
+            }, { onConflict: "org_id,pipeline_type" });
+          }
           recordsUpdated++;
-          addLog(`Updated: ${si.firm} (${Object.keys(updates).join(", ")})`);
+          addLog(`Updated: ${si.firm} (${[...Object.keys(orgUpdates), ...Object.keys(pipelineUpdates)].join(", ")})`);
         } else {
           recordsSkipped++;
           addLog(`Skipped (no changes): ${si.firm}`);
         }
       } else {
         // ── Create new investor ──
-        const { error } = await sb.from("organizations").insert({
+        const { data: newOrg, error } = await sb.schema('core').from("organizations").insert({
           name: si.firm,
-          org_category: "Investment Firm",
-          org_type: ["Investor"],
           description,
-          connection_status: connectionStatus,
-          pipeline_status: pipelineStatus,
-          likelihood_score: validScore,
-          next_action: si.update || null,
           source: "google-sheets",
-        });
+        }).select("id").single();
 
-        if (error) {
-          addLog(`Error creating ${si.firm}: ${error.message}`);
+        if (error || !newOrg) {
+          addLog(`Error creating ${si.firm}: ${error?.message ?? "no data"}`);
         } else {
+          // Insert org type
+          await sb.schema('core').from("org_types").insert({
+            org_id: newOrg.id,
+            type: "investor",
+            status: "active",
+          });
+          // Insert pipeline entry
+          await sb.schema('crm').from("pipeline").insert({
+            org_id: newOrg.id,
+            pipeline_type: "investor",
+            status: pipelineStatus,
+            connection_status: connectionStatus,
+            likelihood_score: validScore,
+            next_action: si.update || null,
+          });
           recordsCreated++;
           addLog(`Created: ${si.firm}`);
         }
@@ -254,11 +293,13 @@ export async function runSheetsScanner(opts?: {
     }
 
     // ── Log activity ──
-    await sb.from("activity_log").insert({
-      agent_name: "sheets-scanner",
-      action_type: "sheets_synced",
-      summary: `Synced ${totalRows} rows from Google Sheets: ${recordsCreated} created, ${recordsUpdated} updated, ${recordsSkipped} unchanged`,
-      raw_data: {
+    await sb.schema('brain').from("activity").insert({
+      entity_type: "system",
+      entity_id: null,
+      action: "sheets_synced",
+      actor: "sheets-scanner",
+      metadata: {
+        summary: `Synced ${totalRows} rows from Google Sheets: ${recordsCreated} created, ${recordsUpdated} updated, ${recordsSkipped} unchanged`,
         spreadsheet_id: spreadsheetId,
         sheet_name: sheetName,
         total_rows: totalRows,
@@ -270,12 +311,14 @@ export async function runSheetsScanner(opts?: {
 
     // ── Complete run ──
     if (runId) {
-      await sb.from("agent_runs").update({
+      await sb.schema('brain').from("agent_runs").update({
         status: "completed",
         completed_at: new Date().toISOString(),
-        records_processed: totalRows,
-        records_updated: recordsCreated + recordsUpdated,
-        summary: `Synced ${totalRows} investors: ${recordsCreated} new, ${recordsUpdated} updated`,
+        output: {
+          records_processed: totalRows,
+          records_updated: recordsCreated + recordsUpdated,
+          summary: `Synced ${totalRows} investors: ${recordsCreated} new, ${recordsUpdated} updated`,
+        },
       }).eq("id", runId);
     }
 

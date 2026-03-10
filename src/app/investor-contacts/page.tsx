@@ -35,35 +35,56 @@ export default function InvestorContactsPage() {
   const fetchContacts = useCallback(async () => {
     setLoading(true);
 
-    // Get contacts that are linked to investor-type organizations
-    const { data: orgContacts, error } = await supabase
-      .from("organization_contacts")
-      .select(`
-        role,
-        contact:contacts!inner(id, name, email, phone, title, organization, updated_at),
-        organization:organizations!inner(id, name, org_type)
-      `)
-      .contains("organizations.org_type", ["Investor"]);
+    // 1. Get investor org IDs
+    const { data: typeRows } = await supabase
+      .schema('core').from("org_types").select("org_id").eq("type", "Investor");
+    const investorIds = (typeRows || []).map((r) => r.org_id);
+    if (investorIds.length === 0) { setContacts([]); setLoading(false); return; }
 
-    if (error) {
-      console.error("Error fetching investor contacts:", error);
-      setLoading(false);
-      return;
-    }
+    // 2. Get relationships for those orgs + org names + contacts in parallel
+    const [relResult, orgResult] = await Promise.all([
+      supabase.schema('core').from("relationships")
+        .select("contact_id, org_id, relationship_type")
+        .in("org_id", investorIds),
+      supabase.schema('core').from("organizations")
+        .select("id, name").in("id", investorIds),
+    ]);
 
-    // Flatten the joined data
-    const flattened: InvestorContact[] = (orgContacts || []).map((oc: any) => ({
-      id: oc.contact?.id,
-      name: oc.contact?.name || "",
-      email: oc.contact?.email,
-      phone: oc.contact?.phone,
-      title: oc.contact?.title,
-      organization: oc.contact?.organization,
-      org_id: oc.organization?.id,
-      org_name: oc.organization?.name,
-      role: oc.role,
-      updated_at: oc.contact?.updated_at,
-    }));
+    // Build org name map
+    const orgNameMap = new Map<string, string>();
+    for (const o of orgResult.data || []) orgNameMap.set(o.id, o.name);
+
+    // 3. Load contacts for these relationships
+    const contactIds = [...new Set((relResult.data || []).map((r) => r.contact_id))];
+    if (contactIds.length === 0) { setContacts([]); setLoading(false); return; }
+
+    const { data: contactData } = await supabase
+      .schema('core').from("contacts")
+      .select("id, first_name, last_name, email, phone, role, updated_at")
+      .in("id", contactIds);
+
+    const contactMap = new Map<string, any>();
+    for (const c of contactData || []) contactMap.set(c.id, c);
+
+    // 4. Flatten
+    const contactName = (c: any) => [c.first_name, c.last_name].filter(Boolean).join(" ") || "(unnamed)";
+
+    const flattened: InvestorContact[] = (relResult.data || []).map((rel: any) => {
+      const c = contactMap.get(rel.contact_id);
+      if (!c) return null;
+      return {
+        id: c.id,
+        name: contactName(c),
+        email: c.email,
+        phone: c.phone,
+        title: c.role,
+        organization: null,
+        org_id: rel.org_id,
+        org_name: orgNameMap.get(rel.org_id) || "—",
+        role: rel.relationship_type,
+        updated_at: c.updated_at,
+      };
+    }).filter(Boolean) as InvestorContact[];
 
     // Deduplicate by contact id (a contact may be linked to multiple investor orgs)
     const seen = new Set<string>();

@@ -224,59 +224,89 @@ Example 3 — Newsletter (skip):
 // ─── Entity Resolver ────────────────────────────────────────────────────────
 
 class EntityResolver {
-  private emailToContacts: Map<string, { id: string; name: string; organization?: string }> = new Map();
-  private contactToOrganizations: Map<string, { id: string; name: string; org_type: string[] | null }[]> = new Map();
-  private domainToOrganizations: Map<string, { id: string; name: string; org_type: string[] | null }> = new Map();
+  private emailToContacts: Map<string, { id: string; name: string }> = new Map();
+  private contactToOrganizations: Map<string, { id: string; name: string; org_types: string[] }[]> = new Map();
+  private domainToOrganizations: Map<string, { id: string; name: string; org_types: string[] }> = new Map();
 
   constructor(private sb: SupabaseClient) {}
 
   async load(): Promise<void> {
-    // 1. Load contacts
-    const { data: contacts } = await this.sb.from("contacts").select("id, name, email, organization");
-    for (const c of contacts || []) {
-      if (c.email) {
-        this.emailToContacts.set(c.email.toLowerCase().trim(), {
-          id: c.id, name: c.name, organization: c.organization,
-        });
-      }
+    // Bulk pre-load using separate queries per schema (no cross-schema embeds)
+    const [
+      { data: contacts },
+      { data: rels },
+      { data: organizations },
+    ] = await Promise.all([
+      // 1. Load contacts from core schema
+      this.sb.schema('core').from("contacts").select("id, first_name, last_name, email"),
+      // 2. Load relationships (replaces organization_contacts) from core schema
+      this.sb.schema('core').from("relationships").select("contact_id, org_id"),
+      // 3. Load organizations from core schema
+      this.sb.schema('core').from("organizations").select("id, name, website").not("website", "is", null),
+    ]);
+
+    // Also load org_types in bulk
+    const orgIds = [...new Set([
+      ...(rels ?? []).map(r => r.org_id),
+      ...(organizations ?? []).map(o => o.id),
+    ])];
+    const { data: orgTypes } = orgIds.length > 0
+      ? await this.sb.schema('core').from("org_types").select("org_id, type").in("org_id", orgIds)
+      : { data: [] };
+
+    // Build org_types lookup
+    const orgTypeMap = new Map<string, string[]>();
+    for (const t of (orgTypes ?? [])) {
+      const existing = orgTypeMap.get(t.org_id) ?? [];
+      existing.push(t.type);
+      orgTypeMap.set(t.org_id, existing);
     }
 
-    // 2. Load contact_emails junction
-    const { data: contactEmails } = await this.sb.from("contact_emails").select("contact_id, email");
-    for (const ce of contactEmails || []) {
-      const emailLower = ce.email.toLowerCase().trim();
-      if (!this.emailToContacts.has(emailLower)) {
-        const contactMatch = (contacts || []).find((c: { id: string }) => c.id === ce.contact_id);
-        if (contactMatch) {
-          this.emailToContacts.set(emailLower, {
-            id: contactMatch.id, name: contactMatch.name, organization: contactMatch.organization,
-          });
+    // Build org name lookup
+    const orgNameMap = new Map<string, string>();
+    for (const org of (organizations ?? [])) {
+      orgNameMap.set(org.id, org.name);
+    }
+    // Also add orgs from relationships that might not have websites
+    if (rels?.length) {
+      const relOrgIds = [...new Set(rels.map(r => r.org_id))];
+      const missingIds = relOrgIds.filter(id => !orgNameMap.has(id));
+      if (missingIds.length > 0) {
+        const { data: missingOrgs } = await this.sb.schema('core').from("organizations")
+          .select("id, name").in("id", missingIds);
+        for (const org of (missingOrgs ?? [])) {
+          orgNameMap.set(org.id, org.name);
         }
       }
     }
 
-    // 3. Load organization_contacts junction (replaces investor_contacts + soccer_org_contacts)
-    const { data: orgContacts } = await this.sb
-      .from("organization_contacts")
-      .select("contact_id, organization_id, organizations(id, name, org_type)");
-    for (const oc of orgContacts || []) {
-      const org = oc.organizations as unknown as { id: string; name: string; org_type: string[] | null } | null;
-      if (org) {
-        const list = this.contactToOrganizations.get(oc.contact_id) || [];
-        list.push({ id: org.id, name: org.name, org_type: org.org_type });
-        this.contactToOrganizations.set(oc.contact_id, list);
+    // 1. Populate email -> contact map
+    for (const c of contacts || []) {
+      if (c.email) {
+        const name = [c.first_name, c.last_name].filter(Boolean).join(' ') || 'Unknown';
+        this.emailToContacts.set(c.email.toLowerCase().trim(), {
+          id: c.id, name,
+        });
       }
     }
 
-    // 4. Domain -> organization mapping (replaces separate investor + soccer_org domain maps)
-    const { data: organizations } = await this.sb
-      .from("organizations")
-      .select("id, name, website, org_type")
-      .not("website", "is", null);
+    // 2. Populate contact -> organizations map from relationships
+    for (const r of rels || []) {
+      const orgName = orgNameMap.get(r.org_id);
+      if (orgName) {
+        const list = this.contactToOrganizations.get(r.contact_id) || [];
+        list.push({ id: r.org_id, name: orgName, org_types: orgTypeMap.get(r.org_id) ?? [] });
+        this.contactToOrganizations.set(r.contact_id, list);
+      }
+    }
+
+    // 3. Domain -> organization mapping (anchored domain match)
     for (const org of organizations || []) {
       const domain = this.extractDomain(org.website);
       if (domain) {
-        this.domainToOrganizations.set(domain, { id: org.id, name: org.name, org_type: org.org_type });
+        this.domainToOrganizations.set(domain, {
+          id: org.id, name: org.name, org_types: orgTypeMap.get(org.id) ?? [],
+        });
       }
     }
   }
@@ -369,25 +399,39 @@ class EntityResolver {
 // ─── Org Context Loader ──────────────────────────────────────────────────────
 
 async function loadOrgContext(sb: SupabaseClient): Promise<string> {
-  const { data: orgs } = await sb
-    .from("organizations")
-    .select("id, name, org_type, lifecycle_status, partner_status, pipeline_status")
-    .order("name");
+  const [orgResult, typesResult, pipelineResult] = await Promise.all([
+    sb.schema('core').from("organizations").select("id, name").order("name"),
+    sb.schema('core').from("org_types").select("org_id, type"),
+    sb.schema('crm').from("pipeline").select("org_id, status, lifecycle_status"),
+  ]);
 
+  const orgs = orgResult.data;
   if (!orgs || orgs.length === 0) return "";
+
+  // Build lookup maps
+  const orgTypeMap = new Map<string, string[]>();
+  for (const t of typesResult.data ?? []) {
+    const arr = orgTypeMap.get(t.org_id) ?? [];
+    arr.push(t.type);
+    orgTypeMap.set(t.org_id, arr);
+  }
+  const pipelineMap = new Map<string, string>();
+  for (const p of pipelineResult.data ?? []) {
+    pipelineMap.set(p.org_id, p.status || p.lifecycle_status || "");
+  }
 
   const investors: string[] = [];
   const partners: string[] = [];
   const communities: string[] = [];
 
   for (const org of orgs) {
-    const types = (org.org_type as string[]) || [];
-    const status = org.pipeline_status || org.partner_status || org.lifecycle_status || "";
+    const types = orgTypeMap.get(org.id) ?? [];
+    const status = pipelineMap.get(org.id) ?? "";
     const label = status ? `${org.name} (${status}) [id:${org.id}]` : `${org.name} [id:${org.id}]`;
 
-    if (types.includes("Investor")) investors.push(label);
-    if (types.includes("Partner")) partners.push(label);
-    if (types.includes("Customer") || types.length === 0) communities.push(label);
+    if (types.includes("investor")) investors.push(label);
+    if (types.includes("partner")) partners.push(label);
+    if (types.includes("customer") || types.length === 0) communities.push(label);
   }
 
   let ctx = "KNOWN ORGANIZATIONS IN OUR CRM (use these IDs when you find a name match):\n\n";
@@ -572,9 +616,10 @@ export async function runGmailScanner(
 
   try {
     // ── Start agent run ──
-    const { data: runData } = await sb.from("agent_runs").insert({
+    const { data: runData } = await sb.schema('brain').from("agent_runs").insert({
       agent_name: "gmail-scanner",
       status: "running",
+      started_at: new Date().toISOString(),
     }).select("id").single();
     runId = runData?.id || null;
     addLog(`Started run ${runId}`);
@@ -691,9 +736,9 @@ export async function runGmailScanner(
 
       // ── Deduplication check ──
       const { data: dupeCheck } = await sb
-        .from("correspondence")
+        .schema('brain').from("correspondence")
         .select("id")
-        .eq("gmail_message_id", msgId)
+        .contains("metadata", { gmail_message_id: msgId })
         .limit(1);
       if (dupeCheck && dupeCheck.length > 0) {
         skippedDupes++;
@@ -810,7 +855,7 @@ export async function runGmailScanner(
       if (allMatches.length === 0 && !userEmails.has(fromEmail)) {
         // Check if contact already exists by email
         const { data: existingByEmail } = await sb
-          .from("contacts")
+          .schema('core').from("contacts")
           .select("id")
           .eq("email", fromEmail)
           .limit(1);
@@ -819,36 +864,23 @@ export async function runGmailScanner(
 
         if (existingByEmail && existingByEmail.length > 0) {
           existingContactId = existingByEmail[0].id;
-        } else {
-          // Also check contact_emails junction
-          const { data: existingByJunction } = await sb
-            .from("contact_emails")
-            .select("contact_id")
-            .eq("email", fromEmail)
-            .limit(1);
-
-          if (existingByJunction && existingByJunction.length > 0) {
-            existingContactId = existingByJunction[0].contact_id;
-          }
         }
 
         if (!existingContactId) {
           // Create new contact
           const senderDisplayName = fromName || fromEmail.split("@")[0];
-          const { data: newContact } = await sb.from("contacts").insert({
-            name: senderDisplayName,
+          const nameParts = senderDisplayName.split(' ');
+          const firstName = nameParts[0];
+          const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : null;
+          const { data: newContact } = await sb.schema('core').from("contacts").insert({
+            first_name: firstName,
+            last_name: lastName,
             email: fromEmail,
-            primary_category: "uncategorized",
             source: "gmail-scanner",
           }).select("id").single();
 
           if (newContact) {
             existingContactId = newContact.id;
-            // Also create contact_emails junction entry
-            await sb.from("contact_emails").insert({
-              contact_id: newContact.id,
-              email: fromEmail,
-            });
             contactsCreated++;
             addLog(`  Auto-created contact: ${senderDisplayName} <${fromEmail}>`);
           }
@@ -874,10 +906,10 @@ export async function runGmailScanner(
       let threadContext = "";
       if (details.thread_id) {
         const { data: existingThreadTasks } = await sb
-          .from("tasks")
+          .schema('brain').from("tasks")
           .select("id, title, status, priority, created_at, entity_type, entity_id")
           .eq("gmail_thread_id", details.thread_id)
-          .in("status", ["todo", "in_progress"])
+          .in("status", ["todo", "in_progress", "open"])
           .order("created_at", { ascending: false })
           .limit(3);
 
@@ -890,7 +922,7 @@ export async function runGmailScanner(
             // Recent open task exists — skip creating new task, but still log activity
             threadSkipped++;
             addLog(`  Thread skip (task): "${newestTask.title.slice(0, 50)}" already open (${Math.round(taskAgeMs / 3600000)}h ago)`);
-            await sb.from("tasks").update({ updated_at: new Date().toISOString() }).eq("id", newestTask.id);
+            await sb.schema('brain').from("tasks").update({ updated_at: new Date().toISOString() }).eq("id", newestTask.id);
 
             // Use the existing task's entity info for activity logging
             /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -901,36 +933,39 @@ export async function runGmailScanner(
 
             // Still create an activity_log entry so the dashboard surfaces this conversation
             const skipDirection = determineDirection(fromEmail, userEmails);
-            await sb.from("activity_log").insert({
-              agent_name: "gmail-scanner",
-              action_type: "email_scanned",
+            await sb.schema('brain').from("activity").insert({
               entity_type: skipEntityType,
               entity_id: skipEntityId,
-              summary: `${details.subject.slice(0, 120)} (thread update)`,
-              raw_data: {
+              action: "email_scanned",
+              actor: "gmail-scanner",
+              metadata: {
+                summary: `${details.subject.slice(0, 120)} (thread update)`,
                 subject: details.subject,
                 from: details.from,
                 direction: skipDirection,
                 tags: [],
                 thread_skip: true,
+                source_id: `gmail_${msgId}`,
               },
-              source_id: `gmail_${msgId}`,
             });
 
             // Still create correspondence entry so it's tracked
             if (skipEntityId) {
-              await sb.from("correspondence").insert({
+              await sb.schema('brain').from("correspondence").insert({
                 entity_type: skipEntityType,
                 entity_id: skipEntityId,
+                channel: "gmail",
                 direction: skipDirection,
                 subject: details.subject,
-                snippet: details.body?.slice(0, 200) || null,
-                sender_email: fromEmail,
-                sender_name: fromName,
-                recipient_email: toEmails[0] || null,
-                source: "gmail",
-                gmail_message_id: msgId,
-                source_message_id: msgId,
+                body: details.body?.slice(0, 200) || null,
+                from_address: fromEmail,
+                to_address: toEmails[0] || null,
+                sent_at: null,
+                metadata: {
+                  sender_name: fromName,
+                  gmail_message_id: msgId,
+                  source_message_id: msgId,
+                },
               });
             }
 
@@ -1014,8 +1049,8 @@ export async function runGmailScanner(
             if (senderDomain && !FREE_EMAIL_DOMAINS.has(senderDomain)) {
               // Check if an org with this domain already exists
               const { data: existingOrg } = await sb
-                .from("organizations")
-                .select("id, name, org_type")
+                .schema('core').from("organizations")
+                .select("id, name")
                 .or(`website.ilike.%${senderDomain}%,website.ilike.%${senderDomain.replace(/\.\w+$/, "")}%`)
                 .limit(1);
 
@@ -1032,16 +1067,27 @@ export async function runGmailScanner(
                   ? result.primary_entity_name || domainName
                   : domainName;
 
-                const { data: newOrg } = await sb.from("organizations").insert({
+                const { data: newOrg } = await sb.schema('core').from("organizations").insert({
                   name: orgName,
-                  org_type: [matchedCategory.org_type_match],
                   website: senderDomain,
-                  lifecycle_status: "prospect",
                   source: "gmail-scanner",
                 }).select("id").single();
 
                 if (newOrg) {
                   orgId = newOrg.id;
+                  // Insert org type separately
+                  await sb.schema('core').from("org_types").insert({
+                    org_id: newOrg.id,
+                    type: matchedCategory.org_type_match,
+                    status: "active",
+                  });
+                  // Seed pipeline entry
+                  await sb.schema('crm').from("pipeline").insert({
+                    org_id: newOrg.id,
+                    pipeline_type: matchedCategory.org_type_match,
+                    lifecycle_status: "prospect",
+                    status: "new",
+                  });
                   addLog(`  Auto-created org: "${orgName}" [${matchedCategory.org_type_match}] from domain ${senderDomain}`);
                 }
               }
@@ -1055,16 +1101,17 @@ export async function runGmailScanner(
                 if (senderContact) {
                   // Check if link already exists
                   const { data: existingLink } = await sb
-                    .from("organization_contacts")
+                    .schema('core').from("relationships")
                     .select("id")
                     .eq("contact_id", senderContact.entity_id)
-                    .eq("organization_id", orgId)
+                    .eq("org_id", orgId)
                     .limit(1);
 
                   if (!existingLink || existingLink.length === 0) {
-                    await sb.from("organization_contacts").insert({
+                    await sb.schema('core').from("relationships").insert({
                       contact_id: senderContact.entity_id,
-                      organization_id: orgId,
+                      org_id: orgId,
+                      relationship_type: "member",
                     });
                     addLog(`  Linked contact ${senderContact.entity_name} → org ${orgId}`);
                   }
@@ -1116,19 +1163,21 @@ export async function runGmailScanner(
 
       // ── Log correspondence ──
       if (entityId) {
-        await sb.from("correspondence").insert({
+        await sb.schema('brain').from("correspondence").insert({
           entity_type: entityType,
           entity_id: entityId,
+          channel: "gmail",
           direction,
           subject: details.subject,
-          snippet: details.body.slice(0, 200) || null,
-          sender_email: fromEmail,
-          sender_name: fromName,
-          recipient_email: toEmails[0] || null,
-          email_date: emailDate,
-          source: "gmail",
-          gmail_message_id: msgId,
-          source_message_id: msgId,
+          body: details.body.slice(0, 200) || null,
+          from_address: fromEmail,
+          to_address: toEmails[0] || null,
+          sent_at: emailDate,
+          metadata: {
+            sender_name: fromName,
+            gmail_message_id: msgId,
+            source_message_id: msgId,
+          },
         });
       }
 
@@ -1151,27 +1200,27 @@ export async function runGmailScanner(
         taskPayload.thread_id = details.thread_id || null;
         taskPayload.source_message_id = msgId;
 
-        await sb.from("tasks").insert(taskPayload);
+        await sb.schema('brain').from("tasks").insert(taskPayload);
         tasksCreated++;
         addLog(`  Task created [${action.priority}]: ${action.title.slice(0, 80)}`);
       }
 
       // ── Log activity ──
-      await sb.from("activity_log").insert({
-        agent_name: "gmail-scanner",
-        action_type: "email_scanned",
+      await sb.schema('brain').from("activity").insert({
         entity_type: entityType,
         entity_id: entityId,
-        summary: result.summary,
-        raw_data: {
+        action: "email_scanned",
+        actor: "gmail-scanner",
+        metadata: {
+          summary: result.summary,
           subject: details.subject,
           from: details.from,
           direction,
           tags: result.tags,
           sentiment: result.sentiment,
           action_count: result.action_items.length,
+          source_id: `gmail_${msgId}`,
         },
-        source_id: `gmail_${msgId}`,
       });
 
       recordsUpdated++;
@@ -1193,11 +1242,10 @@ export async function runGmailScanner(
 
     // ── Complete run ──
     if (runId) {
-      await sb.from("agent_runs").update({
+      await sb.schema('brain').from("agent_runs").update({
         status: "completed",
         completed_at: new Date().toISOString(),
-        records_processed: recordsProcessed,
-        records_updated: recordsUpdated,
+        output: { records_processed: recordsProcessed, records_updated: recordsUpdated },
       }).eq("id", runId);
     }
 
@@ -1224,10 +1272,10 @@ export async function runGmailScanner(
     // Mark run as failed
     if (runId) {
       try {
-        await sb.from("agent_runs").update({
+        await sb.schema('brain').from("agent_runs").update({
           status: "failed",
           completed_at: new Date().toISOString(),
-          error_message: errMsg,
+          error: errMsg,
         }).eq("id", runId);
       } catch { /* ignore cleanup error */ }
     }

@@ -251,14 +251,14 @@ Respond with ONLY a JSON object:
           const mentionedEntities = parsed.mentioned_entities || [];
           if (mentionedEntities.length > 0) {
             const { data: orgs } = await sb
-              .from("organizations")
+              .schema('core').from("organizations")
               .select("id, name")
               .order("name");
 
             const { data: contacts } = await sb
-              .from("contacts")
-              .select("id, name")
-              .order("name");
+              .schema('core').from("contacts")
+              .select("id, first_name, last_name")
+              .order("first_name");
 
             for (const mentioned of mentionedEntities) {
               const nameLower = (mentioned as string).toLowerCase();
@@ -273,10 +273,11 @@ Respond with ONLY a JSON object:
               }
 
               // Check contacts
-              const contactMatch = (contacts || []).find((c) =>
-                c.name.toLowerCase().includes(nameLower) ||
-                nameLower.includes(c.name.toLowerCase())
-              );
+              const contactMatch = (contacts || []).find((c) => {
+                const fullName = [c.first_name, c.last_name].filter(Boolean).join(" ");
+                return fullName && (fullName.toLowerCase().includes(nameLower) ||
+                  nameLower.includes(fullName.toLowerCase()));
+              });
               if (contactMatch && !entityIds.includes(contactMatch.id)) {
                 entityIds.push(contactMatch.id);
               }
@@ -317,11 +318,13 @@ Respond with ONLY a JSON object:
         .eq("id", kbId);
 
       // ── 7. Log activity ──
-      await sb.from("activity_log").insert({
-        agent_name: "brain-ingest",
-        action_type: "knowledge_ingested",
-        summary: `Knowledge ingested: "${title}" (${sourceType}, ${fileType || "text"}, ${Math.round((contentText?.length || 0) / 4)} tokens)`,
-        raw_data: {
+      await sb.schema('brain').from("activity").insert({
+        entity_type: "system",
+        entity_id: null,
+        action: "knowledge_ingested",
+        actor: "brain-ingest",
+        metadata: {
+          summary: `Knowledge ingested: "${title}" (${sourceType}, ${fileType || "text"}, ${Math.round((contentText?.length || 0) / 4)} tokens)`,
           knowledge_base_id: kbId,
           source_type: sourceType,
           file_type: fileType,

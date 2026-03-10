@@ -52,36 +52,38 @@ export default function FundraisingActivityPage() {
   const loadData = useCallback(async () => {
     setLoading(true);
 
-    // 1. Get all investor org IDs
-    const { data: orgs } = await supabase
-      .from("organizations")
-      .select("id, name")
-      .contains("org_type", ["Investor"])
-      .order("name");
-
-    if (!orgs || orgs.length === 0) {
+    // 1. Get all investor org IDs from core.org_types
+    const { data: typeRows } = await supabase
+      .schema('core').from("org_types").select("org_id").eq("type", "Investor");
+    const investorIds = (typeRows || []).map((r) => r.org_id);
+    if (investorIds.length === 0) {
       setInvestorOrgs([]);
       setItems([]);
       setLoading(false);
       return;
     }
 
+    // Load org names from core.organizations
+    const { data: orgData } = await supabase
+      .schema('core').from("organizations").select("id, name").in("id", investorIds).order("name");
+
+    const orgs = orgData || [];
     setInvestorOrgs(orgs);
     const orgIds = orgs.map((o) => o.id);
     const orgMap = new Map(orgs.map((o) => [o.id, o.name]));
 
-    // 2. Fetch correspondence for these orgs
+    // 2. Fetch correspondence for these orgs (brain schema)
     const { data: corr } = await supabase
-      .from("correspondence")
+      .schema('brain').from("correspondence")
       .select("id, direction, subject, snippet, sender_email, sender_name, recipient_email, email_date, source, entity_id")
       .eq("entity_type", "organizations")
       .in("entity_id", orgIds)
       .order("email_date", { ascending: false })
       .limit(300);
 
-    // 3. Fetch tasks for these orgs
+    // 3. Fetch tasks for these orgs (brain schema)
     const { data: tasks } = await supabase
-      .from("tasks")
+      .schema('brain').from("tasks")
       .select("id, title, summary, description, priority, status, created_at, entity_id")
       .eq("entity_type", "organizations")
       .in("entity_id", orgIds)

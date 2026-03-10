@@ -10,12 +10,12 @@ interface CorrespondenceItem {
   id: string;
   direction: string | null;
   subject: string | null;
-  snippet: string | null;
-  sender_email: string | null;
-  sender_name: string | null;
-  recipient_email: string | null;
-  email_date: string | null;
-  source: string | null;
+  body: string | null;
+  from_address: string | null;
+  to_address: string | null;
+  sent_at: string | null;
+  channel: string | null;
+  metadata: Record<string, unknown> | null;
 }
 
 export function CorrespondenceSection({
@@ -31,11 +31,11 @@ export function CorrespondenceSection({
   useEffect(() => {
     async function load() {
       const { data } = await supabase
-        .from("correspondence")
-        .select("id, direction, subject, snippet, sender_email, sender_name, recipient_email, email_date, source")
+        .schema('brain').from("correspondence")
+        .select("id, direction, subject, body, from_address, to_address, sent_at, channel, metadata")
         .eq("entity_type", entityType)
         .eq("entity_id", entityId)
-        .order("email_date", { ascending: false })
+        .order("sent_at", { ascending: false })
         .limit(50);
       if (data) setItems(data);
       setLoading(false);
@@ -63,7 +63,7 @@ export function CorrespondenceSection({
             {items.map((item) => (
               <div key={item.id} className="border rounded-lg px-3 py-2.5">
                 <div className="flex items-center gap-2 mb-1">
-                  {item.source === "slack" ? (
+                  {item.channel === "slack" ? (
                     <MessageSquare className="h-3.5 w-3.5 text-indigo-500 shrink-0" />
                   ) : item.direction === "outbound" ? (
                     <ArrowUpRight className="h-3.5 w-3.5 text-blue-500 shrink-0" />
@@ -74,18 +74,18 @@ export function CorrespondenceSection({
                     {item.subject || "(no subject)"}
                   </span>
                   <span className="text-xs text-gray-400 shrink-0">
-                    {timeAgo(item.email_date)}
+                    {timeAgo(item.sent_at)}
                   </span>
                 </div>
-                {item.snippet && (
+                {item.body && (
                   <p className="text-xs text-gray-500 line-clamp-2 ml-5.5 pl-0.5">
-                    {item.snippet}
+                    {item.body}
                   </p>
                 )}
                 <div className="text-[11px] text-gray-400 mt-1 ml-5.5 pl-0.5">
                   {item.direction === "outbound"
-                    ? `To: ${item.recipient_email || "—"}`
-                    : `From: ${item.sender_name || item.sender_email || "—"}`}
+                    ? `To: ${item.to_address || "—"}`
+                    : `From: ${(item.metadata?.sender_name as string) || item.from_address || "—"}`}
                 </div>
               </div>
             ))}

@@ -49,9 +49,8 @@ interface GopherRun {
   status: string;
   started_at: string;
   completed_at: string | null;
-  records_processed: number | null;
-  records_updated: number | null;
-  error_message: string | null;
+  output: Record<string, unknown> | null;
+  error: string | null;
 }
 
 /* ── Constants ── */
@@ -97,8 +96,8 @@ export default function GopherDetail() {
 
   const loadRuns = useCallback(async (slug: string) => {
     const { data } = await supabase
-      .from("agent_runs")
-      .select("id, agent_name, status, started_at, completed_at, records_processed, records_updated, error_message")
+      .schema('brain').from("agent_runs")
+      .select("id, agent_name, status, started_at, completed_at, output, error")
       .eq("agent_name", slug)
       .order("started_at", { ascending: false })
       .limit(10);
@@ -473,9 +472,9 @@ export default function GopherDetail() {
                           </td>
                           <td className="px-3 py-2 text-gray-500">{timeAgo(run.started_at)}</td>
                           <td className="px-3 py-2 text-gray-500">{duration}</td>
-                          <td className="px-3 py-2">{run.records_processed ?? "—"}</td>
-                          <td className="px-3 py-2">{run.records_updated ?? "—"}</td>
-                          <td className="px-3 py-2 text-red-500 text-xs truncate max-w-[200px]">{run.error_message || "—"}</td>
+                          <td className="px-3 py-2">{run.output && (run.output as Record<string, unknown>).records_processed != null ? String((run.output as Record<string, unknown>).records_processed) : "—"}</td>
+                          <td className="px-3 py-2">{run.output && (run.output as Record<string, unknown>).records_updated != null ? String((run.output as Record<string, unknown>).records_updated) : "—"}</td>
+                          <td className="px-3 py-2 text-red-500 text-xs truncate max-w-[200px]">{run.error || "—"}</td>
                         </tr>
                       );
                     })}

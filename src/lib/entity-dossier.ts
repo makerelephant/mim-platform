@@ -29,26 +29,23 @@ interface OpenTask {
 
 interface OrgDetails {
   name: string;
-  org_type: string[] | null;
-  pipeline_status: string | null;
+  org_types: { type: string; status: string }[];
+  pipeline: { status: string | null; pipeline_type: string; connection_status: string | null; lifecycle_status: string | null }[];
   partner_status: string | null;
-  lifecycle_status: string | null;
   notes: string | null;
-  connection_status: string | null;
 }
 
 interface ContactDetails {
-  name: string;
-  title: string | null;
-  organization: string | null;
+  first_name: string | null;
+  last_name: string | null;
+  role: string | null;
   email: string | null;
-  primary_category: string | null;
 }
 
 interface ContactRole {
-  role: string | null;
+  relationship_type: string | null;
   org_name: string | null;
-  org_type: string[] | null;
+  org_types: string[];
 }
 
 interface KnowledgeItem {
@@ -112,9 +109,13 @@ export async function buildEntityDossier(
 ): Promise<EntityDossier | null> {
   if (!entityId) return null;
 
-  // Run all queries in parallel (7 queries)
+  // Run all queries in parallel — new multi-schema architecture
+  // No cross-schema PostgREST embeds; all cross-schema data assembled in code
   const [
     entityResult,
+    orgTypesResult,
+    pipelineResult,
+    partnerResult,
     correspondenceResult,
     tasksResult,
     statsResult,
@@ -124,53 +125,75 @@ export async function buildEntityDossier(
   ] = await Promise.all([
     // 1. Entity details
     entityType === "organizations"
-      ? sb.from("organizations")
-          .select("name, org_type, pipeline_status, partner_status, lifecycle_status, notes, connection_status")
+      ? sb.schema('core').from("organizations")
+          .select("name, notes")
           .eq("id", entityId)
           .single()
-      : sb.from("contacts")
-          .select("name, title, organization, email, primary_category")
+      : sb.schema('core').from("contacts")
+          .select("first_name, last_name, role, email")
           .eq("id", entityId)
           .single(),
 
-    // 2. Recent correspondence (last 5)
-    sb.from("correspondence")
-      .select("direction, subject, email_date, source")
+    // 2. Org types (separate table now)
+    entityType === "organizations"
+      ? sb.schema('core').from("org_types")
+          .select("type, status")
+          .eq("org_id", entityId)
+      : Promise.resolve({ data: null }),
+
+    // 3. Pipeline data (separate schema now)
+    entityType === "organizations"
+      ? sb.schema('crm').from("pipeline")
+          .select("status, pipeline_type, connection_status, lifecycle_status")
+          .eq("org_id", entityId)
+      : Promise.resolve({ data: null }),
+
+    // 4. Partner profile (separate schema now)
+    entityType === "organizations"
+      ? sb.schema('intel').from("partner_profile")
+          .select("partner_status")
+          .eq("org_id", entityId)
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
+
+    // 5. Recent correspondence (last 5) — now in brain schema
+    sb.schema('brain').from("correspondence")
+      .select("direction, subject, sent_at, channel")
       .eq("entity_id", entityId)
-      .order("email_date", { ascending: false })
+      .order("sent_at", { ascending: false })
       .limit(5),
 
-    // 3. Open tasks for this entity
-    sb.from("tasks")
+    // 6. Open tasks for this entity — now in brain schema
+    sb.schema('brain').from("tasks")
       .select("title, priority, status, created_at")
       .eq("entity_id", entityId)
-      .in("status", ["todo", "in_progress"])
+      .in("status", ["todo", "in_progress", "open"])
       .order("created_at", { ascending: false })
       .limit(5),
 
-    // 4. Stats: total emails + last contact date
-    sb.from("correspondence")
-      .select("email_date")
+    // 7. Stats: total emails + last contact date — now in brain schema
+    sb.schema('brain').from("correspondence")
+      .select("sent_at")
       .eq("entity_id", entityId)
-      .order("email_date", { ascending: false })
+      .order("sent_at", { ascending: false })
       .limit(1),
 
-    // 5. Contact roles (if entity is a contact, get linked orgs)
+    // 8. Contact roles (if entity is a contact, get linked orgs) — separate queries
     entityType === "contacts"
-      ? sb.from("organization_contacts")
-          .select("role, organizations(name, org_type)")
+      ? sb.schema('core').from("relationships")
+          .select("relationship_type, org_id")
           .eq("contact_id", entityId)
           .limit(3)
       : Promise.resolve({ data: null }),
 
-    // 6. Entity feedback (from feedback engine)
+    // 9. Entity feedback (from feedback engine) — stays in public
     sb.from("entity_feedback")
       .select("total_tasks_created, tasks_starred, tasks_completed, tasks_ignored, usefulness_score, computed_at")
       .eq("entity_type", entityType)
       .eq("entity_id", entityId)
       .single(),
 
-    // 7. Knowledge base entries linked to this entity
+    // 10. Knowledge base entries — stays in public
     Promise.resolve(
       sb.from("knowledge_base")
         .select("title, source_type, file_type, summary, created_at")
@@ -187,40 +210,67 @@ export async function buildEntityDossier(
   let entityName = "Unknown";
 
   if (entityType === "organizations" && entityResult.data) {
-    orgDetails = entityResult.data as OrgDetails;
+    const raw = entityResult.data as { name: string; notes: string | null };
+    // Assemble org details from separate queries
+    const pipeline = (pipelineResult.data ?? []) as { status: string | null; pipeline_type: string; connection_status: string | null; lifecycle_status: string | null }[];
+    orgDetails = {
+      name: raw.name,
+      org_types: (orgTypesResult.data ?? []) as { type: string; status: string }[],
+      pipeline,
+      partner_status: (partnerResult.data as { partner_status: string | null } | null)?.partner_status ?? null,
+      notes: raw.notes,
+    };
     entityName = orgDetails.name;
   } else if (entityType === "contacts" && entityResult.data) {
     contactDetails = entityResult.data as ContactDetails;
-    entityName = contactDetails.name;
+    entityName = [contactDetails.first_name, contactDetails.last_name].filter(Boolean).join(' ') || "Unknown";
   }
 
-  // Parse contact roles
+  // Parse contact roles — need to fetch org names + types separately (no cross-schema embed)
   const contactRoles: ContactRole[] = [];
-  if (rolesResult.data) {
-    for (const row of rolesResult.data as unknown as Array<{ role: string | null; organizations: { name: string; org_type: string[] | null } | null }>) {
-      if (row.organizations) {
-        contactRoles.push({
-          role: row.role,
-          org_name: row.organizations.name,
-          org_type: row.organizations.org_type,
-        });
-      }
+  if (rolesResult.data && rolesResult.data.length > 0) {
+    const roleRows = rolesResult.data as Array<{ relationship_type: string | null; org_id: string }>;
+    const orgIds = roleRows.map(r => r.org_id);
+    const [orgsForRoles, orgTypesForRoles] = await Promise.all([
+      sb.schema('core').from('organizations').select('id, name').in('id', orgIds),
+      sb.schema('core').from('org_types').select('org_id, type').in('org_id', orgIds),
+    ]);
+    const orgMap = new Map((orgsForRoles.data ?? []).map(o => [o.id, o.name]));
+    const typeMap = new Map<string, string[]>();
+    for (const t of (orgTypesForRoles.data ?? [])) {
+      const existing = typeMap.get(t.org_id) ?? [];
+      existing.push(t.type);
+      typeMap.set(t.org_id, existing);
+    }
+    for (const row of roleRows) {
+      contactRoles.push({
+        relationship_type: row.relationship_type,
+        org_name: orgMap.get(row.org_id) ?? null,
+        org_types: typeMap.get(row.org_id) ?? [],
+      });
     }
   }
 
-  // Parse correspondence
-  const recentCorrespondence = (correspondenceResult.data || []) as CorrespondenceItem[];
+  // Parse correspondence — map new column names to interface
+  const recentCorrespondence: CorrespondenceItem[] = (correspondenceResult.data || []).map(
+    (c: { direction: string; subject: string; sent_at: string; channel: string }) => ({
+      direction: c.direction,
+      subject: c.subject,
+      email_date: c.sent_at,
+      source: c.channel,
+    })
+  );
 
   // Parse tasks
   const openTasks = (tasksResult.data || []) as OpenTask[];
 
-  // Parse stats
-  const totalEmailCount = await sb.from("correspondence")
+  // Parse stats — now using brain.correspondence
+  const totalEmailCount = await sb.schema('brain').from("correspondence")
     .select("id", { count: "exact", head: true })
     .eq("entity_id", entityId);
 
   const totalEmails = totalEmailCount.count || 0;
-  const lastContactDate = statsResult.data?.[0]?.email_date || null;
+  const lastContactDate = statsResult.data?.[0]?.sent_at || null;
   const daysSinceLastContact = lastContactDate ? daysAgo(lastContactDate) : null;
 
   // Parse feedback
@@ -284,13 +334,16 @@ function renderDossier(d: {
 
   // Entity type + key status
   if (d.orgDetails) {
-    const types = d.orgDetails.org_type?.join(", ") || "Unknown";
+    const types = d.orgDetails.org_types?.map(t => t.type).join(", ") || "Unknown";
     lines.push(`Type: Organization (${types})`);
 
     const statusParts: string[] = [];
-    if (d.orgDetails.pipeline_status) statusParts.push(`Pipeline: ${d.orgDetails.pipeline_status}`);
+    // Get pipeline status from the pipeline array
+    for (const p of d.orgDetails.pipeline) {
+      if (p.status) statusParts.push(`Pipeline(${p.pipeline_type}): ${p.status}`);
+      if (p.connection_status) statusParts.push(`Connection: ${p.connection_status}`);
+    }
     if (d.orgDetails.partner_status) statusParts.push(`Partner: ${d.orgDetails.partner_status}`);
-    if (d.orgDetails.connection_status) statusParts.push(`Connection: ${d.orgDetails.connection_status}`);
     if (d.stats.daysSinceLastContact !== null) {
       statusParts.push(`Last contact: ${d.stats.daysSinceLastContact === 0 ? "today" : `${d.stats.daysSinceLastContact} days ago`}`);
     }
@@ -302,14 +355,13 @@ function renderDossier(d: {
     }
   } else if (d.contactDetails) {
     const parts: string[] = [`Type: Contact`];
-    if (d.contactDetails.title) parts.push(`Title: ${d.contactDetails.title}`);
-    if (d.contactDetails.organization) parts.push(`Org: ${d.contactDetails.organization}`);
+    if (d.contactDetails.role) parts.push(`Role: ${d.contactDetails.role}`);
     lines.push(parts.join(" | "));
 
     if (d.contactRoles.length > 0) {
       const roleStrs = d.contactRoles.map((r) => {
-        const orgType = r.org_type?.join("/") || "";
-        return `${r.role || "member"} at ${r.org_name}${orgType ? ` (${orgType})` : ""}`;
+        const orgType = r.org_types?.join("/") || "";
+        return `${r.relationship_type || "member"} at ${r.org_name}${orgType ? ` (${orgType})` : ""}`;
       });
       lines.push(`Roles: ${roleStrs.join(", ")}`);
     }

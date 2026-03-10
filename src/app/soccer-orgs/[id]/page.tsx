@@ -19,7 +19,7 @@ import { ORG_TYPE_OPTIONS } from "@/config/organization-constants";
 interface SoccerOrg {
   id: string;
   name: string;
-  org_type: string[] | null;
+  org_type: string[];
   corporate_structure: string | null;
   address: string | null;
   website: string | null;
@@ -36,21 +36,19 @@ interface SoccerOrg {
   gross_revenue: number | null;
   total_costs: number | null;
   yearly_cost_player: number | null;
-  primary_contact: string | null;
   outreach_status: string | null;
   last_outreach_date: string | null;
   outreach_notes: string | null;
   partner_status: string | null;
   partner_since: string | null;
   notes: string | null;
-  in_bays: boolean; in_cmysl: boolean; in_cysl: boolean; in_ecnl: boolean; in_ecysa: boolean;
-  in_mysl: boolean; in_nashoba: boolean; in_necsl: boolean; in_roots: boolean; in_south_coast: boolean; in_south_shore: boolean;
+  leagues: string[];
 }
 
 interface LinkedContact {
   contact_id: string;
-  role: string | null;
-  contacts: { id: string; name: string; email: string | null; title: string | null };
+  relationship_type: string | null;
+  contacts: { id: string; first_name: string | null; last_name: string | null; email: string | null; role: string | null };
 }
 
 interface CategoryNode {
@@ -67,22 +65,22 @@ interface OrgCategoryLink {
   status: string;
 }
 
-const LEAGUE_MAP: Record<string, string> = {
-  in_bays: "BAYS", in_cmysl: "CMYSL", in_cysl: "CYSL", in_ecnl: "ECNL",
-  in_ecysa: "ECYSA", in_mysl: "MYSL", in_nashoba: "Nashoba", in_necsl: "NECSL",
-  in_roots: "Roots", in_south_coast: "South Coast", in_south_shore: "South Shore",
-};
-
 const ORG_TYPES = [...ORG_TYPE_OPTIONS];
 const STRUCTURES = ["501c3", "LLC", "Corporation", "Partnership"];
 const OUTREACH_STATUSES = ["Not Contacted", "Initial Outreach", "In Conversation", "Meeting Scheduled", "Proposal Sent", "Negotiating", "Closed"];
 const PARTNER_STATUSES = ["Prospect", "Active Partner", "Inactive", "Churned"];
 const STORE_STATUSES = ["No Store", "Setting Up", "Live", "Paused"];
 
-/*
- * Field components use UNCONTROLLED inputs (defaultValue + onChange → ref).
- * Typing updates a ref in the parent — no setState, no re-render, no DOM destruction.
- */
+const FINANCIAL_FIELDS = new Set(["players", "travel_teams", "dues_per_season", "dues_revenue", "uniform_cost", "total_revenue", "gross_revenue", "total_costs", "yearly_cost_player"]);
+const STORE_FIELDS = new Set(["store_status", "store_provider", "merch_link"]);
+const OUTREACH_KEYS = new Set(["outreach_status", "last_outreach_date", "outreach_notes"]);
+const PARTNER_KEYS = new Set(["partner_status", "partner_since"]);
+
+function contactName(c: { first_name: string | null; last_name: string | null }): string {
+  return [c.first_name, c.last_name].filter(Boolean).join(" ") || "(unnamed)";
+}
+
+/* ── Uncontrolled field components ── */
 
 function DetailField({
   label, field, type = "text", editing, org, setField,
@@ -126,7 +124,7 @@ function DetailField({
           <a href={String(val).startsWith("http") ? String(val) : `https://${val}`} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">{String(val)}</a>
         </p>
       ) : type === "number" && val != null && val !== "" ? (
-        <p className="text-sm">{field.includes("cost") || field.includes("revenue") || field.includes("dues") || field.includes("uniform") ? `$${Number(val).toLocaleString()}` : String(val)}</p>
+        <p className="text-sm">{String(field).includes("cost") || String(field).includes("revenue") || String(field).includes("dues") || String(field).includes("uniform") ? `$${Number(val).toLocaleString()}` : String(val)}</p>
       ) : (
         <p className={`text-sm ${display === "—" ? "text-gray-300" : ""}`}>{display}</p>
       )}
@@ -140,7 +138,6 @@ function DetailSelect({
   label: string; field: keyof SoccerOrg; options: string[];
   editing: boolean; org: SoccerOrg; setField: (field: keyof SoccerOrg, value: string | number | null) => void;
 }) {
-  // Handle array fields (e.g. org_type TEXT[])
   const rawVal = org[field];
   const displayVal = Array.isArray(rawVal) ? rawVal.join(", ") : (rawVal != null && rawVal !== "" ? String(rawVal) : "—");
   const defaultVal = Array.isArray(rawVal) ? (rawVal[0] ?? "") : String(rawVal ?? "");
@@ -238,14 +235,14 @@ export default function SoccerOrgDetail() {
 
   const loadLinks = useCallback(async () => {
     const { data: contacts } = await supabase
-      .from("organization_contacts")
-      .select("contact_id, role, contacts(id, name, email, title)")
-      .eq("organization_id", orgId);
+      .schema('core').from("relationships")
+      .select("contact_id, relationship_type, contacts(id, first_name, last_name, email, role)")
+      .eq("org_id", orgId);
     if (contacts) setLinkedContacts(contacts as unknown as LinkedContact[]);
   }, [orgId]);
 
   const loadCategories = useCallback(async () => {
-    // All categories (tree)
+    // community_categories stays in public schema
     const { data: cats } = await supabase
       .from("community_categories")
       .select("id, name, parent_id, sort_order")
@@ -266,7 +263,7 @@ export default function SoccerOrgDetail() {
       setAllCategories(roots);
     }
 
-    // This org's category assignments
+    // org_community_relationships stays in public schema
     const { data: links } = await supabase
       .from("org_community_relationships")
       .select("id, category_id, status, category:community_categories!inner(name)")
@@ -302,8 +299,67 @@ export default function SoccerOrgDetail() {
 
   useEffect(() => {
     async function load() {
-      const { data } = await supabase.from("organizations").select("*").eq("id", orgId).single();
-      if (data) setOrg(data);
+      // Parallel load from multiple schema tables
+      const [orgResult, typeResult, financialResult, storeResult, memberResult, leagueResult, outreachResult, partnerResult] = await Promise.all([
+        supabase.schema('core').from("organizations").select("*").eq("id", orgId).single(),
+        supabase.schema('core').from("org_types").select("type").eq("org_id", orgId),
+        supabase.schema('intel').from("org_financials").select("*").eq("org_id", orgId).maybeSingle(),
+        supabase.schema('platform').from("store").select("*").eq("org_id", orgId).maybeSingle(),
+        supabase.schema('platform').from("memberships").select("league_id").eq("org_id", orgId),
+        supabase.from("leagues").select("id, name"),
+        supabase.schema('crm').from("outreach").select("status, outreach_date, notes").eq("org_id", orgId).order("outreach_date", { ascending: false }).limit(1).maybeSingle(),
+        supabase.schema('intel').from("partner_profile").select("partner_status, partner_since").eq("org_id", orgId).maybeSingle(),
+      ]);
+
+      if (!orgResult.data) return;
+
+      // Build league names
+      const leagueMap = new Map<string, string>();
+      for (const l of leagueResult.data || []) leagueMap.set(l.id, l.name);
+      const leagues = (memberResult.data || []).map((m) => leagueMap.get(m.league_id)).filter(Boolean) as string[];
+
+      // Assemble SoccerOrg
+      const o = orgResult.data;
+      const fin = financialResult.data;
+      const store = storeResult.data;
+      const outreach = outreachResult.data;
+      const partner = partnerResult.data;
+
+      const assembled: SoccerOrg = {
+        id: o.id,
+        name: o.name,
+        org_type: (typeResult.data || []).map((t) => t.type),
+        corporate_structure: o.corporate_structure,
+        address: o.address,
+        website: o.website,
+        avatar_url: o.avatar_url,
+        notes: o.notes,
+        // Financials
+        players: fin?.players ?? null,
+        travel_teams: fin?.travel_teams ?? null,
+        dues_per_season: fin?.dues_per_season ?? null,
+        dues_revenue: fin?.dues_revenue ?? null,
+        uniform_cost: fin?.uniform_cost ?? null,
+        total_revenue: fin?.total_revenue ?? null,
+        gross_revenue: fin?.gross_revenue ?? null,
+        total_costs: fin?.total_costs ?? null,
+        yearly_cost_player: fin?.yearly_cost_player ?? null,
+        // Store
+        merch_link: store?.merch_link ?? null,
+        store_status: store?.store_status ?? null,
+        store_provider: store?.store_provider ?? null,
+        // Outreach
+        outreach_status: outreach?.status ?? null,
+        last_outreach_date: outreach?.outreach_date ?? null,
+        outreach_notes: outreach?.notes ?? null,
+        // Partner
+        partner_status: partner?.partner_status ?? null,
+        partner_since: partner?.partner_since ?? null,
+        // Leagues
+        leagues,
+      };
+
+      setOrg(assembled);
     }
     load();
     loadLinks();
@@ -312,17 +368,25 @@ export default function SoccerOrgDetail() {
 
   // --- Contact link / unlink ---
   const searchContacts = useCallback(async (q: string) => {
-    const { data } = await supabase.from("contacts").select("id, name, email, organization").ilike("name", `%${q}%`).limit(10);
-    return (data || []).map((c) => ({ id: c.id, label: c.name, sub: c.organization || c.email || undefined }));
+    const { data } = await supabase
+      .schema('core').from("contacts")
+      .select("id, first_name, last_name, email, role")
+      .or(`first_name.ilike.%${q}%,last_name.ilike.%${q}%,email.ilike.%${q}%`)
+      .limit(10);
+    return (data || []).map((c) => ({
+      id: c.id,
+      label: contactName(c),
+      sub: c.email || c.role || undefined,
+    }));
   }, []);
 
   const linkContact = useCallback(async (contactId: string) => {
-    await supabase.from("organization_contacts").insert({ organization_id: orgId, contact_id: contactId });
+    await supabase.schema('core').from("relationships").insert({ org_id: orgId, contact_id: contactId });
     await loadLinks();
   }, [orgId, loadLinks]);
 
   const unlinkContact = useCallback(async (contactId: string) => {
-    await supabase.from("organization_contacts").delete().eq("organization_id", orgId).eq("contact_id", contactId);
+    await supabase.schema('core').from("relationships").delete().eq("org_id", orgId).eq("contact_id", contactId);
     await loadLinks();
   }, [orgId, loadLinks]);
 
@@ -340,28 +404,31 @@ export default function SoccerOrgDetail() {
     const d = editDataRef.current;
     const num = (k: string) => d[k] != null && String(d[k]) !== "" ? Number(d[k]) : null;
 
-    // org_type is TEXT[] — wrap selected value in an array
+    // org_type — wrap selected value in an array
     const orgTypeVal = d.org_type;
     const orgTypeArray = Array.isArray(orgTypeVal) ? orgTypeVal
       : (orgTypeVal ? [orgTypeVal as string] : []);
 
-    const { error } = await supabase.from("organizations").update({
+    // 1. Update core.organizations
+    await supabase.schema('core').from("organizations").update({
       name: (d.name as string) || org.name,
-      org_type: orgTypeArray,
       corporate_structure: (d.corporate_structure as string) || null,
       address: (d.address as string) || null,
       website: (d.website as string) || null,
-      merch_link: (d.merch_link as string) || null,
-      store_status: (d.store_status as string) || null,
-      store_provider: (d.store_provider as string) || null,
-      outreach_status: (d.outreach_status as string) || null,
-      last_outreach_date: (d.last_outreach_date as string) || null,
-      outreach_notes: (d.outreach_notes as string) || null,
-      partner_status: (d.partner_status as string) || null,
-      partner_since: (d.partner_since as string) || null,
-      primary_contact: (d.primary_contact as string) || null,
-      notes: (d.notes as string) || null,
       avatar_url: (d.avatar_url as string) || null,
+      notes: (d.notes as string) || null,
+    }).eq("id", org.id);
+
+    // 2. Update org_types (delete + insert)
+    await supabase.schema('core').from("org_types").delete().eq("org_id", org.id);
+    if (orgTypeArray.length > 0) {
+      await supabase.schema('core').from("org_types").insert(orgTypeArray.map((t) => ({ org_id: org.id, type: t })));
+    }
+
+    // 3. Upsert intel.org_financials (delete + insert since org_id is UNIQUE)
+    await supabase.schema('intel').from("org_financials").delete().eq("org_id", org.id);
+    await supabase.schema('intel').from("org_financials").insert({
+      org_id: org.id,
       players: num("players"),
       travel_teams: num("travel_teams"),
       dues_per_season: num("dues_per_season"),
@@ -371,22 +438,51 @@ export default function SoccerOrgDetail() {
       gross_revenue: num("gross_revenue"),
       total_costs: num("total_costs"),
       yearly_cost_player: num("yearly_cost_player"),
-    }).eq("id", org.id);
+    });
 
-    if (error) {
-      console.error("Save failed:", error);
-      alert(`Save failed: ${error.message}`);
-    } else {
-      const updated = { ...org, ...d };
-      // Normalize numeric fields
-      for (const k of ["players", "travel_teams", "dues_per_season", "dues_revenue", "uniform_cost", "total_revenue", "gross_revenue", "total_costs", "yearly_cost_player"]) {
-        (updated as Record<string, unknown>)[k] = num(k);
-      }
-      // Normalize org_type to always be an array
-      updated.org_type = orgTypeArray;
-      setOrg(updated as SoccerOrg);
-      setEditing(false);
+    // 4. Upsert platform.store (delete + insert since org_id is UNIQUE)
+    await supabase.schema('platform').from("store").delete().eq("org_id", org.id);
+    const storeVals = {
+      org_id: org.id,
+      store_status: (d.store_status as string) || null,
+      store_provider: (d.store_provider as string) || null,
+      merch_link: (d.merch_link as string) || null,
+    };
+    if (storeVals.store_status || storeVals.store_provider || storeVals.merch_link) {
+      await supabase.schema('platform').from("store").insert(storeVals);
     }
+
+    // 5. Upsert crm.outreach (delete + insert)
+    await supabase.schema('crm').from("outreach").delete().eq("org_id", org.id);
+    const outreachStatus = (d.outreach_status as string) || null;
+    if (outreachStatus) {
+      await supabase.schema('crm').from("outreach").insert({
+        org_id: org.id,
+        status: outreachStatus,
+        outreach_date: (d.last_outreach_date as string) || null,
+        notes: (d.outreach_notes as string) || null,
+      });
+    }
+
+    // 6. Upsert intel.partner_profile (delete + insert since org_id is UNIQUE)
+    await supabase.schema('intel').from("partner_profile").delete().eq("org_id", org.id);
+    const partnerStatus = (d.partner_status as string) || null;
+    if (partnerStatus) {
+      await supabase.schema('intel').from("partner_profile").insert({
+        org_id: org.id,
+        partner_status: partnerStatus,
+        partner_since: (d.partner_since as string) || null,
+      });
+    }
+
+    // Update local state
+    const updated = { ...org, ...d };
+    for (const k of [...FINANCIAL_FIELDS]) {
+      (updated as Record<string, unknown>)[k] = num(k);
+    }
+    updated.org_type = orgTypeArray;
+    setOrg(updated as SoccerOrg);
+    setEditing(false);
     setSaving(false);
   };
 
@@ -397,7 +493,6 @@ export default function SoccerOrgDetail() {
   }
 
   const fp = { editing, org, setField };
-  const leagues = Object.entries(LEAGUE_MAP).filter(([key]) => org[key as keyof SoccerOrg]).map(([, label]) => label);
 
   return (
     <div className="max-w-4xl">
@@ -419,7 +514,7 @@ export default function SoccerOrgDetail() {
               <h1 className="text-2xl font-bold text-gray-900">{org.name}</h1>
             )}
             <div className="flex gap-2 mt-2 flex-wrap">
-              {(Array.isArray(org.org_type) ? org.org_type : (org.org_type ? [org.org_type] : [])).map((t) => <Badge key={t} variant="secondary">{t}</Badge>)}
+              {org.org_type.map((t) => <Badge key={t} variant="secondary">{t}</Badge>)}
               {org.corporate_structure && <Badge variant="outline">{org.corporate_structure}</Badge>}
               {org.partner_status && <Badge className="bg-green-100 text-green-800 border-0">{org.partner_status}</Badge>}
             </div>
@@ -469,11 +564,11 @@ export default function SoccerOrgDetail() {
           <Card>
             <CardHeader><CardTitle className="text-base">League Affiliations</CardTitle></CardHeader>
             <CardContent>
-              {leagues.length === 0 ? (
+              {org.leagues.length === 0 ? (
                 <p className="text-sm text-gray-400">No league affiliations</p>
               ) : (
                 <div className="flex flex-wrap gap-2">
-                  {leagues.map((l) => <Badge key={l} variant="secondary">{l}</Badge>)}
+                  {org.leagues.map((l) => <Badge key={l} variant="secondary">{l}</Badge>)}
                 </div>
               )}
             </CardContent>
@@ -496,7 +591,6 @@ export default function SoccerOrgDetail() {
               </div>
             </CardHeader>
             <CardContent>
-              {/* Current assignments */}
               {orgCategories.length === 0 && !showCatPicker ? (
                 <p className="text-sm text-gray-400">No categories assigned</p>
               ) : (
@@ -516,7 +610,6 @@ export default function SoccerOrgDetail() {
                 </div>
               )}
 
-              {/* Category picker */}
               {showCatPicker && (
                 <div className="border rounded-lg p-3 bg-gray-50 space-y-2 max-h-64 overflow-y-auto">
                   {allCategories.map((parent) => {
@@ -525,7 +618,6 @@ export default function SoccerOrgDetail() {
 
                     return (
                       <div key={parent.id}>
-                        {/* Parent category — only clickable if it has no children (leaf) */}
                         <button
                           className={`flex items-center gap-2 w-full text-left px-2 py-1.5 rounded text-sm font-medium transition-colors ${
                             hasChildren
@@ -555,7 +647,6 @@ export default function SoccerOrgDetail() {
                           {parent.name}
                         </button>
 
-                        {/* Sub-categories */}
                         {hasChildren && (
                           <div className="ml-4 space-y-0.5">
                             {parent.children.map((child) => (
@@ -622,7 +713,6 @@ export default function SoccerOrgDetail() {
               <DetailField label="Total Costs" field="total_costs" type="number" {...fp} />
               <DetailField label="Yearly Cost / Player" field="yearly_cost_player" type="number" {...fp} />
             </div>
-            <DetailField label="Primary Contact" field="primary_contact" {...fp} />
           </CardContent>
         </Card>
 
@@ -645,10 +735,10 @@ export default function SoccerOrgDetail() {
             icon={<Users className="h-4 w-4" />}
             items={linkedContacts.map((lc) => ({
               id: lc.contacts.id,
-              label: lc.contacts.name,
-              sub: lc.contacts.email || lc.contacts.title || undefined,
+              label: contactName(lc.contacts),
+              sub: lc.contacts.email || lc.contacts.role || undefined,
               href: `/contacts/${lc.contacts.id}`,
-              role: lc.role,
+              role: lc.relationship_type,
               linkId: lc.contact_id,
             }))}
             onLink={linkContact}

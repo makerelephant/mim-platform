@@ -44,3 +44,4 @@ next-env.d.ts
 scripts/agents/credentials.json
 scripts/agents/token.json
 scripts/agents/.env
+.env*.local

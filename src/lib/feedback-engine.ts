@@ -52,7 +52,7 @@ export async function computeEntityFeedback(
 
   // Fetch all tasks for this entity
   const { data: tasks } = await sb
-    .from("tasks")
+    .schema('brain').from("tasks")
     .select("id, status, is_starred, manually_edited, goal_relevance_score, priority, created_at")
     .eq("entity_id", entityId)
     .order("created_at", { ascending: false });
@@ -166,7 +166,7 @@ export async function computeAllEntityFeedback(
 ): Promise<number> {
   // Get distinct entity_ids from tasks
   const { data: entities } = await sb
-    .from("tasks")
+    .schema('brain').from("tasks")
     .select("entity_type, entity_id")
     .not("entity_id", "is", null)
     .not("entity_type", "is", null);

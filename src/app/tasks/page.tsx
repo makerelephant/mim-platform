@@ -93,7 +93,7 @@ export default function TasksPage() {
   }, []);
 
   async function loadTasks() {
-    const { data } = await supabase.from("tasks").select("*").order("created_at", { ascending: false });
+    const { data } = await supabase.schema('brain').from("tasks").select("*").order("created_at", { ascending: false });
     if (data) {
       setTasks(data);
       // Compute lastScanned from most recent gmail-scanner task
@@ -108,7 +108,7 @@ export default function TasksPage() {
 
   const createTask = async () => {
     if (!newTitle.trim()) return;
-    await supabase.from("tasks").insert({
+    await supabase.schema('brain').from("tasks").insert({
       title: newTitle,
       summary: newSummary || null,
       recommended_action: newAction || null,
@@ -154,7 +154,7 @@ export default function TasksPage() {
     e.preventDefault();
     e.stopPropagation();
     const nextStatus = task.status === "todo" ? "in_progress" : task.status === "in_progress" ? "done" : "todo";
-    await supabase.from("tasks").update({ status: nextStatus }).eq("id", task.id);
+    await supabase.schema('brain').from("tasks").update({ status: nextStatus }).eq("id", task.id);
     setTasks((prev) => prev.map((t) => (t.id === task.id ? { ...t, status: nextStatus } : t)));
   };
 
@@ -164,7 +164,7 @@ export default function TasksPage() {
     const newStarred = !task.is_starred;
     // Optimistic update
     setTasks((prev) => prev.map((t) => (t.id === task.id ? { ...t, is_starred: newStarred } : t)));
-    const { error } = await supabase.from("tasks").update({ is_starred: newStarred }).eq("id", task.id);
+    const { error } = await supabase.schema('brain').from("tasks").update({ is_starred: newStarred }).eq("id", task.id);
     if (error) {
       // Revert on error
       setTasks((prev) => prev.map((t) => (t.id === task.id ? { ...t, is_starred: !newStarred } : t)));

@@ -213,43 +213,61 @@ export default function Dashboard() {
       .order("created_at", { ascending: false })
       .limit(20);
 
-    // Fetch ALL orgs (we need to cross-reference types)
-    const { data: allOrgs } = await supabase
-      .from("organizations")
-      .select("id, name, org_type, pipeline_status, partner_status")
-      .order("updated_at", { ascending: false })
-      .limit(500);
+    // Fetch orgs + types + statuses in parallel (multi-schema)
+    const [orgResult, typeResult, pipelineResult, partnerProfileResult, relResult] = await Promise.all([
+      supabase.schema('core').from("organizations").select("id, name").order("updated_at", { ascending: false }).limit(500),
+      supabase.schema('core').from("org_types").select("org_id, type"),
+      supabase.schema('crm').from("pipeline").select("org_id, status"),
+      supabase.schema('intel').from("partner_profile").select("org_id, partner_status"),
+      supabase.schema('core').from("relationships").select("contact_id, org_id"),
+    ]);
 
-    // Build org maps by type
-    const investorMap = new Map<string, typeof allOrgs extends (infer T)[] | null ? T : never>();
-    const partnerMap = new Map<string, typeof allOrgs extends (infer T)[] | null ? T : never>();
-    const customerMap = new Map<string, typeof allOrgs extends (infer T)[] | null ? T : never>();
-    const allOrgMap = new Map<string, typeof allOrgs extends (infer T)[] | null ? T : never>();
-
-    for (const o of allOrgs ?? []) {
-      allOrgMap.set(o.id, o);
-      const types: string[] = Array.isArray(o.org_type) ? o.org_type : [];
-      if (types.includes("Investor")) investorMap.set(o.id, o);
-      if (types.includes("Partner")) partnerMap.set(o.id, o);
-      if (types.includes("Customer")) customerMap.set(o.id, o);
+    // Build type map
+    const typeMap = new Map<string, string[]>();
+    for (const t of typeResult.data || []) {
+      if (!typeMap.has(t.org_id)) typeMap.set(t.org_id, []);
+      typeMap.get(t.org_id)!.push(t.type);
     }
 
-    // Load contact → organization links so we can resolve contact-level activity to orgs
-    const { data: orgContactLinks } = await supabase
-      .from("organization_contacts")
-      .select("contact_id, organization_id");
+    // Build status maps
+    const pipelineMap = new Map<string, string>();
+    for (const p of pipelineResult.data || []) if (p.status) pipelineMap.set(p.org_id, p.status);
 
-    // Build contact_id → org_ids lookup
+    const partnerStatusMap = new Map<string, string>();
+    for (const p of partnerProfileResult.data || []) if (p.partner_status) partnerStatusMap.set(p.org_id, p.partner_status);
+
+    // Build org maps by type
+    type OrgEntry = { id: string; name: string; pipeline_status: string | null; partner_status: string | null };
+    const investorMap = new Map<string, OrgEntry>();
+    const partnerMap = new Map<string, OrgEntry>();
+    const customerMap = new Map<string, OrgEntry>();
+    const allOrgMap = new Map<string, OrgEntry>();
+
+    for (const o of orgResult.data ?? []) {
+      const entry: OrgEntry = {
+        id: o.id,
+        name: o.name,
+        pipeline_status: pipelineMap.get(o.id) || null,
+        partner_status: partnerStatusMap.get(o.id) || null,
+      };
+      allOrgMap.set(o.id, entry);
+      const types = typeMap.get(o.id) || [];
+      if (types.includes("Investor")) investorMap.set(o.id, entry);
+      if (types.includes("Partner")) partnerMap.set(o.id, entry);
+      if (types.includes("Customer")) customerMap.set(o.id, entry);
+    }
+
+    // Build contact_id → org_ids lookup (core.relationships)
     const contactToOrgIds = new Map<string, string[]>();
-    for (const link of orgContactLinks ?? []) {
+    for (const link of relResult.data ?? []) {
       const list = contactToOrgIds.get(link.contact_id) || [];
-      list.push(link.organization_id);
+      list.push(link.org_id);
       contactToOrgIds.set(link.contact_id, list);
     }
 
-    // Get recent activity log entries
+    // Get recent activity entries (brain schema)
     const { data: recentActivity } = await supabase
-      .from("activity_log")
+      .schema('brain').from("activity")
       .select("*")
       .order("created_at", { ascending: false })
       .limit(300);

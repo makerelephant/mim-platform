@@ -44,31 +44,37 @@ export async function POST() {
       // Non-fatal — Slack scanner may not be configured
     }
 
-    // 2. Fetch partner orgs
-    const { data: partnerOrgs } = await sb
-      .from("organizations")
-      .select("id, name, partner_status")
-      .contains("org_type", ["Partner"])
-      .order("updated_at", { ascending: false })
-      .limit(100);
+    // 2. Fetch partner orgs via org_types
+    const { data: partnerTypeRows } = await sb.schema('core').from("org_types").select("org_id").eq("type", "Partner");
+    const partnerOrgIds = (partnerTypeRows ?? []).map((t) => t.org_id);
 
-    const partnerMap = new Map((partnerOrgs ?? []).map((o) => [o.id, o]));
+    const [orgResult, partnerProfileResult] = partnerOrgIds.length > 0
+      ? await Promise.all([
+          sb.schema('core').from("organizations").select("id, name").in("id", partnerOrgIds).order("updated_at", { ascending: false }).limit(100),
+          sb.schema('intel').from("partner_profile").select("org_id, partner_status").in("org_id", partnerOrgIds),
+        ])
+      : [{ data: [] }, { data: [] }];
+
+    const partnerStatusMap = new Map<string, string>();
+    for (const p of partnerProfileResult.data ?? []) partnerStatusMap.set(p.org_id, p.partner_status);
+
+    const partnerMap = new Map((orgResult.data ?? []).map((o) => [o.id, { ...o, partner_status: partnerStatusMap.get(o.id) ?? null }]));
 
     // 3. Load contact → organization links to resolve contact-level activity
     const { data: orgContactLinks } = await sb
-      .from("organization_contacts")
-      .select("contact_id, organization_id");
+      .schema('core').from("relationships")
+      .select("contact_id, org_id");
 
     const contactToOrgIds = new Map<string, string[]>();
     for (const link of orgContactLinks ?? []) {
       const list = contactToOrgIds.get(link.contact_id) || [];
-      list.push(link.organization_id);
+      list.push(link.org_id);
       contactToOrgIds.set(link.contact_id, list);
     }
 
     // 4. Get recent activity
     const { data: recentActivity } = await sb
-      .from("activity_log")
+      .schema('brain').from("activity")
       .select("*")
       .order("created_at", { ascending: false })
       .limit(300);
@@ -91,8 +97,10 @@ export async function POST() {
     const ACTIVITY_TYPES = new Set(["email_scanned", "slack_scanned"]);
 
     for (const a of recentActivity ?? []) {
-      if (!ACTIVITY_TYPES.has(a.action_type)) continue;
+      if (!ACTIVITY_TYPES.has(a.action)) continue;
       if (!a.entity_id) continue;
+
+      const meta = (a.metadata ?? {}) as Record<string, unknown>;
 
       // Collect candidate org IDs: direct match + contact→org resolution
       const candidateOrgIds: string[] = [];
@@ -121,7 +129,7 @@ export async function POST() {
             org_id: org.id,
             org_name: org.name,
             org_status: org.partner_status,
-            summary: a.summary,
+            summary: (meta.summary as string) || "",
             date: a.created_at,
             suggested_action: null,
             suggested_deadline: null,
@@ -129,7 +137,7 @@ export async function POST() {
         }
       } else {
         // Tag-based intent routing: no partner org match — check NLP tags
-        const rawTags: string[] = Array.isArray(a.raw_data?.tags) ? a.raw_data.tags : [];
+        const rawTags: string[] = Array.isArray(meta.tags) ? meta.tags as string[] : [];
         const matchesIntent = rawTags.some((t: string) =>
           PARTNER_TAGS.some((it) => t.toLowerCase().includes(it))
         );
@@ -138,12 +146,12 @@ export async function POST() {
           if (seenKeys.has(dedupKey)) continue;
           seenKeys.add(dedupKey);
 
-          const fromLabel = a.raw_data?.from || "Unknown sender";
+          const fromLabel = (meta.from as string) || "Unknown sender";
           rows.push({
             org_id: a.entity_id,
             org_name: `📨 ${fromLabel}`,
             org_status: null,
-            summary: a.summary,
+            summary: (meta.summary as string) || "",
             date: a.created_at,
             suggested_action: null,
             suggested_deadline: null,
@@ -153,10 +161,12 @@ export async function POST() {
     }
 
     // Log the scan
-    await sb.from("activity_log").insert({
-      agent_name: "partnership-scanner",
-      action_type: "scan",
-      summary: `Partnership activity scan complete — ${rows.length} activity items found`,
+    await sb.schema('brain').from("activity").insert({
+      entity_type: "system",
+      entity_id: null,
+      action: "scan",
+      actor: "partnership-scanner",
+      metadata: { summary: `Partnership activity scan complete — ${rows.length} activity items found` },
     });
 
     return NextResponse.json({

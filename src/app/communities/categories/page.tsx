@@ -64,11 +64,20 @@ export default function CommunityCategoriesPage() {
       return;
     }
 
-    // Fetch all org-category relationships with org names
+    // Fetch all org-category relationships (stays in public schema)
     const { data: rels } = await supabase
       .from("org_community_relationships")
-      .select("id, category_id, status, organization:organizations!inner(id, name)")
+      .select("id, category_id, organization_id, status")
       .order("created_at", { ascending: false });
+
+    // Load org names from core.organizations (cross-schema embed not supported)
+    const orgIds = [...new Set((rels || []).map((r: any) => r.organization_id))];
+    let orgNameMap = new Map<string, string>();
+    if (orgIds.length > 0) {
+      const { data: orgData } = await supabase
+        .schema('core').from("organizations").select("id, name").in("id", orgIds);
+      for (const o of orgData || []) orgNameMap.set(o.id, o.name);
+    }
 
     // Build org lists per category
     const orgsByCategory: Record<string, OrgLink[]> = {};
@@ -77,8 +86,8 @@ export default function CommunityCategoriesPage() {
       if (!orgsByCategory[catId]) orgsByCategory[catId] = [];
       orgsByCategory[catId].push({
         link_id: r.id,
-        org_id: r.organization?.id,
-        org_name: r.organization?.name || "—",
+        org_id: r.organization_id,
+        org_name: orgNameMap.get(r.organization_id) || "—",
         status: r.status || "active",
       });
     });
@@ -190,7 +199,7 @@ export default function CommunityCategoriesPage() {
     if (q.length < 1) { setOrgResults([]); return; }
     setOrgSearching(true);
     const { data } = await supabase
-      .from("organizations")
+      .schema('core').from("organizations")
       .select("id, name")
       .ilike("name", `%${q}%`)
       .order("name")

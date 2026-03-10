@@ -5,7 +5,6 @@ import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { EntityLinker } from "@/components/EntityLinker";
@@ -15,25 +14,24 @@ import Link from "next/link";
 
 interface Contact {
   id: string;
-  name: string;
-  organization: string | null;
+  first_name: string | null;
+  last_name: string | null;
   email: string | null;
   phone: string | null;
-  title: string | null;
-  address: string | null;
-  segment: string | null;
-  primary_category: string | null;
-  subcategory: string | null;
-  region: string | null;
-  business_type: string | null;
+  role: string | null;
   notes: string | null;
   source: string | null;
 }
 
 interface LinkedOrganization {
-  organization_id: string;
-  role: string | null;
-  organizations: { id: string; name: string; org_category: string | null; org_type: string[] | null };
+  org_id: string;
+  relationship_type: string | null;
+  organizations: { id: string; name: string };
+}
+
+/** Assemble full name from first + last */
+function fullName(c: Contact): string {
+  return [c.first_name, c.last_name].filter(Boolean).join(" ") || "(unnamed)";
 }
 
 export default function ContactDetail() {
@@ -49,15 +47,15 @@ export default function ContactDetail() {
 
   const loadLinks = useCallback(async () => {
     const { data: orgs } = await supabase
-      .from("organization_contacts")
-      .select("organization_id, role, organizations(id, name, org_category, org_type)")
+      .schema('core').from("relationships")
+      .select("org_id, relationship_type, organizations(id, name)")
       .eq("contact_id", contactId);
     if (orgs) setLinkedOrgs(orgs as unknown as LinkedOrganization[]);
   }, [contactId]);
 
   useEffect(() => {
     async function load() {
-      const { data: c } = await supabase.from("contacts").select("*").eq("id", contactId).single();
+      const { data: c } = await supabase.schema('core').from("contacts").select("*").eq("id", contactId).single();
       if (c) {
         setContact(c);
         setEditData(c);
@@ -70,13 +68,12 @@ export default function ContactDetail() {
   const handleSave = async () => {
     if (!contact) return;
     setSaving(true);
-    await supabase.from("contacts").update({
-      name: editData.name,
-      organization: editData.organization,
+    await supabase.schema('core').from("contacts").update({
+      first_name: editData.first_name,
+      last_name: editData.last_name,
       email: editData.email,
       phone: editData.phone,
-      title: editData.title,
-      address: editData.address,
+      role: editData.role,
       notes: editData.notes,
     }).eq("id", contact.id);
     setContact({ ...contact, ...editData });
@@ -88,20 +85,20 @@ export default function ContactDetail() {
 
   const searchOrgs = useCallback(async (q: string) => {
     const { data } = await supabase
-      .from("organizations")
-      .select("id, name, org_category, org_type")
+      .schema('core').from("organizations")
+      .select("id, name")
       .ilike("name", `%${q}%`)
       .limit(10);
-    return (data || []).map((o) => ({ id: o.id, label: o.name, sub: o.org_category || undefined }));
+    return (data || []).map((o) => ({ id: o.id, label: o.name }));
   }, []);
 
   const linkOrg = useCallback(async (orgId: string) => {
-    await supabase.from("organization_contacts").insert({ organization_id: orgId, contact_id: contactId });
+    await supabase.schema('core').from("relationships").insert({ org_id: orgId, contact_id: contactId });
     await loadLinks();
   }, [contactId, loadLinks]);
 
   const unlinkOrg = useCallback(async (orgId: string) => {
-    await supabase.from("organization_contacts").delete().eq("organization_id", orgId).eq("contact_id", contactId);
+    await supabase.schema('core').from("relationships").delete().eq("org_id", orgId).eq("contact_id", contactId);
     await loadLinks();
   }, [contactId, loadLinks]);
 
@@ -124,22 +121,10 @@ export default function ContactDetail() {
 
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">{contact.name}</h1>
-          {contact.organization && (
-            <p className="text-sm text-gray-500 mt-0.5">{contact.organization}</p>
+          <h1 className="text-2xl font-bold text-gray-900">{fullName(contact)}</h1>
+          {contact.role && (
+            <p className="text-sm text-gray-500 mt-0.5">{contact.role}</p>
           )}
-          <div className="flex gap-2 mt-2">
-            {contact.primary_category && (
-              <Badge className={
-                contact.primary_category === "Youth Sports" ? "bg-green-100 text-green-800" :
-                contact.primary_category === "MiM" ? "bg-blue-100 text-blue-800" :
-                "bg-orange-100 text-orange-800"
-              }>
-                {contact.primary_category}
-              </Badge>
-            )}
-            {contact.segment && <Badge variant="secondary">{contact.segment}</Badge>}
-          </div>
         </div>
         <Button variant={editing ? "default" : "outline"} onClick={editing ? handleSave : () => setEditing(true)} disabled={saving}>
           {editing ? <><Save className="h-4 w-4 mr-1" /> Save</> : "Edit"}
@@ -152,21 +137,19 @@ export default function ContactDetail() {
           <CardContent className="space-y-3">
             {editing ? (
               <>
-                <div><label className="text-xs text-gray-500">Name</label><Input value={editData.name || ""} onChange={(e) => setEditData({ ...editData, name: e.target.value })} /></div>
-                <div><label className="text-xs text-gray-500">Organization</label><Input value={editData.organization || ""} onChange={(e) => setEditData({ ...editData, organization: e.target.value })} /></div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div><label className="text-xs text-gray-500">First Name</label><Input value={editData.first_name || ""} onChange={(e) => setEditData({ ...editData, first_name: e.target.value })} /></div>
+                  <div><label className="text-xs text-gray-500">Last Name</label><Input value={editData.last_name || ""} onChange={(e) => setEditData({ ...editData, last_name: e.target.value })} /></div>
+                </div>
                 <div><label className="text-xs text-gray-500">Email</label><Input value={editData.email || ""} onChange={(e) => setEditData({ ...editData, email: e.target.value })} /></div>
                 <div><label className="text-xs text-gray-500">Phone</label><Input value={editData.phone || ""} onChange={(e) => setEditData({ ...editData, phone: e.target.value })} /></div>
-                <div><label className="text-xs text-gray-500">Title</label><Input value={editData.title || ""} onChange={(e) => setEditData({ ...editData, title: e.target.value })} /></div>
-                <div><label className="text-xs text-gray-500">Address</label><Input value={editData.address || ""} onChange={(e) => setEditData({ ...editData, address: e.target.value })} /></div>
+                <div><label className="text-xs text-gray-500">Role / Title</label><Input value={editData.role || ""} onChange={(e) => setEditData({ ...editData, role: e.target.value })} /></div>
               </>
             ) : (
               <>
-                <div><span className="text-xs text-gray-500">Organization</span><p className="text-sm">{contact.organization || "—"}</p></div>
                 <div><span className="text-xs text-gray-500">Email</span><p className="text-sm">{contact.email || "—"}</p></div>
                 <div><span className="text-xs text-gray-500">Phone</span><p className="text-sm">{contact.phone || "—"}</p></div>
-                <div><span className="text-xs text-gray-500">Title</span><p className="text-sm">{contact.title || "—"}</p></div>
-                <div><span className="text-xs text-gray-500">Address</span><p className="text-sm">{contact.address || "—"}</p></div>
-                <div><span className="text-xs text-gray-500">Region</span><p className="text-sm">{contact.region || "—"}</p></div>
+                <div><span className="text-xs text-gray-500">Role / Title</span><p className="text-sm">{contact.role || "—"}</p></div>
               </>
             )}
           </CardContent>
@@ -196,17 +179,14 @@ export default function ContactDetail() {
             items={linkedOrgs.map((lo) => ({
               id: lo.organizations.id,
               label: lo.organizations.name,
-              sub: lo.organizations.org_category || undefined,
-              href: lo.organizations.org_type?.includes("Investor")
-                ? `/investors/${lo.organizations.id}`
-                : `/soccer-orgs/${lo.organizations.id}`,
-              role: lo.role,
-              linkId: lo.organization_id,
+              href: `/all-orgs/${lo.organizations.id}`,
+              role: lo.relationship_type,
+              linkId: lo.org_id,
             }))}
             onLink={linkOrg}
             onUnlink={unlinkOrg}
             onSearch={searchOrgs}
-            existingIds={new Set(linkedOrgs.map((lo) => lo.organization_id))}
+            existingIds={new Set(linkedOrgs.map((lo) => lo.org_id))}
           />
         </CardContent>
       </Card>

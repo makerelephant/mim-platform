@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -12,7 +12,7 @@ import { Avatar } from "@/components/Avatar";
 import { useResizableColumns } from "@/hooks/useResizableColumns";
 import Link from "next/link";
 import { ORG_TYPE_OPTIONS } from "@/config/organization-constants";
-import { Search, X, Plus, Trash2, CheckSquare, Square, ChevronUp, ChevronDown, Building } from "lucide-react";
+import { Search, Plus, Trash2, CheckSquare, Square, ChevronUp, ChevronDown, Building } from "lucide-react";
 
 const TABLE_COLS = [
   { key: "name", label: "Organization", width: 180 },
@@ -28,15 +28,11 @@ interface Organization {
   id: string;
   name: string;
   org_type: string[];
-  corporate_structure: string | null;
-  address: string | null;
   website: string | null;
   avatar_url: string | null;
-  players: number | null;
   outreach_status: string | null;
   partner_status: string | null;
   pipeline_status: string | null;
-  primary_contact: string | null;
   updated_at: string | null;
 }
 
@@ -52,7 +48,6 @@ export default function AllOrgsPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [filterType, setFilterType] = useState("");
-  const [showFilters, setShowFilters] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [showNew, setShowNew] = useState(false);
   const [newName, setNewName] = useState("");
@@ -78,76 +73,175 @@ export default function AllOrgsPage() {
   };
 
   const load = useCallback(async () => {
-    // Load ALL organizations — no type filter
-    const { data } = await supabase
-      .from("organizations")
-      .select("*")
-      .order("name");
-    if (data) setOrgs(data);
+    // Parallel load from multiple schema tables
+    const [orgResult, typeResult, pipelineResult, outreachResult, partnerResult, relResult] = await Promise.all([
+      supabase.schema('core').from("organizations").select("id, name, website, avatar_url, updated_at").order("name"),
+      supabase.schema('core').from("org_types").select("org_id, type"),
+      supabase.schema('crm').from("pipeline").select("org_id, status"),
+      supabase.schema('crm').from("outreach").select("org_id, status"),
+      supabase.schema('intel').from("partner_profile").select("org_id, partner_status"),
+      supabase.schema('core').from("relationships").select("org_id, contacts(first_name, last_name)"),
+    ]);
 
-    // Load contacts mapped to each org
-    const { data: orgLinks } = await supabase
-      .from("organization_contacts")
-      .select("organization_id, contacts(name)");
-    if (orgLinks) {
-      const map = new Map<string, string[]>();
-      for (const link of orgLinks) {
-        const id = link.organization_id;
-        const name = (link.contacts as unknown as { name: string })?.name;
-        if (name) {
-          if (!map.has(id)) map.set(id, []);
-          map.get(id)!.push(name);
-        }
-      }
-      setOrgContactsMap(map);
+    // Build type map: org_id → string[]
+    const typeMap = new Map<string, string[]>();
+    for (const t of typeResult.data || []) {
+      if (!typeMap.has(t.org_id)) typeMap.set(t.org_id, []);
+      typeMap.get(t.org_id)!.push(t.type);
     }
 
+    // Build pipeline map: org_id → pipeline_status
+    const pipelineMap = new Map<string, string>();
+    for (const p of pipelineResult.data || []) if (p.status) pipelineMap.set(p.org_id, p.status);
+
+    // Build outreach map: org_id → status
+    const outreachMap = new Map<string, string>();
+    for (const o of outreachResult.data || []) if (o.status) outreachMap.set(o.org_id, o.status);
+
+    // Build partner map: org_id → partner_status
+    const partnerMap = new Map<string, string>();
+    for (const p of partnerResult.data || []) if (p.partner_status) partnerMap.set(p.org_id, p.partner_status);
+
+    // Build contacts map: org_id → contact names[]
+    const contactMap = new Map<string, string[]>();
+    for (const r of relResult.data || []) {
+      const c = r.contacts as unknown as { first_name: string | null; last_name: string | null };
+      const name = [c?.first_name, c?.last_name].filter(Boolean).join(" ");
+      if (name) {
+        if (!contactMap.has(r.org_id)) contactMap.set(r.org_id, []);
+        contactMap.get(r.org_id)!.push(name);
+      }
+    }
+
+    // Assemble unified Organization objects
+    const assembled: Organization[] = (orgResult.data || []).map((o) => ({
+      id: o.id,
+      name: o.name,
+      website: o.website,
+      avatar_url: o.avatar_url,
+      updated_at: o.updated_at,
+      org_type: typeMap.get(o.id) || [],
+      pipeline_status: pipelineMap.get(o.id) || null,
+      outreach_status: outreachMap.get(o.id) || null,
+      partner_status: partnerMap.get(o.id) || null,
+    }));
+
+    setOrgs(assembled);
+    setOrgContactsMap(contactMap);
     setLoading(false);
   }, []);
 
   useEffect(() => { load(); }, [load]);
 
   const updateCell = async (id: string, field: string, value: string) => {
-    const dbValue = field === "org_type"
-      ? (value ? value.split(",").map((v) => v.trim()).filter(Boolean) : [])
-      : (value || null);
-    const { error } = await supabase.from("organizations").update({ [field]: dbValue }).eq("id", id);
-    if (!error) setOrgs((prev) => prev.map((o) => (o.id === id ? { ...o, [field]: dbValue, updated_at: new Date().toISOString() } : o)));
+    if (field === "org_type") {
+      const types = value ? value.split(",").map((v) => v.trim()).filter(Boolean) : [];
+      await supabase.schema('core').from("org_types").delete().eq("org_id", id);
+      if (types.length > 0) {
+        await supabase.schema('core').from("org_types").insert(types.map((t) => ({ org_id: id, type: t })));
+      }
+      setOrgs((prev) => prev.map((o) => (o.id === id ? { ...o, org_type: types } : o)));
+    } else if (field === "outreach_status") {
+      await supabase.schema('crm').from("outreach").delete().eq("org_id", id);
+      if (value) {
+        await supabase.schema('crm').from("outreach").insert({ org_id: id, status: value });
+      }
+      setOrgs((prev) => prev.map((o) => (o.id === id ? { ...o, outreach_status: value || null } : o)));
+    } else if (field === "partner_status") {
+      await supabase.schema('intel').from("partner_profile").delete().eq("org_id", id);
+      if (value) {
+        await supabase.schema('intel').from("partner_profile").insert({ org_id: id, partner_status: value });
+      }
+      setOrgs((prev) => prev.map((o) => (o.id === id ? { ...o, partner_status: value || null } : o)));
+    } else if (field === "pipeline_status") {
+      await supabase.schema('crm').from("pipeline").delete().eq("org_id", id);
+      if (value) {
+        await supabase.schema('crm').from("pipeline").insert({ org_id: id, status: value });
+      }
+      setOrgs((prev) => prev.map((o) => (o.id === id ? { ...o, pipeline_status: value || null } : o)));
+    } else {
+      // name, website → core.organizations
+      const { error } = await supabase.schema('core').from("organizations").update({ [field]: value || null }).eq("id", id);
+      if (!error) setOrgs((prev) => prev.map((o) => (o.id === id ? { ...o, [field]: value || null, updated_at: new Date().toISOString() } : o)));
+    }
   };
 
   const createOrg = async () => {
     if (!newName.trim()) return;
-    const { data, error } = await supabase.from("organizations").insert({
-      name: newName, org_type: newType ? [newType] : [],
+    const { data, error } = await supabase.schema('core').from("organizations").insert({
+      name: newName,
       website: newWebsite || null,
     }).select().single();
-    if (!error && data) { setOrgs((prev) => [...prev, data]); setNewName(""); setNewType(""); setNewWebsite(""); setShowNew(false); }
+    if (!error && data) {
+      if (newType) {
+        await supabase.schema('core').from("org_types").insert({ org_id: data.id, type: newType });
+      }
+      setOrgs((prev) => [...prev, {
+        id: data.id, name: data.name, website: data.website, avatar_url: data.avatar_url,
+        updated_at: data.updated_at, org_type: newType ? [newType] : [],
+        outreach_status: null, partner_status: null, pipeline_status: null,
+      }]);
+      setNewName(""); setNewType(""); setNewWebsite(""); setShowNew(false);
+    }
   };
 
   const deleteSelected = async () => {
     if (selected.size === 0) return;
-    const { error } = await supabase.from("organizations").delete().in("id", Array.from(selected));
+    const ids = Array.from(selected);
+    // Clean up child tables first (no CASCADE on FKs)
+    await Promise.all([
+      supabase.schema('core').from("org_types").delete().in("org_id", ids),
+      supabase.schema('crm').from("pipeline").delete().in("org_id", ids),
+      supabase.schema('crm').from("outreach").delete().in("org_id", ids),
+      supabase.schema('intel').from("partner_profile").delete().in("org_id", ids),
+      supabase.schema('intel').from("investor_profile").delete().in("org_id", ids),
+      supabase.schema('core').from("relationships").delete().in("org_id", ids),
+    ]);
+    const { error } = await supabase.schema('core').from("organizations").delete().in("id", ids);
     if (!error) { setOrgs((prev) => prev.filter((o) => !selected.has(o.id))); setSelected(new Set()); }
   };
 
   const bulkUpdate = async () => {
     if (!bulkField || selected.size === 0) return;
     const ids = Array.from(selected);
-    const dbValue = bulkField === "org_type"
-      ? (bulkValue ? bulkValue.split(",").map((v) => v.trim()).filter(Boolean) : [])
-      : (bulkValue || null);
-    const { error } = await supabase.from("organizations").update({ [bulkField]: dbValue }).in("id", ids);
-    if (!error) { setOrgs((prev) => prev.map((o) => selected.has(o.id) ? { ...o, [bulkField]: dbValue } : o)); setSelected(new Set()); setShowBulk(false); }
+
+    if (bulkField === "org_type") {
+      const types = bulkValue ? bulkValue.split(",").map((v) => v.trim()).filter(Boolean) : [];
+      await supabase.schema('core').from("org_types").delete().in("org_id", ids);
+      if (types.length > 0) {
+        const rows = ids.flatMap((id) => types.map((t) => ({ org_id: id, type: t })));
+        await supabase.schema('core').from("org_types").insert(rows);
+      }
+      setOrgs((prev) => prev.map((o) => selected.has(o.id) ? { ...o, org_type: types } : o));
+    } else if (bulkField === "outreach_status") {
+      await supabase.schema('crm').from("outreach").delete().in("org_id", ids);
+      if (bulkValue) {
+        await supabase.schema('crm').from("outreach").insert(ids.map((id) => ({ org_id: id, status: bulkValue })));
+      }
+      setOrgs((prev) => prev.map((o) => selected.has(o.id) ? { ...o, outreach_status: bulkValue || null } : o));
+    } else if (bulkField === "partner_status") {
+      await supabase.schema('intel').from("partner_profile").delete().in("org_id", ids);
+      if (bulkValue) {
+        await supabase.schema('intel').from("partner_profile").insert(ids.map((id) => ({ org_id: id, partner_status: bulkValue })));
+      }
+      setOrgs((prev) => prev.map((o) => selected.has(o.id) ? { ...o, partner_status: bulkValue || null } : o));
+    } else if (bulkField === "pipeline_status") {
+      await supabase.schema('crm').from("pipeline").delete().in("org_id", ids);
+      if (bulkValue) {
+        await supabase.schema('crm').from("pipeline").insert(ids.map((id) => ({ org_id: id, status: bulkValue })));
+      }
+      setOrgs((prev) => prev.map((o) => selected.has(o.id) ? { ...o, pipeline_status: bulkValue || null } : o));
+    }
+
+    setSelected(new Set()); setShowBulk(false);
   };
 
   const toggleSelect = (id: string) => { setSelected((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; }); };
   const toggleSelectAll = () => { if (selected.size === filtered.length) setSelected(new Set()); else setSelected(new Set(filtered.map((o) => o.id))); };
 
-  const types = [...new Set(orgs.flatMap((o) => Array.isArray(o.org_type) ? o.org_type : (o.org_type ? [o.org_type] : [])))] as string[];
-
   const filtered = orgs.filter((o) => {
     if (search && !o.name?.toLowerCase().includes(search.toLowerCase())) return false;
-    if (filterType && !(Array.isArray(o.org_type) ? o.org_type.includes(filterType) : o.org_type === filterType)) return false;
+    if (filterType && !o.org_type.includes(filterType)) return false;
     return true;
   }).sort((a, b) => {
     const aVal = (a[sortField] || "").toLowerCase();
@@ -158,19 +252,17 @@ export default function AllOrgsPage() {
   // Type counts for badges
   const typeCounts = new Map<string, number>();
   for (const o of orgs) {
-    const t = Array.isArray(o.org_type) ? o.org_type : [];
-    for (const type of t) {
+    for (const type of o.org_type) {
       typeCounts.set(type, (typeCounts.get(type) || 0) + 1);
     }
   }
 
   // Orgs with no type set
-  const noTypeCount = orgs.filter((o) => !o.org_type || (Array.isArray(o.org_type) && o.org_type.length === 0)).length;
+  const noTypeCount = orgs.filter((o) => o.org_type.length === 0).length;
 
   // Navigate to the right detail page based on org type
   const getDetailHref = (o: Organization) => {
-    const types = Array.isArray(o.org_type) ? o.org_type : [];
-    if (types.includes("Investor")) return `/investors/${o.id}`;
+    if (o.org_type.includes("Investor")) return `/investors/${o.id}`;
     return `/soccer-orgs/${o.id}`;
   };
 
@@ -297,7 +389,7 @@ export default function AllOrgsPage() {
                   <td className="px-3 py-2"><button onClick={() => toggleSelect(o.id)}>{selected.has(o.id) ? <CheckSquare className="h-4 w-4 text-blue-600" /> : <Square className="h-4 w-4 text-gray-300" />}</button></td>
                   <td className="px-2 py-2"><Avatar src={o.avatar_url} name={o.name} size="sm" /></td>
                   <td className="px-3 py-2 overflow-hidden"><div className="flex items-center gap-1.5 min-w-0"><Link href={getDetailHref(o)} className="text-blue-600 hover:underline shrink-0 text-xs">↗</Link><div className="min-w-0 flex-1"><EditableCell value={o.name} onSave={(v) => updateCell(o.id, "name", v)} /></div></div></td>
-                  <td className="px-3 py-2 overflow-hidden"><EditableCell value={Array.isArray(o.org_type) ? o.org_type.join(", ") : (o.org_type ?? null)} onSave={(v) => updateCell(o.id, "org_type", v)} type="multi-select" options={ORG_TYPES} /></td>
+                  <td className="px-3 py-2 overflow-hidden"><EditableCell value={o.org_type.join(", ") || null} onSave={(v) => updateCell(o.id, "org_type", v)} type="multi-select" options={ORG_TYPES} /></td>
                   <td className="px-3 py-2 overflow-hidden">{o.partner_status ? <Badge className="text-[10px] bg-green-100 text-green-800">{o.partner_status}</Badge> : <span className="text-xs text-gray-300">—</span>}</td>
                   <td className="px-3 py-2 overflow-hidden">{o.outreach_status && o.outreach_status !== "Not Contacted" ? <Badge variant="secondary" className="text-[10px]">{o.outreach_status}</Badge> : <span className="text-xs text-gray-300">—</span>}</td>
                   <td className="px-3 py-2 overflow-hidden">{o.pipeline_status ? <Badge variant="outline" className="text-[10px]">{o.pipeline_status}</Badge> : <span className="text-xs text-gray-300">—</span>}</td>

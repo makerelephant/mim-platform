@@ -26,8 +26,8 @@ export interface ReportResult {
 
 interface CorrespondenceRow {
   subject: string; direction: string; entity_type: string | null;
-  sender_email: string; sender_name: string | null; email_date: string | null;
-  source: string | null;
+  from_address: string; sent_at: string | null;
+  channel: string | null;
 }
 
 interface GatheredData {
@@ -36,9 +36,9 @@ interface GatheredData {
   tasksOpen: Array<{ title: string; priority: string; status: string; entity_type: string | null; created_at: string }>;
   emails: CorrespondenceRow[];
   slackMessages: CorrespondenceRow[];
-  newContacts: Array<{ name: string; email: string | null; source: string | null; primary_category: string | null; created_at: string }>;
-  organizationUpdates: Array<{ name: string; org_category: string | null; pipeline_status: string | null; partner_status: string | null; org_type: string[] | null; updated_at: string }>;
-  agentActivity: Array<{ agent_name: string; action_type: string; summary: string; entity_type: string | null; created_at: string }>;
+  newContacts: Array<{ first_name: string | null; last_name: string | null; email: string | null; source: string | null; created_at: string }>;
+  organizationUpdates: Array<{ name: string; updated_at: string }>;
+  agentActivity: Array<{ actor: string; action: string; metadata: Record<string, unknown> | null; entity_type: string | null; created_at: string }>;
 }
 
 const DEFAULT_MODEL = "claude-sonnet-4-5-20250929";
@@ -103,52 +103,52 @@ async function gatherData(
     { data: agentActivity },
   ] = await Promise.all([
     // Tasks created in period
-    sb.from("tasks")
+    sb.schema('brain').from("tasks")
       .select("title, priority, status, entity_type, source, created_at")
       .gte("created_at", startISO)
       .lt("created_at", endISO)
       .order("created_at", { ascending: false }),
     // Tasks completed in period
-    sb.from("tasks")
+    sb.schema('brain').from("tasks")
       .select("title, priority, entity_type, created_at")
       .eq("status", "done")
       .gte("created_at", startISO)
       .lt("created_at", endISO),
     // Open tasks (regardless of date — for context)
-    sb.from("tasks")
+    sb.schema('brain').from("tasks")
       .select("title, priority, status, entity_type, created_at")
-      .in("status", ["todo", "in_progress"])
+      .in("status", ["todo", "in_progress", "open"])
       .order("priority", { ascending: true })
       .limit(30),
     // Email correspondence in period
-    sb.from("correspondence")
-      .select("subject, direction, entity_type, sender_email, sender_name, email_date, source")
+    sb.schema('brain').from("correspondence")
+      .select("subject, direction, entity_type, from_address, sent_at, channel")
       .gte("created_at", startISO)
       .lt("created_at", endISO)
-      .or("source.eq.gmail,source.is.null")
+      .or("channel.eq.gmail,channel.is.null")
       .order("created_at", { ascending: false })
       .limit(100),
     // Slack correspondence in period
-    sb.from("correspondence")
-      .select("subject, direction, entity_type, sender_email, sender_name, email_date, source")
+    sb.schema('brain').from("correspondence")
+      .select("subject, direction, entity_type, from_address, sent_at, channel")
       .gte("created_at", startISO)
       .lt("created_at", endISO)
-      .eq("source", "slack")
+      .eq("channel", "slack")
       .order("created_at", { ascending: false })
       .limit(100),
     // New contacts
-    sb.from("contacts")
-      .select("name, email, source, primary_category, created_at")
+    sb.schema('core').from("contacts")
+      .select("first_name, last_name, email, source, created_at")
       .gte("created_at", startISO)
       .lt("created_at", endISO),
-    // Organization updates (investors + communities unified)
-    sb.from("organizations")
-      .select("name, org_category, pipeline_status, partner_status, org_type, updated_at")
+    // Organization updates
+    sb.schema('core').from("organizations")
+      .select("name, updated_at")
       .gte("updated_at", startISO)
       .lt("updated_at", endISO),
     // Agent activity
-    sb.from("activity_log")
-      .select("agent_name, action_type, summary, entity_type, created_at")
+    sb.schema('brain').from("activity")
+      .select("actor, action, metadata, entity_type, created_at")
       .gte("created_at", startISO)
       .lt("created_at", endISO)
       .order("created_at", { ascending: false })
@@ -201,7 +201,7 @@ function buildDataContext(data: GatheredData): string {
   if (data.emails.length > 0) {
     for (const e of data.emails.slice(0, 40)) {
       const dirLabel = e.direction === "outbound" ? "SENT BY MARK" : "RECEIVED";
-      sections.push(`- [${dirLabel}] "${e.subject}" — ${e.sender_name || e.sender_email} (silo: ${e.entity_type || "general"})`);
+      sections.push(`- [${dirLabel}] "${e.subject}" — ${e.from_address || "unknown"} (silo: ${e.entity_type || "general"})`);
     }
   } else {
     sections.push("None");
@@ -210,7 +210,7 @@ function buildDataContext(data: GatheredData): string {
   sections.push(`\n## SLACK ACTIVITY (${data.slackMessages.length})`);
   if (data.slackMessages.length > 0) {
     for (const s of data.slackMessages.slice(0, 40)) {
-      sections.push(`- ${s.subject}: "${(s.sender_name || s.sender_email || "unknown")}" — ${(s.entity_type || "general")}`);
+      sections.push(`- ${s.subject}: "${(s.from_address || "unknown")}" — ${(s.entity_type || "general")}`);
     }
   } else {
     sections.push("None");
@@ -219,28 +219,17 @@ function buildDataContext(data: GatheredData): string {
   sections.push(`\n## NEW CONTACTS (${data.newContacts.length})`);
   if (data.newContacts.length > 0) {
     for (const c of data.newContacts) {
-      sections.push(`- ${c.name} (${c.email || "no email"}, category: ${c.primary_category || "uncategorized"}, source: ${c.source || "manual"})`);
+      const contactName = [c.first_name, c.last_name].filter(Boolean).join(" ") || "Unknown";
+      sections.push(`- ${contactName} (${c.email || "no email"}, source: ${c.source || "manual"})`);
     }
   } else {
     sections.push("None");
   }
 
-  const investorUpdates = data.organizationUpdates.filter((o) => o.org_type?.includes("Investor"));
-  const communityUpdates = data.organizationUpdates.filter((o) => o.org_type?.includes("Customer"));
-
-  sections.push(`\n## INVESTOR UPDATES (${investorUpdates.length})`);
-  if (investorUpdates.length > 0) {
-    for (const i of investorUpdates) {
-      sections.push(`- ${i.name} (stage: ${i.pipeline_status || "unknown"})`);
-    }
-  } else {
-    sections.push("None");
-  }
-
-  sections.push(`\n## COMMUNITY/PARTNER UPDATES (${communityUpdates.length})`);
-  if (communityUpdates.length > 0) {
-    for (const c of communityUpdates) {
-      sections.push(`- ${c.name} (partner status: ${c.partner_status || "none"})`);
+  sections.push(`\n## ORGANIZATION UPDATES (${data.organizationUpdates.length})`);
+  if (data.organizationUpdates.length > 0) {
+    for (const o of data.organizationUpdates) {
+      sections.push(`- ${o.name} (updated: ${o.updated_at})`);
     }
   } else {
     sections.push("None");
@@ -266,7 +255,7 @@ export async function runWeeklyReport(
 
   try {
     // ── Start agent run ──
-    const { data: runData } = await sb.from("agent_runs").insert({
+    const { data: runData } = await sb.schema('brain').from("agent_runs").insert({
       agent_name: "weekly-report",
       status: "running",
     }).select("id").single();
@@ -440,20 +429,24 @@ Brief informational items relevant to Mark's awareness. Keep this to genuinely i
     addLog(`Report saved: ${reportRow?.id}`);
 
     // ── Log activity ──
-    await sb.from("activity_log").insert({
-      agent_name: "weekly-report",
-      action_type: "report_generated",
-      summary: `Generated ${periodType} report: ${title}`,
-      raw_data: { report_id: reportRow?.id, period_type: periodType },
+    await sb.schema('brain').from("activity").insert({
+      entity_type: "system",
+      entity_id: reportRow?.id || null,
+      action: "report_generated",
+      actor: "weekly-report",
+      metadata: {
+        summary: `Generated ${periodType} report: ${title}`,
+        report_id: reportRow?.id,
+        period_type: periodType,
+      },
     });
 
     // ── Complete run ──
     if (runId) {
-      await sb.from("agent_runs").update({
+      await sb.schema('brain').from("agent_runs").update({
         status: "completed",
         completed_at: new Date().toISOString(),
-        records_processed: data.emails.length + data.tasksCreated.length,
-        records_updated: 1,
+        output: { records_processed: data.emails.length + data.tasksCreated.length, records_updated: 1 },
       }).eq("id", runId);
     }
 
@@ -472,10 +465,10 @@ Brief informational items relevant to Mark's awareness. Keep this to genuinely i
 
     if (runId) {
       try {
-        await sb.from("agent_runs").update({
+        await sb.schema('brain').from("agent_runs").update({
           status: "failed",
           completed_at: new Date().toISOString(),
-          error_message: errMsg,
+          error: errMsg,
         }).eq("id", runId);
       } catch { /* ignore */ }
     }

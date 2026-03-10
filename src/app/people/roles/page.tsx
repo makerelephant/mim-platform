@@ -27,17 +27,10 @@ export default function RolesPage() {
   const fetchRoles = useCallback(async () => {
     setLoading(true);
 
-    const { data, error } = await supabase
-      .from("organization_contacts")
-      .select(`
-        id,
-        contact_id,
-        organization_id,
-        role,
-        created_at,
-        contact:contacts!inner(name),
-        organization:organizations!inner(name)
-      `)
+    // core.relationships (was organization_contacts) — cross-schema embed not supported
+    const { data: rels, error } = await supabase
+      .schema('core').from("relationships")
+      .select("id, contact_id, org_id, relationship_type, created_at")
       .order("created_at", { ascending: false });
 
     if (error) {
@@ -46,13 +39,34 @@ export default function RolesPage() {
       return;
     }
 
-    const mapped: ContactRole[] = (data || []).map((r: any) => ({
+    // Load contact and org names separately
+    const contactIds = [...new Set((rels || []).map((r) => r.contact_id))];
+    const orgIds = [...new Set((rels || []).map((r) => r.org_id))];
+
+    const [contactResult, orgResult] = await Promise.all([
+      contactIds.length > 0
+        ? supabase.schema('core').from("contacts").select("id, first_name, last_name").in("id", contactIds)
+        : { data: [] },
+      orgIds.length > 0
+        ? supabase.schema('core').from("organizations").select("id, name").in("id", orgIds)
+        : { data: [] },
+    ]);
+
+    const contactNameMap = new Map<string, string>();
+    for (const c of contactResult.data || []) {
+      contactNameMap.set(c.id, [c.first_name, c.last_name].filter(Boolean).join(" ") || "(unnamed)");
+    }
+
+    const orgNameMap = new Map<string, string>();
+    for (const o of orgResult.data || []) orgNameMap.set(o.id, o.name);
+
+    const mapped: ContactRole[] = (rels || []).map((r: any) => ({
       id: r.id,
       contact_id: r.contact_id,
-      contact_name: r.contact?.name || "—",
-      organization_id: r.organization_id,
-      org_name: r.organization?.name || "—",
-      role: r.role,
+      contact_name: contactNameMap.get(r.contact_id) || "—",
+      organization_id: r.org_id,
+      org_name: orgNameMap.get(r.org_id) || "—",
+      role: r.relationship_type,
       created_at: r.created_at,
     }));
 

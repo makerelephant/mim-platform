@@ -69,6 +69,9 @@ type SortDir = "asc" | "desc";
 const CONNECTION_STATUSES = ["Active", "Stale", "Need Introduction", "Warm Intro", "Cold"];
 const PIPELINE_STATUSES = ["Prospect", "Qualified", "Engaged", "First Meeting", "In Closing", "Closed", "Passed", "Not a Fit"];
 
+/** Fields that live on intel.investor_profile (keyed by org_id) */
+const PROFILE_FIELDS = new Set(["investor_type", "geography", "location", "sector_focus", "check_size", "connection_status", "likelihood_score", "last_contact_date"]);
+
 // ─── Page ───────────────────────────────────────────────────────────────────
 
 export default function InvestorsPage() {
@@ -140,22 +143,22 @@ export default function InvestorsPage() {
     const map = new Map<string, RecentActivity>();
 
     const { data: corr } = await supabase
-      .from("correspondence")
-      .select("entity_id, subject, email_date")
+      .schema('brain').from("correspondence")
+      .select("entity_id, subject, sent_at")
       .eq("entity_type", "organizations")
       .in("entity_id", investorIds)
-      .order("email_date", { ascending: false });
+      .order("sent_at", { ascending: false });
 
     if (corr) {
       for (const row of corr) {
         if (row.entity_id && row.subject && !map.has(row.entity_id)) {
-          map.set(row.entity_id, { text: row.subject, date: row.email_date || "", type: "email" });
+          map.set(row.entity_id, { text: row.subject, date: row.sent_at || "", type: "email" });
         }
       }
     }
 
     const { data: tasks } = await supabase
-      .from("tasks")
+      .schema('brain').from("tasks")
       .select("entity_id, title, summary, created_at")
       .eq("entity_type", "organizations")
       .in("entity_id", investorIds)
@@ -177,11 +180,60 @@ export default function InvestorsPage() {
   }, []);
 
   const load = useCallback(async () => {
-    const { data } = await supabase.from("organizations").select("*").contains("org_type", ["Investor"]).order("name");
-    if (data) {
-      setInvestors(data);
-      loadRecentActivity(data.map((inv: Investor) => inv.id));
-    }
+    // 1. Get investor org IDs from core.org_types
+    const { data: typeRows } = await supabase
+      .schema('core').from("org_types")
+      .select("org_id")
+      .eq("type", "Investor");
+    const investorOrgIds = (typeRows ?? []).map((t) => t.org_id);
+
+    if (investorOrgIds.length === 0) { setInvestors([]); setLoading(false); return; }
+
+    // 2. Load orgs + profiles + pipeline in parallel
+    const [orgResult, profileResult, pipelineResult] = await Promise.all([
+      supabase.schema('core').from("organizations")
+        .select("id, name, description, website, avatar_url, updated_at")
+        .in("id", investorOrgIds).order("name"),
+      supabase.schema('intel').from("investor_profile")
+        .select("org_id, investor_type, geography, location, sector_focus, check_size, connection_status, likelihood_score, last_contact_date")
+        .in("org_id", investorOrgIds),
+      supabase.schema('crm').from("pipeline")
+        .select("org_id, status, next_action")
+        .in("org_id", investorOrgIds),
+    ]);
+
+    // 3. Build maps
+    const profileMap = new Map<string, Record<string, unknown>>();
+    for (const p of profileResult.data ?? []) profileMap.set(p.org_id, p);
+    const pipelineMap = new Map<string, Record<string, unknown>>();
+    for (const p of pipelineResult.data ?? []) pipelineMap.set(p.org_id, p);
+
+    // 4. Assemble
+    const assembled: Investor[] = (orgResult.data ?? []).map((org) => {
+      const profile = profileMap.get(org.id) || {};
+      const pipeline = pipelineMap.get(org.id);
+      return {
+        id: org.id,
+        name: org.name,
+        description: org.description || null,
+        investor_type: (profile.investor_type as string) || null,
+        geography: (profile.geography as string) || null,
+        location: (profile.location as string) || null,
+        sector_focus: (profile.sector_focus as string) || null,
+        check_size: (profile.check_size as string) || null,
+        connection_status: (profile.connection_status as string) || null,
+        pipeline_status: (pipeline?.status as string) || null,
+        likelihood_score: (profile.likelihood_score as number) || null,
+        last_contact_date: (profile.last_contact_date as string) || null,
+        next_action: (pipeline?.next_action as string) || null,
+        website: org.website,
+        avatar_url: org.avatar_url,
+        updated_at: org.updated_at,
+      };
+    });
+
+    setInvestors(assembled);
+    loadRecentActivity(assembled.map((inv) => inv.id));
     setLoading(false);
   }, [loadRecentActivity]);
 
@@ -193,7 +245,6 @@ export default function InvestorsPage() {
       const res = await fetch("/api/agents/fundraising-scanner", { method: "POST" });
       const data = await res.json();
       if (data.success) {
-        // Reload investor data + activity after scan
         await load();
       }
     } catch {
@@ -204,54 +255,102 @@ export default function InvestorsPage() {
   };
 
   const updateCell = async (id: string, field: string, value: string) => {
-    const { error } = await supabase.from("organizations").update({ [field]: value || null }).eq("id", id);
+    let error;
+    if (PROFILE_FIELDS.has(field)) {
+      ({ error } = await supabase.schema('intel').from("investor_profile")
+        .update({ [field]: field === "likelihood_score" ? (value ? Number(value) : null) : (value || null) })
+        .eq("org_id", id));
+    } else if (field === "pipeline_status") {
+      // Pipeline status → crm.pipeline.status
+      await supabase.schema('crm').from("pipeline").delete().eq("org_id", id);
+      if (value) {
+        ({ error } = await supabase.schema('crm').from("pipeline")
+          .insert({ org_id: id, status: value }));
+      }
+    } else {
+      ({ error } = await supabase.schema('core').from("organizations")
+        .update({ [field]: value || null }).eq("id", id));
+    }
     if (!error) setInvestors((prev) => prev.map((inv) => (inv.id === id ? { ...inv, [field]: value || null, updated_at: new Date().toISOString() } : inv)));
   };
 
   const createInvestor = async () => {
     if (!newFirm.trim()) return;
-    const { data, error } = await supabase.from("organizations").insert({
-      name: newFirm, org_category: "Investment Firm", org_type: ["Investor"],
-      investor_type: newType || null, geography: newGeo || null,
-      sector_focus: newSector || null, source: "manual",
-    }).select().single();
-    if (!error && data) {
-      setInvestors((prev) => [...prev, data]);
-      setNewFirm(""); setNewType(""); setNewGeo(""); setNewSector("");
-      setShowNew(false);
-    }
+    // 1. Create org
+    const { data: orgData, error: orgError } = await supabase.schema('core').from("organizations")
+      .insert({ name: newFirm, source: "manual" }).select("id").single();
+    if (orgError || !orgData) return;
+
+    const orgId = orgData.id;
+
+    // 2. Set type + create profile in parallel
+    await Promise.all([
+      supabase.schema('core').from("org_types").insert({ org_id: orgId, type: "investor" }),
+      supabase.schema('intel').from("investor_profile").insert({
+        org_id: orgId,
+        investor_type: newType || null,
+        geography: newGeo || null,
+        sector_focus: newSector || null,
+      }),
+    ]);
+
+    // 3. Add to local state
+    setInvestors((prev) => [...prev, {
+      id: orgId, name: newFirm, description: null,
+      investor_type: newType || null, geography: newGeo || null, location: null,
+      sector_focus: newSector || null, check_size: null, connection_status: null,
+      pipeline_status: null, likelihood_score: null, last_contact_date: null,
+      next_action: null, website: null, avatar_url: null, updated_at: new Date().toISOString(),
+    }]);
+    setNewFirm(""); setNewType(""); setNewGeo(""); setNewSector("");
+    setShowNew(false);
   };
 
   const deleteSelected = async () => {
     if (selected.size === 0) return;
-    const { error } = await supabase.from("organizations").delete().in("id", Array.from(selected));
+    const ids = Array.from(selected);
+    // Delete from child tables first, then core.organizations
+    await Promise.all([
+      supabase.schema('intel').from("investor_profile").delete().in("org_id", ids),
+      supabase.schema('crm').from("pipeline").delete().in("org_id", ids),
+      supabase.schema('core').from("org_types").delete().in("org_id", ids),
+    ]);
+    const { error } = await supabase.schema('core').from("organizations").delete().in("id", ids);
     if (!error) { setInvestors((prev) => prev.filter((inv) => !selected.has(inv.id))); setSelected(new Set()); }
   };
 
   const addToPipeline = async () => {
     if (selected.size === 0) return;
     const ids = Array.from(selected);
-    const { error } = await supabase.from("organizations").update({ pipeline_status: "Prospect" }).in("id", ids);
-    if (!error) {
-      setInvestors((prev) => prev.map((inv) => selected.has(inv.id) && !inv.pipeline_status ? { ...inv, pipeline_status: "Prospect" } : inv));
-      setSelected(new Set());
+    // Insert pipeline rows for selected orgs that don't already have one
+    const toInsert = ids.filter((id) => !investors.find((inv) => inv.id === id)?.pipeline_status);
+    if (toInsert.length > 0) {
+      await supabase.schema('crm').from("pipeline")
+        .insert(toInsert.map((org_id) => ({ org_id, status: "Prospect" })));
     }
+    setInvestors((prev) => prev.map((inv) => selected.has(inv.id) && !inv.pipeline_status ? { ...inv, pipeline_status: "Prospect" } : inv));
+    setSelected(new Set());
   };
 
   const removeFromPipeline = async () => {
     if (selected.size === 0) return;
     const ids = Array.from(selected);
-    const { error } = await supabase.from("organizations").update({ pipeline_status: null }).in("id", ids);
-    if (!error) {
-      setInvestors((prev) => prev.map((inv) => selected.has(inv.id) ? { ...inv, pipeline_status: null } : inv));
-      setSelected(new Set());
-    }
+    await supabase.schema('crm').from("pipeline").delete().in("org_id", ids);
+    setInvestors((prev) => prev.map((inv) => selected.has(inv.id) ? { ...inv, pipeline_status: null } : inv));
+    setSelected(new Set());
   };
 
   const bulkUpdate = async () => {
     if (!bulkField || selected.size === 0) return;
     const ids = Array.from(selected);
-    const { error } = await supabase.from("organizations").update({ [bulkField]: bulkValue || null }).in("id", ids);
+    let error;
+    if (PROFILE_FIELDS.has(bulkField)) {
+      ({ error } = await supabase.schema('intel').from("investor_profile")
+        .update({ [bulkField]: bulkValue || null }).in("org_id", ids));
+    } else {
+      ({ error } = await supabase.schema('core').from("organizations")
+        .update({ [bulkField]: bulkValue || null }).in("id", ids));
+    }
     if (!error) {
       setInvestors((prev) => prev.map((inv) => selected.has(inv.id) ? { ...inv, [bulkField]: bulkValue || null } : inv));
       setSelected(new Set()); setShowBulk(false); setBulkField(""); setBulkValue("");

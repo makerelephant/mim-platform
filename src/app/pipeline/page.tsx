@@ -35,6 +35,9 @@ interface Investor {
 const PIPELINE_STATUSES = ["Prospect", "Qualified", "Engaged", "First Meeting", "In Closing", "Closed", "Passed"];
 const CONNECTION_STATUSES = ["Active", "Stale", "Need Introduction", "Warm Intro", "Cold"];
 
+/** Fields stored in intel.investor_profile */
+const PROFILE_FIELDS = new Set(["investor_type", "geography", "location", "sector_focus", "check_size", "connection_status", "likelihood_score", "last_contact_date"]);
+
 const STATUS_HEADER_COLORS: Record<string, string> = {
   Prospect: "bg-gray-200", Qualified: "bg-yellow-200", Engaged: "bg-blue-200",
   "First Meeting": "bg-indigo-200", "In Closing": "bg-green-200", Closed: "bg-green-300", Passed: "bg-red-200",
@@ -59,22 +62,76 @@ export default function PipelinePage() {
   const [addSearch, setAddSearch] = useState("");
   const [addSelected, setAddSelected] = useState<Set<string>>(new Set());
 
-  // TODO: Migrate pipeline data to the `opportunities` table once the SQL migration has been run.
-  // Currently pipeline_status is read/written directly on the organizations table.
-  // After migration, fetch from `opportunities` and join with organizations for display data.
   const load = useCallback(async () => {
-    const { data } = await supabase.from("organizations").select("*").contains("org_type", ["Investor"]).order("name");
-    if (data) {
-      setAllInvestors(data);
-      setInvestors(data.filter((inv) => inv.pipeline_status != null));
-    }
+    // 1. Get investor org IDs
+    const { data: typeRows } = await supabase
+      .schema('core').from("org_types")
+      .select("org_id")
+      .eq("type", "Investor");
+    const investorOrgIds = (typeRows ?? []).map((t) => t.org_id);
+
+    if (investorOrgIds.length === 0) { setAllInvestors([]); setInvestors([]); setLoading(false); return; }
+
+    // 2. Load orgs + profiles + pipeline in parallel
+    const [orgResult, profileResult, pipelineResult] = await Promise.all([
+      supabase.schema('core').from("organizations")
+        .select("id, name, description, website, avatar_url, updated_at")
+        .in("id", investorOrgIds).order("name"),
+      supabase.schema('intel').from("investor_profile")
+        .select("org_id, investor_type, geography, location, sector_focus, check_size, connection_status, likelihood_score, last_contact_date")
+        .in("org_id", investorOrgIds),
+      supabase.schema('crm').from("pipeline")
+        .select("org_id, status, next_action")
+        .in("org_id", investorOrgIds),
+    ]);
+
+    // Build maps
+    const profileMap = new Map<string, Record<string, unknown>>();
+    for (const p of profileResult.data ?? []) profileMap.set(p.org_id, p);
+    const pipelineMap = new Map<string, Record<string, unknown>>();
+    for (const p of pipelineResult.data ?? []) pipelineMap.set(p.org_id, p);
+
+    // Assemble
+    const assembled: Investor[] = (orgResult.data ?? []).map((org) => {
+      const profile = profileMap.get(org.id) || {};
+      const pipeline = pipelineMap.get(org.id);
+      return {
+        id: org.id, name: org.name, description: org.description || null,
+        investor_type: (profile.investor_type as string) || null,
+        geography: (profile.geography as string) || null,
+        location: (profile.location as string) || null,
+        sector_focus: (profile.sector_focus as string) || null,
+        check_size: (profile.check_size as string) || null,
+        connection_status: (profile.connection_status as string) || null,
+        pipeline_status: (pipeline?.status as string) || null,
+        likelihood_score: (profile.likelihood_score as number) || null,
+        last_contact_date: (profile.last_contact_date as string) || null,
+        next_action: (pipeline?.next_action as string) || null,
+        website: org.website, avatar_url: org.avatar_url,
+      };
+    });
+
+    setAllInvestors(assembled);
+    setInvestors(assembled.filter((inv) => inv.pipeline_status != null));
     setLoading(false);
   }, []);
 
   useEffect(() => { load(); }, [load]);
 
   const updateCell = async (id: string, field: string, value: string) => {
-    const { error } = await supabase.from("organizations").update({ [field]: value || null }).eq("id", id);
+    let error;
+    if (PROFILE_FIELDS.has(field)) {
+      ({ error } = await supabase.schema('intel').from("investor_profile")
+        .update({ [field]: field === "likelihood_score" ? (value ? Number(value) : null) : (value || null) })
+        .eq("org_id", id));
+    } else if (field === "pipeline_status") {
+      await supabase.schema('crm').from("pipeline").delete().eq("org_id", id);
+      if (value) {
+        ({ error } = await supabase.schema('crm').from("pipeline").insert({ org_id: id, status: value }));
+      }
+    } else {
+      ({ error } = await supabase.schema('core').from("organizations").update({ [field]: value || null }).eq("id", id));
+    }
     if (!error) {
       setInvestors((prev) => prev.map((inv) => (inv.id === id ? { ...inv, [field]: value || null } : inv)));
       setAllInvestors((prev) => prev.map((inv) => (inv.id === id ? { ...inv, [field]: value || null } : inv)));
@@ -84,24 +141,26 @@ export default function PipelinePage() {
   const removeFromPipeline = async () => {
     if (selected.size === 0) return;
     const ids = Array.from(selected);
-    const { error } = await supabase.from("organizations").update({ pipeline_status: null }).in("id", ids);
-    if (!error) {
-      setInvestors((prev) => prev.filter((inv) => !selected.has(inv.id)));
-      setAllInvestors((prev) => prev.map((inv) => selected.has(inv.id) ? { ...inv, pipeline_status: null } : inv));
-      setSelected(new Set());
-    }
+    await supabase.schema('crm').from("pipeline").delete().in("org_id", ids);
+    setInvestors((prev) => prev.filter((inv) => !selected.has(inv.id)));
+    setAllInvestors((prev) => prev.map((inv) => selected.has(inv.id) ? { ...inv, pipeline_status: null } : inv));
+    setSelected(new Set());
   };
 
   const removeOneFromPipeline = async (id: string) => {
-    const { error } = await supabase.from("organizations").update({ pipeline_status: null }).eq("id", id);
-    if (!error) {
-      setInvestors((prev) => prev.filter((inv) => inv.id !== id));
-      setAllInvestors((prev) => prev.map((inv) => inv.id === id ? { ...inv, pipeline_status: null } : inv));
-    }
+    await supabase.schema('crm').from("pipeline").delete().eq("org_id", id);
+    setInvestors((prev) => prev.filter((inv) => inv.id !== id));
+    setAllInvestors((prev) => prev.map((inv) => inv.id === id ? { ...inv, pipeline_status: null } : inv));
   };
 
   const deleteOne = async (id: string) => {
-    const { error } = await supabase.from("organizations").delete().eq("id", id);
+    // Delete from child tables first
+    await Promise.all([
+      supabase.schema('intel').from("investor_profile").delete().eq("org_id", id),
+      supabase.schema('crm').from("pipeline").delete().eq("org_id", id),
+      supabase.schema('core').from("org_types").delete().eq("org_id", id),
+    ]);
+    const { error } = await supabase.schema('core').from("organizations").delete().eq("id", id);
     if (!error) {
       setInvestors((prev) => prev.filter((inv) => inv.id !== id));
       setAllInvestors((prev) => prev.filter((inv) => inv.id !== id));
@@ -111,7 +170,12 @@ export default function PipelinePage() {
   const deleteSelected = async () => {
     if (selected.size === 0) return;
     const ids = Array.from(selected);
-    const { error } = await supabase.from("organizations").delete().in("id", ids);
+    await Promise.all([
+      supabase.schema('intel').from("investor_profile").delete().in("org_id", ids),
+      supabase.schema('crm').from("pipeline").delete().in("org_id", ids),
+      supabase.schema('core').from("org_types").delete().in("org_id", ids),
+    ]);
+    const { error } = await supabase.schema('core').from("organizations").delete().in("id", ids);
     if (!error) {
       setInvestors((prev) => prev.filter((inv) => !selected.has(inv.id)));
       setAllInvestors((prev) => prev.filter((inv) => !selected.has(inv.id)));
@@ -122,7 +186,21 @@ export default function PipelinePage() {
   const bulkUpdate = async () => {
     if (!bulkField || selected.size === 0) return;
     const ids = Array.from(selected);
-    const { error } = await supabase.from("organizations").update({ [bulkField]: bulkValue || null }).in("id", ids);
+    let error;
+    if (bulkField === "pipeline_status") {
+      // Delete existing pipeline rows and reinsert with new status
+      await supabase.schema('crm').from("pipeline").delete().in("org_id", ids);
+      if (bulkValue) {
+        ({ error } = await supabase.schema('crm').from("pipeline")
+          .insert(ids.map((org_id) => ({ org_id, status: bulkValue }))));
+      }
+    } else if (PROFILE_FIELDS.has(bulkField)) {
+      ({ error } = await supabase.schema('intel').from("investor_profile")
+        .update({ [bulkField]: bulkValue || null }).in("org_id", ids));
+    } else {
+      ({ error } = await supabase.schema('core').from("organizations")
+        .update({ [bulkField]: bulkValue || null }).in("id", ids));
+    }
     if (!error) {
       setInvestors((prev) => prev.map((inv) => selected.has(inv.id) ? { ...inv, [bulkField]: bulkValue || null } : inv));
       setAllInvestors((prev) => prev.map((inv) => selected.has(inv.id) ? { ...inv, [bulkField]: bulkValue || null } : inv));
@@ -133,17 +211,17 @@ export default function PipelinePage() {
   const addToPipeline = async () => {
     if (addSelected.size === 0) return;
     const ids = Array.from(addSelected);
-    const { error } = await supabase.from("organizations").update({ pipeline_status: "Prospect" }).in("id", ids);
-    if (!error) {
-      setAllInvestors((prev) => prev.map((inv) => addSelected.has(inv.id) ? { ...inv, pipeline_status: "Prospect" } : inv));
-      setInvestors((prev) => {
-        const newPipelineInvestors = allInvestors.filter((inv) => addSelected.has(inv.id)).map((inv) => ({ ...inv, pipeline_status: "Prospect" }));
-        return [...prev, ...newPipelineInvestors];
-      });
-      setAddSelected(new Set());
-      setShowAddDialog(false);
-      setAddSearch("");
-    }
+    await supabase.schema('crm').from("pipeline")
+      .insert(ids.map((org_id) => ({ org_id, status: "Prospect" })));
+
+    setAllInvestors((prev) => prev.map((inv) => addSelected.has(inv.id) ? { ...inv, pipeline_status: "Prospect" } : inv));
+    setInvestors((prev) => {
+      const newPipelineInvestors = allInvestors.filter((inv) => addSelected.has(inv.id)).map((inv) => ({ ...inv, pipeline_status: "Prospect" }));
+      return [...prev, ...newPipelineInvestors];
+    });
+    setAddSelected(new Set());
+    setShowAddDialog(false);
+    setAddSearch("");
   };
 
   const toggleSelect = (id: string) => { setSelected((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; }); };
@@ -166,7 +244,9 @@ export default function PipelinePage() {
   const handleDrop = async (e: React.DragEvent, status: string) => {
     e.preventDefault();
     if (!draggedId) return;
-    await supabase.from("organizations").update({ pipeline_status: status }).eq("id", draggedId);
+    // Update pipeline row
+    await supabase.schema('crm').from("pipeline").delete().eq("org_id", draggedId);
+    await supabase.schema('crm').from("pipeline").insert({ org_id: draggedId, status });
     setInvestors((prev) => prev.map((inv) => (inv.id === draggedId ? { ...inv, pipeline_status: status } : inv)));
     setAllInvestors((prev) => prev.map((inv) => (inv.id === draggedId ? { ...inv, pipeline_status: status } : inv)));
     setDraggedId(null);

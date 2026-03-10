@@ -321,11 +321,17 @@ export async function runNewsScan(
     if (newItems.length === 0) {
       log.push("All articles already ingested — nothing to do");
 
-      await sb.from("activity_log").insert({
-        agent_name: "sentiment-scanner",
-        action_type: "news_scan",
-        summary: `News scan: ${allItems.length} articles found, all already ingested`,
-        raw_data: { sources: newsSources.map((s) => s.name), total: allItems.length, new: 0 },
+      await sb.schema('brain').from("activity").insert({
+        entity_type: "system",
+        entity_id: null,
+        action: "news_scan",
+        actor: "sentiment-scanner",
+        metadata: {
+          summary: `News scan: ${allItems.length} articles found, all already ingested`,
+          sources: newsSources.map((s) => s.name),
+          total: allItems.length,
+          new: 0,
+        },
       });
 
       return { success: true, articlesFound: allItems.length, newArticles: 0, processed: 0, tasksCreated: 0, log };
@@ -345,7 +351,7 @@ export async function runNewsScan(
 
     // Load orgs for entity resolution
     const { data: orgs } = await sb
-      .from("organizations")
+      .schema('core').from("organizations")
       .select("id, name")
       .order("name");
 
@@ -427,11 +433,11 @@ export async function runNewsScan(
 
         // 5e. Create task for high-relevance articles
         if (analysis.relevance_to_mim === "high") {
-          const { error: taskError } = await sb.from("tasks").insert({
+          const { error: taskError } = await sb.schema('brain').from("tasks").insert({
             title: `Review: ${article.title}`,
             description: `${analysis.summary}\n\nRelevance: ${analysis.relevance_reasoning}\nSentiment: ${analysis.sentiment} (${analysis.sentiment_score})\nSource: ${article.link}`,
             priority: "medium",
-            status: "todo",
+            status: "open",
             source: "sentiment-scanner",
             source_message_id: article.link,
           });
@@ -449,11 +455,13 @@ export async function runNewsScan(
     }
 
     // 6. Log scan to activity_log
-    await sb.from("activity_log").insert({
-      agent_name: "sentiment-scanner",
-      action_type: "news_scan",
-      summary: `News scan: ${allItems.length} found, ${newItems.length} new, ${processed} processed, ${tasksCreated} tasks created`,
-      raw_data: {
+    await sb.schema('brain').from("activity").insert({
+      entity_type: "system",
+      entity_id: null,
+      action: "news_scan",
+      actor: "sentiment-scanner",
+      metadata: {
+        summary: `News scan: ${allItems.length} found, ${newItems.length} new, ${processed} processed, ${tasksCreated} tasks created`,
         sources: newsSources.map((s) => s.name),
         total: allItems.length,
         new: newItems.length,

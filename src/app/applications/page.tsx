@@ -26,8 +26,7 @@ interface AgentRun {
   status: string;
   started_at: string;
   completed_at: string | null;
-  records_processed: number | null;
-  records_updated: number | null;
+  output: Record<string, unknown> | null;
 }
 
 const TYPE_ICONS: Record<string, React.ReactNode> = {
@@ -77,8 +76,8 @@ export default function ApplicationsPage() {
         const slugs = agentData.map((a: Agent) => a.slug);
         if (slugs.length > 0) {
           const { data: runs } = await supabase
-            .from("agent_runs")
-            .select("id, agent_name, status, started_at, completed_at, records_processed, records_updated")
+            .schema('brain').from("agent_runs")
+            .select("id, agent_name, status, started_at, completed_at, output")
             .in("agent_name", slugs)
             .order("started_at", { ascending: false });
 
@@ -165,11 +164,11 @@ export default function ApplicationsPage() {
                     <div className="flex items-center gap-2 text-xs text-gray-400 mb-4 p-2 bg-gray-50 rounded">
                       {RUN_STATUS_ICONS[runStatus] || RUN_STATUS_ICONS.completed}
                       <span>{runStatus === "stale" ? "Timed out" : "Last run"} {timeAgo(lastRun.started_at)}</span>
-                      {lastRun.records_processed != null && (
+                      {lastRun.output && (lastRun.output as Record<string, unknown>).records_processed != null && (
                         <span className="text-gray-300">|</span>
                       )}
-                      {lastRun.records_processed != null && (
-                        <span>{lastRun.records_processed} processed</span>
+                      {lastRun.output && (lastRun.output as Record<string, unknown>).records_processed != null && (
+                        <span>{String((lastRun.output as Record<string, unknown>).records_processed)} processed</span>
                       )}
                     </div>
                     );

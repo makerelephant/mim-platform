@@ -30,34 +30,21 @@ interface SoccerOrg {
   id: string;
   name: string;
   org_type: string[];
-  corporate_structure: string | null;
-  address: string | null;
   website: string | null;
-  merch_link: string | null;
-  store_status: string | null;
-  store_provider: string | null;
   avatar_url: string | null;
   players: number | null;
   outreach_status: string | null;
   partner_status: string | null;
-  primary_contact: string | null;
-  total_revenue: number | null;
-  in_bays: boolean; in_cmysl: boolean; in_cysl: boolean; in_ecnl: boolean; in_ecysa: boolean;
-  in_mysl: boolean; in_nashoba: boolean; in_necsl: boolean; in_roots: boolean; in_south_coast: boolean; in_south_shore: boolean;
+  leagues: string[];
   updated_at: string | null;
 }
 
 type SortField = "name";
 type SortDir = "asc" | "desc";
 
-const LEAGUE_FIELDS = [
-  { key: "in_cmysl", label: "CMYSL" }, { key: "in_cysl", label: "CYSL" }, { key: "in_ecnl", label: "ECNL" },
-  { key: "in_ecysa", label: "ECYSA" }, { key: "in_mysl", label: "MYSL" }, { key: "in_nashoba", label: "Nashoba" },
-  { key: "in_necsl", label: "NECSL" }, { key: "in_roots", label: "Roots" }, { key: "in_south_coast", label: "South Coast" }, { key: "in_south_shore", label: "South Shore" },
-] as const;
+interface LeagueRow { id: string; name: string }
 
 const ORG_TYPES = [...ORG_TYPE_OPTIONS];
-const STRUCTURES = ["501c3", "LLC", "Corporation", "Partnership"];
 
 export default function SoccerOrgsPage() {
   const [orgs, setOrgs] = useState<SoccerOrg[]>([]);
@@ -78,12 +65,13 @@ export default function SoccerOrgsPage() {
   const [sortField, setSortField] = useState<SortField>("name");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
   const [orgContactsMap, setOrgContactsMap] = useState<Map<string, string[]>>(new Map());
+  const [leagueNames, setLeagueNames] = useState<LeagueRow[]>([]);
 
   const { colWidths, startResize, totalWidth } = useResizableColumns(TABLE_COLS);
 
   const toggleSort = (field: SortField) => {
     if (sortField === field) setSortDir(sortDir === "asc" ? "desc" : "asc");
-    else { setSortField(field); setSortDir(field === "updated_at" ? "desc" : "asc"); }
+    else { setSortField(field); setSortDir("asc"); }
   };
 
   const SortIcon = ({ field }: { field: SortField }) => {
@@ -92,77 +80,167 @@ export default function SoccerOrgsPage() {
   };
 
   const load = useCallback(async () => {
-    const { data } = await supabase.from("organizations").select("*").contains("org_type", ["Customer"]).order("name");
-    if (data) setOrgs(data);
+    // 1. Get Customer org IDs
+    const { data: typeRows } = await supabase
+      .schema('core').from("org_types").select("org_id").eq("type", "Customer");
+    const customerIds = (typeRows || []).map((r) => r.org_id);
+    if (customerIds.length === 0) { setOrgs([]); setLoading(false); return; }
 
-    // Load contacts mapped to each org
-    const { data: orgLinks } = await supabase
-      .from("organization_contacts")
-      .select("organization_id, contacts(name)");
-    if (orgLinks) {
-      const map = new Map<string, string[]>();
-      for (const link of orgLinks) {
-        const id = link.organization_id;
-        const name = (link.contacts as unknown as { name: string })?.name;
-        if (name) {
-          if (!map.has(id)) map.set(id, []);
-          map.get(id)!.push(name);
-        }
-      }
-      setOrgContactsMap(map);
+    // 2. Parallel load from multiple schema tables
+    const [orgResult, allTypeResult, memberResult, leagueResult, financialResult, outreachResult, partnerResult, relResult] = await Promise.all([
+      supabase.schema('core').from("organizations").select("id, name, website, avatar_url, updated_at").in("id", customerIds).order("name"),
+      supabase.schema('core').from("org_types").select("org_id, type").in("org_id", customerIds),
+      supabase.schema('platform').from("memberships").select("org_id, league_id").in("org_id", customerIds),
+      supabase.from("leagues").select("id, name"),
+      supabase.schema('intel').from("org_financials").select("org_id, players").in("org_id", customerIds),
+      supabase.schema('crm').from("outreach").select("org_id, status").in("org_id", customerIds),
+      supabase.schema('intel').from("partner_profile").select("org_id, partner_status").in("org_id", customerIds),
+      supabase.schema('core').from("relationships").select("org_id, contacts(first_name, last_name)").in("org_id", customerIds),
+    ]);
+
+    // Store league names for filters
+    const leagueList = (leagueResult.data || []) as LeagueRow[];
+    setLeagueNames(leagueList);
+    const leagueMap = new Map<string, string>();
+    for (const l of leagueList) leagueMap.set(l.id, l.name);
+
+    // Build maps
+    const typeMap = new Map<string, string[]>();
+    for (const t of allTypeResult.data || []) {
+      if (!typeMap.has(t.org_id)) typeMap.set(t.org_id, []);
+      typeMap.get(t.org_id)!.push(t.type);
     }
 
+    const membershipMap = new Map<string, string[]>();
+    for (const m of memberResult.data || []) {
+      const leagueName = leagueMap.get(m.league_id);
+      if (leagueName) {
+        if (!membershipMap.has(m.org_id)) membershipMap.set(m.org_id, []);
+        membershipMap.get(m.org_id)!.push(leagueName);
+      }
+    }
+
+    const financialMap = new Map<string, number | null>();
+    for (const f of financialResult.data || []) financialMap.set(f.org_id, f.players);
+
+    const outreachMap = new Map<string, string>();
+    for (const o of outreachResult.data || []) if (o.status) outreachMap.set(o.org_id, o.status);
+
+    const partnerMap = new Map<string, string>();
+    for (const p of partnerResult.data || []) if (p.partner_status) partnerMap.set(p.org_id, p.partner_status);
+
+    const contactMap = new Map<string, string[]>();
+    for (const r of relResult.data || []) {
+      const c = r.contacts as unknown as { first_name: string | null; last_name: string | null };
+      const name = [c?.first_name, c?.last_name].filter(Boolean).join(" ");
+      if (name) {
+        if (!contactMap.has(r.org_id)) contactMap.set(r.org_id, []);
+        contactMap.get(r.org_id)!.push(name);
+      }
+    }
+
+    // Assemble
+    const assembled: SoccerOrg[] = (orgResult.data || []).map((o) => ({
+      id: o.id,
+      name: o.name,
+      website: o.website,
+      avatar_url: o.avatar_url,
+      updated_at: o.updated_at,
+      org_type: typeMap.get(o.id) || [],
+      leagues: membershipMap.get(o.id) || [],
+      players: financialMap.get(o.id) ?? null,
+      outreach_status: outreachMap.get(o.id) || null,
+      partner_status: partnerMap.get(o.id) || null,
+    }));
+
+    setOrgs(assembled);
+    setOrgContactsMap(contactMap);
     setLoading(false);
   }, []);
 
   useEffect(() => { load(); }, [load]);
 
   const updateCell = async (id: string, field: string, value: string) => {
-    // org_type is a TEXT[] column — value comes as comma-separated string from multi-select
-    const dbValue = field === "org_type"
-      ? (value ? value.split(",").map((v) => v.trim()).filter(Boolean) : [])
-      : (value || null);
-    const { error } = await supabase.from("organizations").update({ [field]: dbValue }).eq("id", id);
-    if (!error) setOrgs((prev) => prev.map((o) => (o.id === id ? { ...o, [field]: dbValue, updated_at: new Date().toISOString() } : o)));
+    if (field === "org_type") {
+      const types = value ? value.split(",").map((v) => v.trim()).filter(Boolean) : [];
+      await supabase.schema('core').from("org_types").delete().eq("org_id", id);
+      if (types.length > 0) {
+        await supabase.schema('core').from("org_types").insert(types.map((t) => ({ org_id: id, type: t })));
+      }
+      setOrgs((prev) => prev.map((o) => (o.id === id ? { ...o, org_type: types } : o)));
+    } else if (field === "outreach_status") {
+      await supabase.schema('crm').from("outreach").delete().eq("org_id", id);
+      if (value) {
+        await supabase.schema('crm').from("outreach").insert({ org_id: id, status: value });
+      }
+      setOrgs((prev) => prev.map((o) => (o.id === id ? { ...o, outreach_status: value || null } : o)));
+    } else {
+      const { error } = await supabase.schema('core').from("organizations").update({ [field]: value || null }).eq("id", id);
+      if (!error) setOrgs((prev) => prev.map((o) => (o.id === id ? { ...o, [field]: value || null, updated_at: new Date().toISOString() } : o)));
+    }
   };
 
   const createOrg = async () => {
     if (!newName.trim()) return;
-    const { data, error } = await supabase.from("organizations").insert({
-      name: newName, org_category: "Youth Soccer", org_type: newType ? [newType] : ["Customer"],
-      website: newWebsite || null,
+    const { data, error } = await supabase.schema('core').from("organizations").insert({
+      name: newName, website: newWebsite || null,
     }).select().single();
-    if (!error && data) { setOrgs((prev) => [...prev, data]); setNewName(""); setNewType(""); setNewWebsite(""); setShowNew(false); }
+    if (!error && data) {
+      // Add Customer type (and optional extra type)
+      const types = newType ? ["Customer", newType] : ["Customer"];
+      const uniqueTypes = [...new Set(types)];
+      await supabase.schema('core').from("org_types").insert(uniqueTypes.map((t) => ({ org_id: data.id, type: t })));
+      setOrgs((prev) => [...prev, {
+        id: data.id, name: data.name, website: data.website, avatar_url: data.avatar_url,
+        updated_at: data.updated_at, org_type: uniqueTypes,
+        leagues: [], players: null, outreach_status: null, partner_status: null,
+      }]);
+      setNewName(""); setNewType(""); setNewWebsite(""); setShowNew(false);
+    }
   };
 
   const deleteSelected = async () => {
     if (selected.size === 0) return;
-    const { error } = await supabase.from("organizations").delete().in("id", Array.from(selected));
+    const ids = Array.from(selected);
+    await Promise.all([
+      supabase.schema('core').from("org_types").delete().in("org_id", ids),
+      supabase.schema('crm').from("outreach").delete().in("org_id", ids),
+      supabase.schema('intel').from("partner_profile").delete().in("org_id", ids),
+      supabase.schema('intel').from("org_financials").delete().in("org_id", ids),
+      supabase.schema('platform').from("memberships").delete().in("org_id", ids),
+      supabase.schema('platform').from("store").delete().in("org_id", ids),
+      supabase.schema('core').from("relationships").delete().in("org_id", ids),
+    ]);
+    const { error } = await supabase.schema('core').from("organizations").delete().in("id", ids);
     if (!error) { setOrgs((prev) => prev.filter((o) => !selected.has(o.id))); setSelected(new Set()); }
   };
 
   const bulkUpdate = async () => {
     if (!bulkField || selected.size === 0) return;
     const ids = Array.from(selected);
-    const dbValue = bulkField === "org_type"
-      ? (bulkValue ? bulkValue.split(",").map((v) => v.trim()).filter(Boolean) : [])
-      : (bulkValue || null);
-    const { error } = await supabase.from("organizations").update({ [bulkField]: dbValue }).in("id", ids);
-    if (!error) { setOrgs((prev) => prev.map((o) => selected.has(o.id) ? { ...o, [bulkField]: dbValue } : o)); setSelected(new Set()); setShowBulk(false); }
+    if (bulkField === "org_type") {
+      const types = bulkValue ? bulkValue.split(",").map((v) => v.trim()).filter(Boolean) : [];
+      await supabase.schema('core').from("org_types").delete().in("org_id", ids);
+      if (types.length > 0) {
+        const rows = ids.flatMap((id) => types.map((t) => ({ org_id: id, type: t })));
+        await supabase.schema('core').from("org_types").insert(rows);
+      }
+      setOrgs((prev) => prev.map((o) => selected.has(o.id) ? { ...o, org_type: types } : o));
+    } else {
+      // Direct org fields (name, website, etc.)
+      const { error } = await supabase.schema('core').from("organizations").update({ [bulkField]: bulkValue || null }).in("id", ids);
+      if (!error) setOrgs((prev) => prev.map((o) => selected.has(o.id) ? { ...o, [bulkField]: bulkValue || null } : o));
+    }
+    setSelected(new Set()); setShowBulk(false);
   };
 
   const toggleSelect = (id: string) => { setSelected((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; }); };
   const toggleSelectAll = () => { if (selected.size === filtered.length) setSelected(new Set()); else setSelected(new Set(filtered.map((o) => o.id))); };
 
-  const types = [...new Set(orgs.flatMap((o) => Array.isArray(o.org_type) ? o.org_type : (o.org_type ? [o.org_type] : [])))] as string[];
-  const structures = [...new Set(orgs.map((o) => o.corporate_structure).filter(Boolean))] as string[];
-  const getLeagues = (o: SoccerOrg) => LEAGUE_FIELDS.filter((lf) => o[lf.key]).map((lf) => lf.label);
-
   const filtered = orgs.filter((o) => {
     if (search && !o.name?.toLowerCase().includes(search.toLowerCase())) return false;
-    if (filterType && !(Array.isArray(o.org_type) ? o.org_type.includes(filterType) : o.org_type === filterType)) return false;
-    if (filterStructure && o.corporate_structure !== filterStructure) return false;
-    if (filterLeague) { const key = `in_${filterLeague.toLowerCase().replace(/ /g, "_")}` as keyof SoccerOrg; if (!o[key]) return false; }
+    if (filterType && !o.org_type.includes(filterType)) return false;
+    if (filterLeague && !o.leagues.includes(filterLeague)) return false;
     return true;
   }).sort((a, b) => {
     const aVal = (a[sortField] || "").toLowerCase();
@@ -200,9 +278,8 @@ export default function SoccerOrgsPage() {
             <DialogContent>
               <DialogHeader><DialogTitle>Bulk Update {selected.size} Orgs</DialogTitle></DialogHeader>
               <div className="space-y-3">
-                <div><label className="text-xs text-gray-500">Field</label><select className="w-full border rounded-md px-2 py-1.5 text-sm" value={bulkField} onChange={(e) => { setBulkField(e.target.value); setBulkValue(""); }}><option value="">Select...</option><option value="org_type">Type</option><option value="corporate_structure">Structure</option></select></div>
+                <div><label className="text-xs text-gray-500">Field</label><select className="w-full border rounded-md px-2 py-1.5 text-sm" value={bulkField} onChange={(e) => { setBulkField(e.target.value); setBulkValue(""); }}><option value="">Select...</option><option value="org_type">Type</option></select></div>
                 {bulkField === "org_type" && <div><label className="text-xs text-gray-500">Value</label><select className="w-full border rounded-md px-2 py-1.5 text-sm" value={bulkValue} onChange={(e) => setBulkValue(e.target.value)}><option value="">—</option>{ORG_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}</select></div>}
-                {bulkField === "corporate_structure" && <div><label className="text-xs text-gray-500">Value</label><select className="w-full border rounded-md px-2 py-1.5 text-sm" value={bulkValue} onChange={(e) => setBulkValue(e.target.value)}><option value="">—</option>{STRUCTURES.map((s) => <option key={s} value={s}>{s}</option>)}</select></div>}
                 <Button onClick={bulkUpdate} className="w-full" disabled={!bulkField}>Update {selected.size} Records</Button>
               </div>
             </DialogContent>
@@ -219,9 +296,8 @@ export default function SoccerOrgsPage() {
 
       {showFilters && (
         <Card className="mb-4"><CardContent className="pt-4 pb-4"><div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <div><label className="text-xs font-medium text-gray-500 mb-1 block">Type</label><select className="w-full border rounded-md px-2 py-1.5 text-sm" value={filterType} onChange={(e) => setFilterType(e.target.value)}><option value="">All</option>{types.map((t) => <option key={t} value={t}>{t}</option>)}</select></div>
-          <div><label className="text-xs font-medium text-gray-500 mb-1 block">Structure</label><select className="w-full border rounded-md px-2 py-1.5 text-sm" value={filterStructure} onChange={(e) => setFilterStructure(e.target.value)}><option value="">All</option>{structures.map((s) => <option key={s} value={s}>{s}</option>)}</select></div>
-          <div><label className="text-xs font-medium text-gray-500 mb-1 block">League</label><select className="w-full border rounded-md px-2 py-1.5 text-sm" value={filterLeague} onChange={(e) => setFilterLeague(e.target.value)}><option value="">All</option>{LEAGUE_FIELDS.map((lf) => <option key={lf.key} value={lf.key.replace("in_", "")}>{lf.label}</option>)}</select></div>
+          <div><label className="text-xs font-medium text-gray-500 mb-1 block">Type</label><select className="w-full border rounded-md px-2 py-1.5 text-sm" value={filterType} onChange={(e) => setFilterType(e.target.value)}><option value="">All</option>{ORG_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}</select></div>
+          <div><label className="text-xs font-medium text-gray-500 mb-1 block">League</label><select className="w-full border rounded-md px-2 py-1.5 text-sm" value={filterLeague} onChange={(e) => setFilterLeague(e.target.value)}><option value="">All</option>{leagueNames.map((l) => <option key={l.id} value={l.name}>{l.name}</option>)}</select></div>
           <div className="flex items-end"><Button variant="ghost" size="sm" onClick={() => { setFilterType(""); setFilterStructure(""); setFilterLeague(""); }}><X className="h-3 w-3 mr-1" /> Clear</Button></div>
         </div></CardContent></Card>
       )}
@@ -256,8 +332,8 @@ export default function SoccerOrgsPage() {
                   <td className="px-3 py-2"><button onClick={() => toggleSelect(o.id)}>{selected.has(o.id) ? <CheckSquare className="h-4 w-4 text-blue-600" /> : <Square className="h-4 w-4 text-gray-300" />}</button></td>
                   <td className="px-2 py-2"><Avatar src={o.avatar_url} name={o.name} size="sm" /></td>
                   <td className="px-3 py-2 overflow-hidden"><div className="flex items-center gap-1.5 min-w-0"><Link href={`/soccer-orgs/${o.id}`} className="text-blue-600 hover:underline shrink-0 text-xs">↗</Link><div className="min-w-0 flex-1"><EditableCell value={o.name} onSave={(v) => updateCell(o.id, "name", v)} /></div></div></td>
-                  <td className="px-3 py-2 overflow-hidden"><EditableCell value={Array.isArray(o.org_type) ? o.org_type.join(", ") : (o.org_type ?? null)} onSave={(v) => updateCell(o.id, "org_type", v)} type="multi-select" options={ORG_TYPES} /></td>
-                  <td className="px-3 py-2 overflow-hidden"><div className="flex flex-wrap gap-0.5 overflow-hidden max-h-[2rem]">{getLeagues(o).map((l) => <Badge key={l} variant="outline" className="text-[10px] px-1 py-0">{l}</Badge>)}</div></td>
+                  <td className="px-3 py-2 overflow-hidden"><EditableCell value={o.org_type.join(", ") || null} onSave={(v) => updateCell(o.id, "org_type", v)} type="multi-select" options={ORG_TYPES} /></td>
+                  <td className="px-3 py-2 overflow-hidden"><div className="flex flex-wrap gap-0.5 overflow-hidden max-h-[2rem]">{o.leagues.map((l) => <Badge key={l} variant="outline" className="text-[10px] px-1 py-0">{l}</Badge>)}</div></td>
                   <td className="px-3 py-2 overflow-hidden text-gray-600 text-xs">{o.players ?? "—"}</td>
                   <td className="px-3 py-2 overflow-hidden">{o.outreach_status && o.outreach_status !== "Not Contacted" ? <Badge variant="secondary" className="text-[10px]">{o.outreach_status}</Badge> : <span className="text-xs text-gray-300">—</span>}</td>
                   <td className="px-3 py-2 overflow-hidden">{o.partner_status ? <Badge className="text-[10px] bg-green-100 text-green-800">{o.partner_status}</Badge> : <span className="text-xs text-gray-300">—</span>}</td>
