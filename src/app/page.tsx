@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
+import { useRefetchOnFocus } from "@/hooks/useRefetchOnFocus";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -22,9 +23,19 @@ import { loadTaxonomy, getSignalKeywords, tagsMatchKeywords } from "@/lib/taxono
 
 interface ActivityEntry {
   id: string;
-  agent_name: string;
-  action_type: string;
-  summary: string;
+  actor: string;
+  action: string;
+  metadata: {
+    summary?: string;
+    from?: string;
+    tags?: string[];
+    subject?: string;
+    direction?: string;
+    sentiment?: string;
+    source_id?: string;
+    action_count?: number;
+    [key: string]: unknown;
+  } | null;
   created_at: string;
   entity_type?: string;
   entity_id?: string;
@@ -289,11 +300,11 @@ export default function Dashboard() {
     for (const a of recentActivity ?? []) {
       // Only process actual correspondence activity — skip scan logs,
       // knowledge ingestions, report generations, news scans, etc.
-      if (!ACTIVITY_ACTION_TYPES.has(a.action_type)) continue;
+      if (!ACTIVITY_ACTION_TYPES.has(a.action)) continue;
 
       // Allow entries with null entity_id to reach tag-based routing
       // (e.g. emails from unknown senders with investor/partner/customer tags)
-      const rawTags_early: string[] = Array.isArray(a.raw_data?.tags) ? a.raw_data.tags : [];
+      const rawTags_early: string[] = Array.isArray(a.metadata?.tags) ? a.metadata.tags : [];
       if (!a.entity_id && rawTags_early.length === 0) continue;
 
       // Collect all org IDs this activity might belong to:
@@ -315,8 +326,8 @@ export default function Dashboard() {
         }
       }
 
-      // Extract tags from raw_data for intent-based routing
-      const rawTags: string[] = Array.isArray(a.raw_data?.tags) ? a.raw_data.tags : [];
+      // Extract tags from metadata for intent-based routing
+      const rawTags: string[] = Array.isArray(a.metadata?.tags) ? a.metadata.tags : [];
 
       if (candidateOrgIds.length > 0) {
         // ── Org-type routing: activity linked to known orgs ──
@@ -331,7 +342,7 @@ export default function Dashboard() {
               org_id: org.id,
               org_name: org.name,
               org_status: org.pipeline_status,
-              summary: a.summary,
+              summary: a.metadata?.summary || a.metadata?.subject || "",
               date: a.created_at,
               suggested_action: null,
               suggested_deadline: null,
@@ -343,7 +354,7 @@ export default function Dashboard() {
               org_id: org.id,
               org_name: org.name,
               org_status: org.partner_status,
-              summary: a.summary,
+              summary: a.metadata?.summary || a.metadata?.subject || "",
               date: a.created_at,
               suggested_action: null,
               suggested_deadline: null,
@@ -355,7 +366,7 @@ export default function Dashboard() {
               org_id: org.id,
               org_name: org.name,
               org_status: org.partner_status,
-              summary: a.summary,
+              summary: a.metadata?.summary || a.metadata?.subject || "",
               date: a.created_at,
               suggested_action: null,
               suggested_deadline: null,
@@ -369,12 +380,13 @@ export default function Dashboard() {
         if (seenKeys.has(dedupKey)) continue;
         seenKeys.add(dedupKey);
 
-        const fromLabel = a.raw_data?.from || a.summary?.split(" ").slice(0, 3).join(" ") || "Unknown";
+        const summaryText = a.metadata?.summary || a.metadata?.subject || "";
+        const fromLabel = a.metadata?.from || summaryText.split(" ").slice(0, 3).join(" ") || "Unknown";
         const intentRow: OrgActivityRow = {
           org_id: a.entity_id,
           org_name: `📨 ${fromLabel}`,
           org_status: null,
-          summary: a.summary,
+          summary: summaryText,
           date: a.created_at,
           suggested_action: null,
           suggested_deadline: null,
@@ -398,6 +410,7 @@ export default function Dashboard() {
   }, []);
 
   useEffect(() => { loadData(); }, [loadData]);
+  useRefetchOnFocus(loadData);
 
   // ─── Load News Articles from knowledge_base ──────────────────────────────
 
@@ -895,9 +908,12 @@ export default function Dashboard() {
                   return (
                     <div key={report.id} className="border rounded-lg overflow-hidden">
                       {/* Report row header */}
-                      <button
+                      <div
+                        role="button"
+                        tabIndex={0}
                         onClick={() => setExpandedReportId(isExpanded ? null : report.id)}
-                        className="w-full flex items-center justify-between px-3 py-2 hover:bg-gray-50 transition-colors text-left"
+                        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setExpandedReportId(isExpanded ? null : report.id); } }}
+                        className="w-full flex items-center justify-between px-3 py-2 hover:bg-gray-50 transition-colors text-left cursor-pointer"
                       >
                         <div className="flex items-center gap-2 min-w-0">
                           <FileText className="h-3.5 w-3.5 text-indigo-500 shrink-0" />
@@ -949,7 +965,7 @@ export default function Dashboard() {
                             <ChevronDown className="h-3.5 w-3.5 text-gray-400" />
                           )}
                         </div>
-                      </button>
+                      </div>
 
                       {/* Expanded report content */}
                       {isExpanded && (

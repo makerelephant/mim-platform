@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
+import { useRefetchOnFocus } from "@/hooks/useRefetchOnFocus";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -120,6 +121,7 @@ export default function PartnershipPipelinePage() {
   }, []);
 
   useEffect(() => { load(); }, [load]);
+  useRefetchOnFocus(load);
 
   const updateCell = async (id: string, field: string, value: string) => {
     if (field === "partner_status") {

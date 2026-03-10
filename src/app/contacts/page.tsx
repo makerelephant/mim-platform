@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import { supabase } from "@/lib/supabase";
+import { useRefetchOnFocus } from "@/hooks/useRefetchOnFocus";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -159,6 +160,7 @@ export default function ContactsPage() {
   };
 
   useEffect(() => { loadContacts(); }, [loadContacts]);
+  useRefetchOnFocus(loadContacts);
 
   const updateCell = async (id: string, field: string, value: string) => {
     const { error } = await supabase.schema('core').from("contacts").update({ [field]: value || null }).eq("id", id);

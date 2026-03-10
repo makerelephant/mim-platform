@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import { useRefetchOnFocus } from "@/hooks/useRefetchOnFocus";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -168,6 +169,7 @@ function OrgsPageInner() {
   }, [typeFilter]);
 
   useEffect(() => { load(); }, [load]);
+  useRefetchOnFocus(load);
 
   /* ── Inline editing ── */
 
