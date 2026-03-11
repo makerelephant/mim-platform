@@ -40,6 +40,11 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
+# MCP server
+mcp-server/dist/
+mcp-server/node_modules/
+mcp-server/.env
+
 # Google OAuth credentials
 scripts/agents/credentials.json
 scripts/agents/token.json

@@ -8,6 +8,8 @@ import { SupabaseClient } from "@supabase/supabase-js";
 import { runGmailScanner } from "./gmail-scanner";
 import { runSlackScanner } from "./slack-scanner";
 import { runSheetsScanner } from "./sheets-scanner";
+import { loadReportInstructions, markInstructionExecuted } from "./instruction-loader";
+import { buildEntityDossier } from "./entity-dossier";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -342,6 +344,44 @@ export async function runWeeklyReport(
 
     const dataContext = buildDataContext(data);
 
+    // ── Load and inject CEO report instructions ──
+    let instructionContext = "";
+    const reportInstructions = await loadReportInstructions(sb);
+    if (reportInstructions.length > 0) {
+      addLog(`Found ${reportInstructions.length} report instruction(s) to inject`);
+      const instructionParts: string[] = [];
+      instructionParts.push("\n## CEO REPORT INSTRUCTIONS");
+      instructionParts.push("The following are active instructions from the CEO. Apply them when generating this report:\n");
+
+      for (const instr of reportInstructions) {
+        if (instr.type === "entity_watch" && instr.source_entity_ids && instr.source_entity_ids.length > 0) {
+          // For entity_watch: build dossiers for watched entities and add as context
+          instructionParts.push(`### ENTITY WATCH: ${instr.prompt}`);
+          for (const eid of instr.source_entity_ids) {
+            try {
+              const dossier = await buildEntityDossier(sb, "organizations", eid);
+              if (dossier) {
+                instructionParts.push(dossier.rendered);
+              } else {
+                // Try as contact
+                const contactDossier = await buildEntityDossier(sb, "contacts", eid);
+                if (contactDossier) {
+                  instructionParts.push(contactDossier.rendered);
+                }
+              }
+            } catch (err) {
+              addLog(`Entity watch dossier failed for ${eid}: ${err instanceof Error ? err.message : String(err)}`);
+            }
+          }
+        } else if (instr.type === "report_inclusion") {
+          instructionParts.push(`• INCLUDE: ${instr.prompt}`);
+        }
+      }
+
+      instructionContext = instructionParts.join("\n");
+      addLog(`Injected ${reportInstructions.length} instruction(s) into report context`);
+    }
+
     // ── Call Claude ──
     const anthropic = new Anthropic({ apiKey: anthropicKey });
 
@@ -387,7 +427,9 @@ Brief informational items relevant to Mark's awareness. Keep this to genuinely i
 - If an email thread is about someone else's work (e.g., coupon setup by a teammate), do NOT include it
 - Outbound emails FROM Mark are strong attribution signals
 - Inbound emails TO Mark are only relevant if they require his specific action
-- Start directly with "## Accomplished & Completed"`;
+- Start directly with "## Accomplished & Completed"
+
+**CEO Instructions:** If the data includes a "CEO REPORT INSTRUCTIONS" section, follow those directives when generating the report. For ENTITY WATCH instructions, include a dedicated section about the watched entity's recent activity. For INCLUDE instructions, ensure the specified topics are covered in the report.`;
 
     const response = await anthropic.messages.create({
       model,
@@ -395,7 +437,7 @@ Brief informational items relevant to Mark's awareness. Keep this to genuinely i
       system: systemPrompt,
       messages: [{
         role: "user",
-        content: `Here is the CRM data for the period ${formatDate(start)} to ${formatDate(end)}:\n\n${dataContext}`,
+        content: `Here is the CRM data for the period ${formatDate(start)} to ${formatDate(end)}:\n\n${dataContext}${instructionContext ? "\n\n" + instructionContext : ""}`,
       }],
     });
 
@@ -427,6 +469,21 @@ Brief informational items relevant to Mark's awareness. Keep this to genuinely i
     if (insertErr) throw new Error(`Failed to save report: ${insertErr.message}`);
 
     addLog(`Report saved: ${reportRow?.id}`);
+
+    // ── Mark report instructions as executed ──
+    if (reportInstructions.length > 0) {
+      for (const instr of reportInstructions) {
+        try {
+          await markInstructionExecuted(sb, instr.id, instr.recurrence, {
+            report_id: reportRow?.id,
+            period: `${formatDate(start)} to ${formatDate(end)}`,
+          });
+          addLog(`Marked instruction ${instr.id} as executed (${instr.recurrence === "once" ? "fulfilled" : "count incremented"})`);
+        } catch (err) {
+          addLog(`Failed to mark instruction ${instr.id}: ${err instanceof Error ? err.message : String(err)}`);
+        }
+      }
+    }
 
     // ── Log activity ──
     await sb.schema('brain').from("activity").insert({

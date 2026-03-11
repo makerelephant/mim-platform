@@ -11,6 +11,7 @@ import { preFilterSlack } from "./scanner-prefilter";
 import { buildEntityDossier } from "./entity-dossier";
 import { computeFeedbackForEntities } from "./feedback-engine";
 import { loadTaxonomy, matchTaxonomyCategory, buildTaxonomyPromptSection, enforcePriorityRules } from "./taxonomy-loader";
+import { loadStandingOrders, buildStandingOrdersPromptSection } from "./instruction-loader";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -483,6 +484,14 @@ export async function runSlackScanner(
     const taxonomySection = buildTaxonomyPromptSection(taxonomy);
     agentSystemPrompt = agentSystemPrompt.replace("{{TAXONOMY_SECTION}}", taxonomySection);
     addLog(`Injected taxonomy (${taxonomy.length} categories) into classifier prompt`);
+
+    // ── Inject CEO standing orders into system prompt ──
+    const standingOrders = await loadStandingOrders(sb);
+    if (standingOrders.length > 0) {
+      const standingOrdersSection = buildStandingOrdersPromptSection(standingOrders);
+      agentSystemPrompt += "\n" + standingOrdersSection;
+      addLog(`Injected ${standingOrders.length} standing order(s) into classifier prompt`);
+    }
 
     // ── Slack client ──
     const slack = new WebClient(slackToken);
