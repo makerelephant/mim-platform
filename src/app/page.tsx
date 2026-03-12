@@ -6,16 +6,23 @@ import Image from "next/image";
 import {
   Paperclip,
   Mic,
-  ArrowUp,
+  ArrowUpCircle,
   Loader2,
   ArrowLeft,
   ArrowRight,
   X,
   BookOpen,
   RefreshCw,
-  Plus,
-  Tag,
-  Eye,
+  CheckCircle2,
+  Circle,
+  Trash2,
+  Maximize2,
+  ThumbsUp,
+  ThumbsDown,
+  CalendarPlus,
+  Cable,
+  MoreHorizontal,
+  ExternalLink,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 
@@ -26,6 +33,7 @@ interface KpiCard {
   value: string;
   subtitle: string;
   icon: string;
+  valueColor: string;
 }
 
 interface ChatMessage {
@@ -44,13 +52,14 @@ interface Conversation {
 
 interface ImportantConversation {
   id: string;
-  source: string; // 'gmail' | 'slack' | 'scanner'
-  priority: string; // 'critical' | 'high' | 'medium' | 'low'
+  source: string;
+  priority: string;
   title: string;
   body: string;
   suggestedAction: string | null;
   entityId: string | null;
   createdAt: Date;
+  dismissed?: boolean;
 }
 
 // ─── Component ──────────────────────────────────────────────────────────────
@@ -70,10 +79,14 @@ export default function MyBrainPage() {
   const [view, setView] = useState<"main" | "chat">("main");
 
   // Important conversations state
-  const [importantConvos, setImportantConvos] = useState<ImportantConversation[]>([]);
+  const [importantConvos, setImportantConvos] = useState<
+    ImportantConversation[]
+  >([]);
   const [importantLoading, setImportantLoading] = useState(false);
-  const [importantLastUpdated, setImportantLastUpdated] = useState<string | null>(null);
-  const [activeFilter, setActiveFilter] = useState<string | null>(null);
+  const [importantLastUpdated, setImportantLastUpdated] = useState<
+    string | null
+  >(null);
+  const [activeFilters, setActiveFilters] = useState<string[]>([]);
 
   // ── Load dashboard data ──
   useEffect(() => {
@@ -91,13 +104,12 @@ export default function MyBrainPage() {
           setLastVisit(
             formatDistanceToNow(new Date(lastActivity[0].created_at), {
               addSuffix: true,
-            }),
+            })
           );
         } else {
           setLastVisit("23 hours ago");
         }
 
-        // Load prior conversations from brain activity
         const { data: priorQueries } = await supabase
           .schema("brain")
           .from("activity")
@@ -108,27 +120,60 @@ export default function MyBrainPage() {
 
         if (priorQueries && priorQueries.length > 0) {
           const convos: Conversation[] = priorQueries.map(
-            (q: { id: string; metadata: { question?: string }; created_at: string }) => ({
+            (q: {
+              id: string;
+              metadata: { question?: string };
+              created_at: string;
+            }) => ({
               id: q.id,
               title:
                 (q.metadata?.question || "Untitled conversation").slice(0, 45) +
                 ((q.metadata?.question || "").length > 45 ? "..." : ""),
               messages: [],
               createdAt: new Date(q.created_at),
-            }),
+            })
           );
           setConversations(convos);
         }
 
         setKpis([
-          { label: "REVENUE", value: "$", subtitle: "Cumulative since (date)", icon: "revenue" },
-          { label: "ITEMS SOLD", value: "...", subtitle: "individual products", icon: "items" },
-          { label: "AOV", value: "$", subtitle: "Average Order Value", icon: "aov" },
-          { label: "LINKS CREATED", value: "...", subtitle: "Drop Links Created", icon: "links" },
-          { label: "CONVERT TO BUY", value: "%", subtitle: "% who visit and buy", icon: "convert" },
+          {
+            label: "REVENUE",
+            value: "$",
+            subtitle: "Cumulative since {date}",
+            icon: "revenue",
+            valueColor: "text-emerald-600",
+          },
+          {
+            label: "ITEMS SOLD",
+            value: "...",
+            subtitle: "individual products",
+            icon: "items",
+            valueColor: "text-[#98bfd5]",
+          },
+          {
+            label: "AOV",
+            value: "$",
+            subtitle: "Average Order Value",
+            icon: "aov",
+            valueColor: "text-emerald-600",
+          },
+          {
+            label: "LINKS CREATED",
+            value: "...",
+            subtitle: "Drop Links Created",
+            icon: "links",
+            valueColor: "text-[#98bfd5]",
+          },
+          {
+            label: "CONVERT TO BUY",
+            value: "%",
+            subtitle: "% who visit and buy",
+            icon: "convert",
+            valueColor: "text-[#98bfd5]",
+          },
         ]);
 
-        // Load important conversations
         await loadImportantConversations();
       } catch (err) {
         console.error("Dashboard load error:", err);
@@ -137,20 +182,21 @@ export default function MyBrainPage() {
       }
     }
     loadDashboard();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ── Load important conversations from ceo_context + correspondence ──
+  // ── Load important conversations ──
   const loadImportantConversations = useCallback(async () => {
     setImportantLoading(true);
     try {
       const items: ImportantConversation[] = [];
 
-      // 1. Try brain.ceo_context first (scanner-flagged items)
       const { data: ceoItems } = await supabase
         .schema("brain")
         .from("ceo_context")
-        .select("id, source, context_type, title, content, priority, entity_id, metadata, created_at")
+        .select(
+          "id, source, context_type, title, content, priority, entity_id, metadata, created_at"
+        )
         .order("created_at", { ascending: false })
         .limit(15);
 
@@ -162,31 +208,34 @@ export default function MyBrainPage() {
             priority: item.priority || "medium",
             title: item.title || "Untitled",
             body: (item.content || "").slice(0, 200),
-            suggestedAction: (item.metadata as Record<string, string>)?.suggested_action || null,
+            suggestedAction:
+              (item.metadata as Record<string, string>)?.suggested_action ||
+              null,
             entityId: item.entity_id,
             createdAt: new Date(item.created_at),
           });
         }
       }
 
-      // 2. Fill with recent correspondence if ceo_context is sparse
       if (items.length < 5) {
         const { data: corr } = await supabase
           .schema("brain")
           .from("correspondence")
-          .select("id, channel, direction, subject, body, from_address, entity_id, sent_at, created_at")
+          .select(
+            "id, channel, direction, subject, body, from_address, entity_id, sent_at, created_at"
+          )
           .order("sent_at", { ascending: false })
           .limit(15);
 
         if (corr && corr.length > 0) {
           for (const c of corr) {
-            // Skip if already represented via ceo_context
             if (items.some((i) => i.title === c.subject)) continue;
             items.push({
               id: c.id,
               source: c.channel || "email",
               priority: "medium",
-              title: c.subject || `Message from ${c.from_address || "unknown"}`,
+              title:
+                c.subject || `Message from ${c.from_address || "unknown"}`,
               body: (c.body || "").slice(0, 200),
               suggestedAction: null,
               entityId: c.entity_id,
@@ -196,11 +245,10 @@ export default function MyBrainPage() {
         }
       }
 
-      // Sort by date descending
       items.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
       setImportantConvos(items.slice(0, 20));
       setImportantLastUpdated(
-        formatDistanceToNow(new Date(), { addSuffix: true }),
+        formatDistanceToNow(new Date(), { addSuffix: true })
       );
     } catch (err) {
       console.error("Important conversations load error:", err);
@@ -209,7 +257,6 @@ export default function MyBrainPage() {
     }
   }, []);
 
-  // Scroll to bottom when messages change
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [activeConversation?.messages]);
@@ -231,7 +278,8 @@ export default function MyBrainPage() {
       if (!convo) {
         convo = {
           id: crypto.randomUUID(),
-          title: question.slice(0, 45) + (question.length > 45 ? "..." : ""),
+          title:
+            question.slice(0, 45) + (question.length > 45 ? "..." : ""),
           messages: [userMsg],
           createdAt: new Date(),
         };
@@ -263,22 +311,23 @@ export default function MyBrainPage() {
         };
 
         setActiveConversation((prev) =>
-          prev ? { ...prev, messages: [...prev.messages, brainMsg] } : null,
+          prev ? { ...prev, messages: [...prev.messages, brainMsg] } : null
         );
       } catch {
         const brainMsg: ChatMessage = {
           role: "brain",
-          content: "Sorry, I couldn't connect to the brain. Please try again.",
+          content:
+            "Sorry, I couldn't connect to the brain. Please try again.",
           timestamp: new Date(),
         };
         setActiveConversation((prev) =>
-          prev ? { ...prev, messages: [...prev.messages, brainMsg] } : null,
+          prev ? { ...prev, messages: [...prev.messages, brainMsg] } : null
         );
       } finally {
         setIsAsking(false);
       }
     },
-    [chatInput, isAsking, activeConversation],
+    [chatInput, isAsking, activeConversation]
   );
 
   function handleBack() {
@@ -291,88 +340,124 @@ export default function MyBrainPage() {
     setView("chat");
   }
 
-  // ── Source badge helpers ──
-  function sourceIcon(source: string) {
+  // ── Helpers ──
+  function sourceLabel(source: string) {
     const s = source.toLowerCase();
-    if (s.includes("slack")) return { label: "Slack", color: "text-blue-600", bg: "bg-blue-50" };
-    if (s.includes("gmail") || s.includes("email")) return { label: "Gmail", color: "text-green-600", bg: "bg-green-50" };
-    return { label: source, color: "text-slate-600", bg: "bg-slate-50" };
+    if (s.includes("slack")) return "Slack";
+    if (s.includes("gmail") || s.includes("email")) return "Gmail";
+    return source;
   }
 
-  function priorityBadge(priority: string) {
+  function priorityDot(priority: string) {
     switch (priority) {
-      case "critical": return { label: "Critical", classes: "bg-red-100 text-red-700" };
-      case "high": return { label: "High", classes: "bg-orange-100 text-orange-700" };
-      case "medium": return { label: "Medium", classes: "bg-slate-100 text-slate-600" };
-      case "low": return { label: "Low", classes: "bg-slate-50 text-slate-400" };
-      default: return { label: priority, classes: "bg-slate-100 text-slate-600" };
-    }
-  }
-
-  // ── Filtered important conversations ──
-  const filteredImportant = activeFilter
-    ? importantConvos.filter((c) => {
-        if (activeFilter === "slack") return c.source.toLowerCase().includes("slack");
-        if (activeFilter === "gmail") return c.source.toLowerCase().includes("gmail") || c.source.toLowerCase().includes("email");
-        return true;
-      })
-    : importantConvos;
-
-  // ── KPI icon render ──
-  function renderKpiIcon(icon: string) {
-    switch (icon) {
-      case "revenue":
-      case "aov":
-        return <Image src="/icons/pipelines.png" alt="" width={22} height={22} className="opacity-70" />;
-      case "items":
-        return (
-          <svg className="w-5 h-5 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="9" cy="21" r="1" /><circle cx="20" cy="21" r="1" />
-            <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
-          </svg>
-        );
-      case "links":
-      case "convert":
-        return <Image src="/icons/convert to buy.png" alt="" width={22} height={22} className="opacity-70" />;
+      case "critical":
+        return { label: "Critical", color: "bg-red-500" };
+      case "high":
+        return { label: "High", color: "bg-red-500" };
+      case "medium":
+        return { label: "Medium", color: "bg-amber-500" };
+      case "low":
+        return { label: "Low", color: "bg-slate-400" };
       default:
-        return null;
+        return { label: priority, color: "bg-slate-400" };
     }
   }
 
-  // ── Format brain response (basic markdown) ──
+  function toggleFilter(filter: string) {
+    setActiveFilters((prev) =>
+      prev.includes(filter)
+        ? prev.filter((f) => f !== filter)
+        : [...prev, filter]
+    );
+  }
+
+  const filteredImportant =
+    activeFilters.length > 0
+      ? importantConvos.filter((c) => {
+          const s = c.source.toLowerCase();
+          if (activeFilters.includes("slack") && s.includes("slack"))
+            return true;
+          if (
+            activeFilters.includes("gmail") &&
+            (s.includes("gmail") || s.includes("email"))
+          )
+            return true;
+          return false;
+        })
+      : importantConvos;
+
+  // ── KPI icon ──
+  function renderKpiIcon(icon: string) {
+    const map: Record<string, string> = {
+      revenue: "/icons/revenue.png",
+      items: "/icons/items-sold.png",
+      aov: "/icons/aov.png",
+      links: "/icons/links-created.png",
+      convert: "/icons/convert-to-buy.png",
+    };
+    const src = map[icon];
+    if (!src) return null;
+    return <Image src={src} alt="" width={40} height={40} />;
+  }
+
+  // ── Format brain response ──
   function formatBrainResponse(text: string) {
     return text.split("\n").map((line, i) => {
       const boldFormatted = line.replace(
         /\*\*(.*?)\*\*/g,
-        '<strong class="font-semibold text-slate-800">$1</strong>',
+        '<strong class="font-semibold text-slate-800">$1</strong>'
       );
       if (line.startsWith("## ")) {
-        return <h3 key={i} className="text-sm font-semibold text-slate-800 mt-3 mb-1">{line.slice(3)}</h3>;
+        return (
+          <h3
+            key={i}
+            className="text-sm font-semibold text-slate-800 mt-3 mb-1"
+          >
+            {line.slice(3)}
+          </h3>
+        );
       }
       if (line.startsWith("- ") || line.startsWith("* ")) {
         return (
-          <div key={i} className="flex gap-2 text-sm text-slate-600 ml-2 mb-0.5">
+          <div
+            key={i}
+            className="flex gap-2 text-sm text-slate-600 ml-2 mb-0.5"
+          >
             <span className="text-slate-400 shrink-0">&#8226;</span>
-            <span dangerouslySetInnerHTML={{ __html: boldFormatted.slice(2) }} />
+            <span
+              dangerouslySetInnerHTML={{ __html: boldFormatted.slice(2) }}
+            />
           </div>
         );
       }
       if (line.trim() === "") return <div key={i} className="h-2" />;
-      return <p key={i} className="text-sm text-slate-600 mb-0.5" dangerouslySetInnerHTML={{ __html: boldFormatted }} />;
+      return (
+        <p
+          key={i}
+          className="text-sm text-slate-600 mb-0.5"
+          dangerouslySetInnerHTML={{ __html: boldFormatted }}
+        />
+      );
     });
   }
 
   // ─── RENDER ──────────────────────────────────────────────────────────────
 
   return (
-    <div className="h-full flex flex-col">
+    <div className="h-full flex flex-col bg-[#f3f3f3] -m-6 p-6">
       {/* ── Header ── */}
-      <div className="mb-4 shrink-0">
-        <h1 className="text-2xl font-bold text-slate-900">My Brain</h1>
-        <div className="flex items-center gap-3 mt-0.5">
-          <p className="text-sm text-slate-500">Hello Mark, Welcome Back.</p>
+      <div className="bg-white -mx-6 -mt-6 px-6 py-5 mb-4 shrink-0">
+        <div className="flex items-end gap-3">
+          <div>
+            <h1 className="text-4xl font-semibold text-[#1e252a] tracking-tight">
+              My Brain
+            </h1>
+            <p className="text-sm text-[#6e7b80] tracking-tight">
+              Hello Mark, Welcome Back.
+            </p>
+          </div>
           {lastVisit && (
-            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-white border border-slate-200 text-slate-500">
+            <span className="inline-flex items-center px-3 py-0.5 rounded-full text-xs font-normal bg-[#f3f8ff] border border-[#c5ddff] text-[#3e4c60] mb-1">
               Last Visit: {lastVisit}
             </span>
           )}
@@ -381,15 +466,29 @@ export default function MyBrainPage() {
 
       {/* ── KPI Cards ── */}
       {!loading && (
-        <div className="grid grid-cols-5 gap-3 mb-4 shrink-0">
+        <div className="flex gap-6 mb-4 shrink-0 px-3">
           {kpis.map((kpi) => (
-            <div key={kpi.label} className="bg-white rounded-xl border border-slate-200 px-3 py-3 shadow-sm hover:shadow-md transition-shadow">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-[10px] font-semibold tracking-wider text-slate-500 uppercase">{kpi.label}</span>
-                <div className="h-7 w-7 rounded-lg bg-slate-50 flex items-center justify-center">{renderKpiIcon(kpi.icon)}</div>
+            <div
+              key={kpi.label}
+              className="bg-white rounded-lg border border-gray-100 p-3.5 shadow-[0px_1px_2px_0px_rgba(0,0,0,0.2)] flex flex-col justify-between h-[115px] min-w-[177px] flex-1"
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold tracking-[1.2px] text-gray-400 uppercase">
+                  {kpi.label}
+                </span>
+                <div className="shrink-0">{renderKpiIcon(kpi.icon)}</div>
               </div>
-              <div className="mb-0.5"><span className="text-xl font-bold text-emerald-600">{kpi.value}</span></div>
-              <p className="text-[10px] text-slate-400">{kpi.subtitle}</p>
+              <div>
+                <p
+                  className={`text-3xl font-bold ${kpi.valueColor}`}
+                  style={{ fontFamily: "'Space Grotesk', sans-serif" }}
+                >
+                  {kpi.value}
+                </p>
+                <p className="text-xs text-gray-500 tracking-tight">
+                  {kpi.subtitle}
+                </p>
+              </div>
             </div>
           ))}
         </div>
@@ -398,193 +497,318 @@ export default function MyBrainPage() {
       {/* ── Main content area ── */}
       <div className="flex-1 min-h-0 flex flex-col">
         {view === "main" ? (
-          /* ═══ MAIN VIEW: Chat Prompt (left) + Important Conversations (right) ═══ */
           <div className="flex gap-4 flex-1 min-h-0">
-            {/* ── Chat Prompt Area (left, with gradient background) ── */}
-            <div
-              className="w-[340px] shrink-0 rounded-xl border border-slate-200 shadow-sm flex flex-col items-center justify-center overflow-hidden relative"
-              style={{
-                backgroundImage: "url('/icons/Rectangle 4963.png')",
-                backgroundSize: "cover",
-                backgroundPosition: "center",
-              }}
-            >
-              <div className="absolute inset-0 bg-white/60 pointer-events-none" />
-
-              <div className="relative z-10 flex flex-col items-center w-full max-w-sm px-6">
-                <Image src="/icons/MiMbrain Icon.png" alt="" width={36} height={36} className="mb-3 opacity-60" />
-                <h2 className="text-lg font-semibold text-slate-800 mb-4">How can i help?</h2>
-
-                <form onSubmit={handleSubmit} className="w-full">
-                  <div className="bg-white rounded-xl border border-slate-200 shadow-sm px-4 pt-3 pb-2">
-                    <input
-                      type="text"
-                      value={chatInput}
-                      onChange={(e) => setChatInput(e.target.value)}
-                      placeholder="Ask The MiMbrain Anything about the business..."
-                      disabled={isAsking}
-                      className="w-full text-sm text-slate-700 placeholder:text-slate-400 bg-transparent outline-none pb-6"
+            {/* ── Chat Prompt Area (left) ── */}
+            <div className="w-[524px] shrink-0">
+              <div className="bg-white rounded-lg shadow-[0px_0px_4px_0px_rgba(0,0,0,0.12)] p-6 h-[340px] flex flex-col">
+                <div className="bg-[rgba(238,242,245,0.6)] rounded-lg shadow-[0px_0px_4px_0px_rgba(0,0,0,0.12)] flex-1 flex flex-col items-center justify-between p-3">
+                  {/* Top: Logo + title */}
+                  <div className="flex flex-col items-center gap-1.5 pt-2">
+                    <Image
+                      src="/icons/mimbrain-logo.png"
+                      alt=""
+                      width={37}
+                      height={26}
                     />
-                    <div className="flex items-center justify-between">
-                      <button
-                        type="button"
-                        className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-50 border border-blue-200/60 text-xs font-medium text-slate-700 hover:bg-blue-100 transition-colors"
-                      >
-                        <Image src="/icons/gophers.png" alt="" width={16} height={16} />
-                        Launch a Gopher
-                      </button>
-                      <div className="flex items-center gap-0.5">
-                        <button type="button" className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors">
+                    <h2 className="text-[26px] font-medium text-[#1e252a] tracking-tight text-center">
+                      How can i help?
+                    </h2>
+                  </div>
+
+                  {/* Input area */}
+                  <form onSubmit={handleSubmit} className="w-full max-w-[455px]">
+                    <div className="bg-white rounded-[18px] border border-[#a9d8ff]/50 shadow-[0px_0.5px_6px_0px_rgba(0,0,0,0.12)] px-3.5 pt-2.5 pb-2.5 h-[89px] flex flex-col justify-between">
+                      <div className="flex items-start pl-3">
+                        <input
+                          type="text"
+                          value={chatInput}
+                          onChange={(e) => setChatInput(e.target.value)}
+                          placeholder="Ask The MiMBrain Anything about the business."
+                          disabled={isAsking}
+                          className="w-full text-sm text-slate-700 placeholder:text-[#b0b8bb] bg-transparent outline-none"
+                        />
+                      </div>
+                      <div className="flex items-center justify-end gap-6">
+                        <button
+                          type="button"
+                          className="text-slate-400 hover:text-slate-600 transition-colors"
+                        >
+                          <CalendarPlus className="w-4 h-4" />
+                        </button>
+                        <button
+                          type="button"
+                          className="text-slate-400 hover:text-slate-600 transition-colors"
+                        >
                           <Paperclip className="w-4 h-4" />
                         </button>
-                        <button type="button" className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors">
+                        <button
+                          type="button"
+                          className="text-slate-400 hover:text-slate-600 transition-colors"
+                        >
                           <Mic className="w-4 h-4" />
                         </button>
                         <button
                           type="submit"
                           disabled={isAsking || !chatInput.trim()}
-                          className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors disabled:opacity-40"
+                          className="text-slate-400 hover:text-blue-500 transition-colors disabled:opacity-40"
                         >
-                          {isAsking ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowUp className="w-4 h-4" />}
+                          {isAsking ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <ArrowUpCircle className="w-4 h-4" />
+                          )}
                         </button>
                       </div>
                     </div>
-                  </div>
-                </form>
+                  </form>
 
-                {/* See Old Conversations link */}
-                <button
-                  onClick={() => setView("chat")}
-                  className="mt-4 flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-700 transition-colors"
-                >
-                  See Old Conversations
-                  <ArrowRight className="w-3 h-3" />
-                </button>
+                  {/* Bottom action buttons */}
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      className="flex items-center gap-0.5 px-2 py-0.5 rounded-full bg-[#ecfaff] border border-[#b9e6ff] text-xs font-semibold text-[#1e252a] tracking-tight mix-blend-multiply"
+                    >
+                      <Image
+                        src="/icons/gophers.png"
+                        alt=""
+                        width={24}
+                        height={27}
+                        className="shrink-0"
+                      />
+                      Launch a Gopher
+                    </button>
+                    <button
+                      type="button"
+                      className="flex items-center gap-0.5 px-2 py-0.5 rounded-full bg-[#ecfaff] border border-[#b9e6ff] text-xs font-semibold text-[#1e252a] tracking-tight mix-blend-multiply"
+                    >
+                      <Image
+                        src="/icons/gophers.png"
+                        alt=""
+                        width={24}
+                        height={27}
+                        className="shrink-0"
+                      />
+                      Schedule a Meeting
+                    </button>
+                    <button
+                      onClick={() => setView("chat")}
+                      className="flex items-center gap-1.5 text-xs font-medium text-[#33637f]"
+                    >
+                      See Old Convos
+                      <ArrowRight className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
 
             {/* ── Important Conversations Panel (right) ── */}
-            <div className="flex-1 bg-white rounded-xl border border-slate-200 shadow-sm flex flex-col min-h-0">
+            <div className="flex-1 bg-white rounded-lg shadow-[0px_0px_4px_0px_rgba(0,0,0,0.12)] flex flex-col min-h-0">
               {/* Header */}
-              <div className="shrink-0 px-4 pt-4 pb-3 border-b border-slate-100">
+              <div className="shrink-0 p-3 rounded-t-lg shadow-[0px_1px_6px_0px_rgba(0,0,0,0.12)]">
                 <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-sm font-semibold text-slate-800">Important Conversations</h3>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-3">
+                    <h3 className="text-base font-semibold text-[#1e252a] tracking-tight">
+                      Important Conversations
+                    </h3>
                     {importantLastUpdated && (
-                      <span className="text-[10px] text-slate-400">Last updated: {importantLastUpdated}</span>
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-normal bg-[#f3f8ff] text-[#3e4c60]">
+                        Last updated: {importantLastUpdated}
+                      </span>
                     )}
-                    <button
-                      onClick={loadImportantConversations}
-                      disabled={importantLoading}
-                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full border border-slate-200 text-[10px] font-medium text-slate-600 hover:bg-slate-50 transition-colors"
-                    >
-                      <RefreshCw className={`w-3 h-3 ${importantLoading ? "animate-spin" : ""}`} />
-                      Update
-                    </button>
                   </div>
+                  <button
+                    onClick={loadImportantConversations}
+                    disabled={importantLoading}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-[#3e4c60] text-xs font-semibold text-white"
+                  >
+                    Update
+                    <Cable
+                      className={`w-3.5 h-3.5 ${importantLoading ? "animate-spin" : ""}`}
+                    />
+                  </button>
                 </div>
+
                 {/* Filter pills */}
-                <div className="flex items-center gap-1.5">
-                  <button
-                    onClick={() => setActiveFilter(activeFilter === "slack" ? null : "slack")}
-                    className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-medium transition-colors border ${
-                      activeFilter === "slack"
-                        ? "bg-blue-50 border-blue-200 text-blue-700"
-                        : "bg-white border-slate-200 text-slate-500 hover:bg-slate-50"
-                    }`}
-                  >
-                    <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
-                    Slack
-                  </button>
-                  <button
-                    onClick={() => setActiveFilter(activeFilter === "gmail" ? null : "gmail")}
-                    className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-medium transition-colors border ${
-                      activeFilter === "gmail"
-                        ? "bg-green-50 border-green-200 text-green-700"
-                        : "bg-white border-slate-200 text-slate-500 hover:bg-slate-50"
-                    }`}
-                  >
-                    <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
-                    Gmail
-                  </button>
+                <div className="flex items-center gap-3">
+                  {activeFilters.includes("slack") && (
+                    <button
+                      onClick={() => toggleFilter("slack")}
+                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-[#fdf2fa] border border-[#fcceee] text-[#c11574] mix-blend-multiply"
+                    >
+                      <X className="w-3 h-3" />
+                      Slack
+                    </button>
+                  )}
+                  {activeFilters.includes("gmail") && (
+                    <button
+                      onClick={() => toggleFilter("gmail")}
+                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-[#f0f9ff] border border-[#b9e6fe] text-[#026aa2] mix-blend-multiply"
+                    >
+                      <X className="w-3 h-3" />
+                      Gmail
+                    </button>
+                  )}
+                  {activeFilters.length === 0 && (
+                    <>
+                      <button
+                        onClick={() => toggleFilter("slack")}
+                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-[#fdf2fa] border border-[#fcceee] text-[#c11574] mix-blend-multiply"
+                      >
+                        Filter 1
+                      </button>
+                      <button
+                        onClick={() => toggleFilter("gmail")}
+                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-[#f0f9ff] border border-[#b9e6fe] text-[#026aa2] mix-blend-multiply"
+                      >
+                        Filter 2
+                      </button>
+                    </>
+                  )}
                 </div>
               </div>
 
               {/* Scrollable conversation list */}
-              <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
+              <div className="flex-1 overflow-y-auto px-3 py-3">
                 {importantLoading && filteredImportant.length === 0 ? (
                   <div className="flex items-center justify-center py-12">
                     <Loader2 className="w-5 h-5 text-slate-400 animate-spin" />
                   </div>
                 ) : filteredImportant.length === 0 ? (
                   <div className="text-center py-12">
-                    <p className="text-sm text-slate-400">No important conversations yet.</p>
-                    <p className="text-xs text-slate-300 mt-1">Run the Gmail or Slack scanner to populate this feed.</p>
+                    <p className="text-sm text-slate-400">
+                      No important conversations yet.
+                    </p>
+                    <p className="text-xs text-slate-300 mt-1">
+                      Run the Gmail or Slack scanner to populate this feed.
+                    </p>
                   </div>
                 ) : (
-                  filteredImportant.map((item) => {
-                    const src = sourceIcon(item.source);
-                    const pri = priorityBadge(item.priority);
+                  filteredImportant.map((item, idx) => {
+                    const pri = priorityDot(item.priority);
+                    const isResolved =
+                      item.priority === "low" || item.dismissed;
                     return (
-                      <div key={item.id} className="bg-white rounded-lg border border-slate-200 p-3 hover:shadow-sm transition-shadow">
-                        {/* Meta line: time, source, priority */}
-                        <div className="flex items-center gap-2 mb-1.5">
-                          <span className="text-[10px] text-slate-400">
-                            {formatDistanceToNow(item.createdAt, { addSuffix: true })}
-                          </span>
-                          <span className="text-[10px] text-slate-300">from</span>
-                          <span className={`text-[10px] font-semibold ${src.color}`}>{src.label}</span>
-                          <span className="w-1 h-1 rounded-full bg-slate-300" />
-                          <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-medium ${pri.classes}`}>
-                            {pri.label}
-                          </span>
-                          <div className="ml-auto">
-                            <button className="p-0.5 rounded text-slate-300 hover:text-slate-500 transition-colors">
-                              <Eye className="w-3 h-3" />
-                            </button>
+                      <div key={item.id}>
+                        <div className="py-1.5">
+                          {/* Card header bar */}
+                          <div className="bg-[rgba(238,242,245,0.6)] shadow-[0px_0px_4px_0px_rgba(0,0,0,0.15)] flex items-center justify-between px-1.5 py-1 h-9">
+                            <div className="flex items-center gap-1.5">
+                              {isResolved ? (
+                                <CheckCircle2 className="w-[22px] h-[22px] text-emerald-500" />
+                              ) : (
+                                <Circle className="w-6 h-6 text-slate-300" />
+                              )}
+                              <div className="bg-white rounded px-3 h-6 flex items-center gap-1.5">
+                                <Image
+                                  src="/icons/gophers.png"
+                                  alt=""
+                                  width={17}
+                                  height={20}
+                                />
+                                <span className="text-xs text-[#6e7b80]">
+                                  {formatDistanceToNow(item.createdAt, {
+                                    addSuffix: false,
+                                  })}{" "}
+                                  Ago from{" "}
+                                  <span className="font-bold text-[#1e252a]">
+                                    {sourceLabel(item.source)}
+                                  </span>
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <span
+                                  className={`w-2 h-2 rounded-full ${pri.color}`}
+                                />
+                                <span className="text-xs font-medium text-[#344054]">
+                                  {pri.label}
+                                </span>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-6 pr-1">
+                              <button className="text-slate-400 hover:text-slate-600">
+                                <Trash2 className="w-5 h-5" />
+                              </button>
+                              <button className="text-slate-400 hover:text-slate-600">
+                                <Maximize2 className="w-5 h-5" />
+                              </button>
+                            </div>
                           </div>
+
+                          {/* Title + body */}
+                          <div className="px-1.5 mt-2">
+                            <h4 className="text-sm font-medium text-[#111928] leading-6">
+                              {item.title}
+                            </h4>
+                            <p className="text-xs text-black leading-4 line-clamp-2">
+                              {item.body}
+                            </p>
+                          </div>
+
+                          {/* Suggested action box */}
+                          {item.suggestedAction && (
+                            <div className="mt-2 mx-1.5 bg-[rgba(236,250,255,0.2)] border border-[#a9d8ff] rounded-lg px-1.5 py-2">
+                              <p className="text-xs text-[#289bff] leading-4">
+                                <span className="font-bold">
+                                  Suggested Action
+                                </span>
+                                :{" "}
+                                <span className="font-normal">
+                                  {item.suggestedAction}
+                                </span>
+                              </p>
+                              <div className="flex items-center gap-1.5 mt-3">
+                                <button className="inline-flex items-center gap-1 px-3 h-5 rounded-md bg-white border border-gray-200/60 text-xs font-medium text-[#1e252a]">
+                                  <CheckCircle2 className="w-3 h-3" />
+                                  Add To Tasks
+                                </button>
+                                <button className="inline-flex items-center gap-1 px-3 h-5 rounded-md bg-white border border-gray-200/60 text-xs font-medium text-[#1e252a]">
+                                  <span className="text-[#627c9e]">+</span>
+                                  MiM Brain
+                                </button>
+                                <div className="flex items-center gap-1 ml-auto">
+                                  <button className="text-slate-400 hover:text-slate-600">
+                                    <ThumbsUp className="w-3.5 h-3.5" />
+                                  </button>
+                                  <button className="text-slate-400 hover:text-slate-600">
+                                    <ThumbsDown className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* No suggested action: show default action bar */}
+                          {!item.suggestedAction && (
+                            <div className="flex items-center gap-1.5 mt-2 px-1.5">
+                              <button className="inline-flex items-center gap-1 px-3 h-5 rounded-md bg-white border border-gray-200/60 text-xs font-medium text-[#1e252a]">
+                                <CheckCircle2 className="w-3 h-3" />
+                                Add To Tasks
+                              </button>
+                              <button className="inline-flex items-center gap-1 px-3 h-5 rounded-md bg-white border border-gray-200/60 text-xs font-medium text-[#1e252a]">
+                                <span className="text-[#627c9e]">+</span>
+                                MiM Brain
+                              </button>
+                            </div>
+                          )}
                         </div>
 
-                        {/* Title + body */}
-                        <h4 className="text-sm font-medium text-slate-800 mb-1">{item.title}</h4>
-                        <p className="text-xs text-slate-500 leading-relaxed mb-2 line-clamp-2">{item.body}</p>
-
-                        {/* Suggested action */}
-                        {item.suggestedAction && (
-                          <div className="mb-2 px-2 py-1.5 bg-green-50 rounded border border-green-100">
-                            <span className="text-[10px] font-medium text-green-700">
-                              Suggested Action:{" "}
-                            </span>
-                            <span className="text-[10px] text-green-600">{item.suggestedAction}</span>
+                        {/* Divider */}
+                        {idx < filteredImportant.length - 1 && (
+                          <div className="flex items-center justify-center py-2">
+                            <div className="w-full h-px bg-gradient-to-r from-transparent via-slate-200 to-transparent" />
                           </div>
                         )}
-
-                        {/* Action buttons */}
-                        <div className="flex items-center gap-1.5">
-                          {item.suggestedAction && (
-                            <button className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-500 text-white text-[10px] font-medium hover:bg-emerald-600 transition-colors">
-                              Execute
-                            </button>
-                          )}
-                          <button className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full border border-slate-200 text-[10px] font-medium text-slate-500 hover:bg-slate-50 transition-colors">
-                            <Plus className="w-2.5 h-2.5" />
-                            Add To Tasks
-                          </button>
-                          <button className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full border border-slate-200 text-[10px] font-medium text-slate-500 hover:bg-slate-50 transition-colors">
-                            <Tag className="w-2.5 h-2.5" />
-                            Add Tags
-                          </button>
-                        </div>
                       </div>
                     );
                   })
                 )}
 
                 {/* Load More */}
-                {filteredImportant.length >= 10 && (
-                  <div className="text-center py-2">
-                    <button className="text-xs text-slate-400 hover:text-slate-600 transition-colors">
-                      Load More...
+                {filteredImportant.length >= 5 && (
+                  <div className="text-center py-3">
+                    <button className="text-xs font-medium text-[#9ba9ba] hover:text-slate-600 tracking-tight">
+                      Load More
                     </button>
                   </div>
                 )}
@@ -592,130 +816,164 @@ export default function MyBrainPage() {
             </div>
           </div>
         ) : (
-          /* ═══ CHAT VIEW: Prior Conversations (left) + Chat Thread (right) ═══ */
-          <div className="flex gap-4 flex-1 min-h-0">
-            {/* ── Prior Conversations Panel ── */}
-            <div className="w-60 shrink-0 bg-white rounded-xl border border-slate-200 shadow-sm p-4 flex flex-col">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-sm font-semibold text-slate-700">Prior Conversations</h3>
-                <button
-                  onClick={() => setActiveConversation(null)}
-                  className="p-1 rounded text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              </div>
-              <div className="flex-1 overflow-y-auto space-y-1">
-                {conversations.length === 0 ? (
-                  <p className="text-xs text-slate-400 italic">No conversations yet.</p>
-                ) : (
-                  conversations.map((convo) => (
-                    <button
-                      key={convo.id}
-                      onClick={() => handleSelectConversation(convo)}
-                      className={`w-full text-left px-3 py-2 rounded-lg text-xs transition-colors truncate ${
-                        activeConversation?.id === convo.id
-                          ? "bg-blue-50 text-blue-700 font-medium"
-                          : "text-slate-600 hover:bg-slate-50"
-                      }`}
-                    >
-                      {convo.title}
-                    </button>
-                  ))
-                )}
-              </div>
+          /* ═══ CHAT VIEW ═══ */
+          <div className="bg-white rounded-xl shadow-[0px_0px_6px_0px_rgba(0,0,0,0.12)] flex-1 min-h-0 flex flex-col">
+            {/* ── Top bar: Back + Share ── */}
+            <div className="shrink-0 flex items-center justify-between px-5 pt-4 pb-3">
+              <button
+                onClick={handleBack}
+                className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-slate-200 bg-white text-sm font-medium text-[#1e252a] hover:bg-slate-50 transition-colors shadow-sm"
+              >
+                <ArrowLeft className="w-3.5 h-3.5" />
+                Back
+              </button>
+              <button className="inline-flex items-center gap-1.5 text-xs font-medium text-[#289bff] hover:text-blue-600 transition-colors">
+                Share this Conversation
+                <ExternalLink className="w-3.5 h-3.5" />
+              </button>
             </div>
 
-            {/* ── Chat thread area ── */}
-            <div className="flex-1 flex flex-col min-h-0">
-              {/* Back button */}
-              <div className="shrink-0 mb-3">
-                <button
-                  onClick={handleBack}
-                  className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-slate-200 bg-white text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors shadow-sm"
-                >
-                  <ArrowLeft className="w-3.5 h-3.5" />
-                  Back
-                </button>
+            {/* ── Body: Prior Conversations sidebar + Chat thread ── */}
+            <div className="flex flex-1 min-h-0">
+              {/* Prior Conversations Panel */}
+              <div className="w-[287px] shrink-0 bg-[#f3f2ed] flex flex-col min-h-0 rounded-bl-xl">
+                <div className="shrink-0 bg-white px-4 py-3 flex items-center justify-between shadow-[0px_1px_3px_0px_rgba(0,0,0,0.06)]">
+                  <h3 className="text-sm font-semibold text-[#1e252a]">
+                    Prior Conversations
+                  </h3>
+                  <button className="text-slate-400 hover:text-slate-600">
+                    <MoreHorizontal className="w-4 h-4" />
+                  </button>
+                </div>
+                <div className="flex-1 overflow-y-auto px-3 py-3 space-y-0.5">
+                  {conversations.length === 0 ? (
+                    <p className="text-xs text-slate-400 italic px-2 py-2">
+                      No conversations yet.
+                    </p>
+                  ) : (
+                    conversations.map((convo) => (
+                      <button
+                        key={convo.id}
+                        onClick={() => handleSelectConversation(convo)}
+                        className={`w-full text-left px-3 py-2 rounded-lg text-xs transition-colors truncate ${
+                          activeConversation?.id === convo.id
+                            ? "bg-white text-[#1e252a] font-medium shadow-sm"
+                            : "text-[#6e7b80] hover:bg-white/60"
+                        }`}
+                      >
+                        {convo.title}
+                      </button>
+                    ))
+                  )}
+                </div>
               </div>
 
-              {/* Messages */}
-              <div className="flex-1 overflow-y-auto space-y-4 pr-2 mb-3">
-                {activeConversation?.messages.map((msg, i) => (
-                  <div key={i}>
-                    {msg.role === "user" ? (
-                      <div className="bg-slate-50 rounded-xl px-4 py-3 border border-slate-200">
-                        <p className="text-sm text-slate-700">{msg.content}</p>
-                      </div>
-                    ) : (
-                      <div className="pl-2">
-                        <div>{formatBrainResponse(msg.content)}</div>
-                        {msg.sources && msg.sources.length > 0 && (
-                          <div className="mt-2">
-                            <p className="text-[10px] text-slate-400">Sources: {msg.sources.join(", ")}</p>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                ))}
+              {/* Chat thread + input */}
+              <div className="flex-1 flex flex-col min-h-0">
+                {/* Messages area */}
+                <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+                  {activeConversation?.messages.map((msg, i) => (
+                    <div key={i}>
+                      {msg.role === "user" ? (
+                        <div className="bg-[#f1eff3] rounded-xl px-4 py-3 max-w-[85%]">
+                          <p className="text-sm text-[#1e252a]">{msg.content}</p>
+                        </div>
+                      ) : (
+                        <div className="pl-2 max-w-[90%]">
+                          <div>{formatBrainResponse(msg.content)}</div>
+                          {msg.sources && msg.sources.length > 0 && (
+                            <div className="mt-2">
+                              <p className="text-[10px] text-slate-400">
+                                Sources: {msg.sources.join(", ")}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  ))}
 
-                {isAsking && (
-                  <div className="flex items-center gap-2 pl-2">
-                    <Loader2 className="w-4 h-4 text-blue-500 animate-spin" />
-                    <span className="text-sm text-slate-500">Thinking...</span>
-                  </div>
-                )}
-                <div ref={messagesEndRef} />
-              </div>
+                  {isAsking && (
+                    <div className="flex items-center gap-2 pl-2">
+                      <Loader2 className="w-4 h-4 text-blue-500 animate-spin" />
+                      <span className="text-sm text-slate-500">Thinking...</span>
+                    </div>
+                  )}
+                  <div ref={messagesEndRef} />
+                </div>
 
-              {/* Bottom chat input bar */}
-              <div className="shrink-0">
-                <form onSubmit={handleSubmit}>
-                  <div className="bg-white rounded-xl border border-slate-200 shadow-sm px-4 pt-3 pb-2">
-                    <input
-                      type="text"
-                      value={chatInput}
-                      onChange={(e) => setChatInput(e.target.value)}
-                      placeholder="Ask Anything about the business."
-                      disabled={isAsking}
-                      className="w-full text-sm text-slate-700 placeholder:text-slate-400 bg-transparent outline-none pb-6"
-                    />
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-blue-50 border border-blue-200/60 text-xs font-medium text-slate-700 hover:bg-blue-100 transition-colors"
-                        >
-                          <Image src="/icons/gophers.png" alt="" width={14} height={14} />
-                          Launch a Gopher
-                        </button>
-                        <button
-                          type="button"
-                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-50 border border-slate-200 text-xs font-medium text-slate-600 hover:bg-slate-100 transition-colors"
-                        >
-                          <BookOpen className="w-3.5 h-3.5" />
-                          Add To Knowledge
-                        </button>
+                {/* Bottom chat input */}
+                <div className="shrink-0 px-5 pb-4">
+                  <form onSubmit={handleSubmit}>
+                    <div className="bg-white rounded-[18px] border border-[#a9d8ff]/50 shadow-[0px_0.5px_6px_0px_rgba(0,0,0,0.12)] px-3.5 pt-2.5 pb-2.5 h-[89px] flex flex-col justify-between">
+                      <div className="flex items-start pl-3">
+                        <input
+                          type="text"
+                          value={chatInput}
+                          onChange={(e) => setChatInput(e.target.value)}
+                          placeholder="Ask Anything about the business."
+                          disabled={isAsking}
+                          className="w-full text-sm text-slate-700 placeholder:text-[#b0b8bb] bg-transparent outline-none"
+                        />
                       </div>
-                      <div className="flex items-center gap-0.5">
-                        <button type="button" className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors">
-                          <Paperclip className="w-4 h-4" />
-                        </button>
-                        <button type="button" className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors">
-                          <Mic className="w-4 h-4" />
-                        </button>
-                        <button
-                          type="submit"
-                          disabled={isAsking || !chatInput.trim()}
-                          className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors disabled:opacity-40"
-                        >
-                          {isAsking ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowUp className="w-4 h-4" />}
-                        </button>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            className="flex items-center gap-0.5 px-2 py-0.5 rounded-full bg-[#ecfaff] border border-[#b9e6ff] text-xs font-semibold text-[#1e252a] mix-blend-multiply"
+                          >
+                            <Image
+                              src="/icons/gophers.png"
+                              alt=""
+                              width={18}
+                              height={20}
+                              className="shrink-0"
+                            />
+                            Launch a Gopher
+                          </button>
+                          <button
+                            type="button"
+                            className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#f2e9fa] border border-[#e8d7ff] text-xs font-semibold text-[#1e252a] mix-blend-multiply"
+                          >
+                            <Image
+                              src="/icons/mimbrain-logo.png"
+                              alt=""
+                              width={18}
+                              height={13}
+                              className="shrink-0"
+                            />
+                            Add To Knowledge
+                          </button>
+                        </div>
+                        <div className="flex items-center gap-6">
+                          <button
+                            type="button"
+                            className="text-slate-400 hover:text-slate-600"
+                          >
+                            <Paperclip className="w-[18px] h-[18px]" />
+                          </button>
+                          <button
+                            type="button"
+                            className="text-slate-400 hover:text-slate-600"
+                          >
+                            <Mic className="w-[18px] h-[18px]" />
+                          </button>
+                          <button
+                            type="submit"
+                            disabled={isAsking || !chatInput.trim()}
+                            className="text-slate-400 hover:text-blue-500 transition-colors disabled:opacity-40"
+                          >
+                            {isAsking ? (
+                              <Loader2 className="w-[18px] h-[18px] animate-spin" />
+                            ) : (
+                              <ArrowUpCircle className="w-[18px] h-[18px]" />
+                            )}
+                          </button>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </form>
+                  </form>
+                </div>
               </div>
             </div>
           </div>
