@@ -13,7 +13,14 @@ import { Avatar } from "@/components/Avatar";
 import Link from "next/link";
 import { labels } from "@/config/labels";
 import { Search, List, Columns3, Trash2, CheckSquare, Square, X, Plus } from "lucide-react";
-import { CHECK_SIZE_COLORS } from "@/config/investor-constants";
+const CHECK_SIZE_COLORS: Record<string, string> = {
+  "25-50K": "bg-green-100 text-green-800",
+  "50-200K": "bg-teal-100 text-teal-800",
+  "250K": "bg-blue-100 text-blue-800",
+  "500K": "bg-indigo-100 text-indigo-800",
+  "1MM": "bg-purple-100 text-purple-800",
+  "1.5MM+": "bg-pink-100 text-pink-800",
+};
 
 interface Investor {
   id: string;

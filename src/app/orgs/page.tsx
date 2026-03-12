@@ -13,7 +13,7 @@ import { EditableCell } from "@/components/EditableCell";
 import { Avatar } from "@/components/Avatar";
 import { useResizableColumns } from "@/hooks/useResizableColumns";
 import Link from "next/link";
-import { ORG_TYPE_OPTIONS } from "@/config/organization-constants";
+const ORG_TYPE_OPTIONS = ["Investor", "Partner", "Customer", "Vendor", "Competitor"] as const;
 import {
   Search, Plus, Trash2, CheckSquare, Square,
   ChevronUp, ChevronDown, Building, TrendingUp, Handshake, Globe,

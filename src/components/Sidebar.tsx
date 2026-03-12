@@ -1,17 +1,16 @@
 "use client";
 
 /**
- * MiMbrain Sidebar — Phase 2 (custom icons)
+ * MiMbrain Sidebar
  * src/components/Sidebar.tsx
  *
- * Redesigned sidebar with custom PNG icons from /public/icons/
- * White background, blue active state, user profile at bottom.
+ * Dark sidebar (#3E4C60) with custom PNG icons from /public/icons/
+ * Blue active state, user profile at bottom.
  */
 
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useSearchParams } from "next/navigation";
-import { LogOut } from "lucide-react";
 
 /* ── Types ─────────────────────────────────────────────────────────────────── */
 
@@ -138,8 +137,8 @@ function NavLink({
 
   if (item.deferred) {
     return (
-      <span className="flex items-center gap-3 px-3 py-2 rounded-md text-sm text-slate-400 cursor-default select-none">
-        <Image src={item.icon} alt="" width={16} height={16} className="shrink-0 opacity-40" />
+      <span className="flex items-center gap-3 px-3 py-2 rounded-md text-sm text-[#8a97a8] cursor-default select-none">
+        <Image src={item.icon} alt="" width={16} height={16} className="shrink-0 opacity-40 brightness-0 invert" />
         <span>{item.label}</span>
       </span>
     );
@@ -152,8 +151,8 @@ function NavLink({
         group flex items-center gap-3 px-3 py-[7px] rounded-lg text-sm font-medium
         transition-all duration-100
         ${active
-          ? "bg-blue-600 text-white shadow-sm shadow-blue-600/20"
-          : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+          ? "bg-[#4B8BF5] text-white shadow-sm shadow-blue-600/20"
+          : "text-[#c8d0da] hover:bg-[#4a5a70] hover:text-white"
         }
       `}
     >
@@ -162,7 +161,7 @@ function NavLink({
         alt=""
         width={16}
         height={16}
-        className={`shrink-0 transition-all ${active ? "brightness-0 invert" : "opacity-70 group-hover:opacity-100"}`}
+        className={`shrink-0 transition-all brightness-0 invert ${active ? "opacity-100" : "opacity-70 group-hover:opacity-100"}`}
       />
       <span className="truncate">{item.label}</span>
       {active && (
@@ -206,10 +205,10 @@ export function Sidebar() {
   }
 
   return (
-    <aside className="w-56 bg-white flex flex-col shrink-0 border-r border-slate-200">
+    <aside className="w-56 flex flex-col shrink-0" style={{ backgroundColor: "#3E4C60" }}>
 
       {/* ── Logo ── */}
-      <div className="px-4 py-4 border-b border-slate-100">
+      <div className="px-4 py-4 border-b border-white/10">
         <div className="flex items-center gap-2">
           <Image src="/icons/MiMbrain Icon.png" alt="MiM" width={28} height={28} className="shrink-0" />
         </div>
@@ -227,24 +226,27 @@ export function Sidebar() {
       </nav>
 
       {/* ── User profile + sign out ── */}
-      <div className="border-t border-slate-200 p-3">
+      <div className="border-t border-white/10 p-3">
         <div className="flex items-center gap-3 px-1 mb-2">
-          <div className="h-9 w-9 rounded-full bg-slate-200 overflow-hidden shrink-0">
+          <div className="h-9 w-9 rounded-full overflow-hidden shrink-0">
             <Image src="/icons/Ellipse 2831.png" alt="Mark Slater" width={36} height={36} />
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-medium text-slate-800 truncate">Mark Slater</p>
-            <p className="text-[11px] text-slate-400 truncate">Co-Founder and CEO</p>
+            <p className="text-sm font-medium text-white truncate">Mark Slater</p>
+            <p className="text-[11px] text-[#8a97a8] truncate">Co-Founder and CEO</p>
           </div>
           <button
             onClick={handleSignOut}
-            className="p-1.5 rounded-md text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
+            className="flex items-center gap-1 px-2 py-1 rounded-md text-[11px] text-[#8a97a8] hover:bg-[#4a5a70] hover:text-white transition-colors"
             title="Log Out"
           >
-            <LogOut className="h-4 w-4" />
+            Log Out
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+            </svg>
           </button>
         </div>
-        <p className="text-[10px] text-slate-400 text-center mt-2">
+        <p className="text-[10px] text-[#6b7a8d] text-center mt-2">
           Made In Motion PBC<br />
           Built in Boston. 2026.
         </p>
