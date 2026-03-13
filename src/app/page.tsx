@@ -444,12 +444,12 @@ export default function MyBrainPage() {
   // ─── RENDER ──────────────────────────────────────────────────────────────
 
   return (
-    <div className="h-full flex flex-col bg-[#f3f3f3] -m-6 p-6">
+    <div className="h-full flex flex-col bg-[#f3f3f3] -m-6 p-4 sm:p-6">
       {/* ── Header ── */}
-      <div className="bg-white -mx-6 -mt-6 px-6 py-5 mb-4 shrink-0">
-        <div className="flex items-end gap-3">
+      <div className="bg-white -mx-6 -mt-6 px-4 sm:px-6 py-4 sm:py-5 mb-4 shrink-0">
+        <div className="flex flex-col sm:flex-row sm:items-end gap-2 sm:gap-3">
           <div>
-            <h1 className="text-4xl font-semibold text-[var(--mim-text-primary)] tracking-tight">
+            <h1 className="text-2xl sm:text-4xl font-semibold text-[var(--mim-text-primary)] tracking-tight">
               My Brain
             </h1>
             <p className="text-sm text-[var(--mim-text-secondary)] tracking-tight">
@@ -466,11 +466,11 @@ export default function MyBrainPage() {
 
       {/* ── KPI Cards ── */}
       {!loading && (
-        <div className="flex gap-6 mb-4 shrink-0 px-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 lg:gap-6 mb-4 shrink-0 px-3">
           {kpis.map((kpi) => (
             <div
               key={kpi.label}
-              className="bg-white rounded-lg border border-gray-100 p-3.5 shadow-[0px_1px_2px_0px_rgba(0,0,0,0.2)] flex flex-col justify-between h-[115px] min-w-[177px] flex-1"
+              className="bg-white rounded-lg border border-gray-100 p-3.5 shadow-[0px_1px_2px_0px_rgba(0,0,0,0.2)] flex flex-col justify-between h-[115px]"
             >
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold tracking-[1.2px] text-gray-400 uppercase">
@@ -497,10 +497,10 @@ export default function MyBrainPage() {
       {/* ── Main content area ── */}
       <div className="flex-1 min-h-0 flex flex-col">
         {view === "main" ? (
-          <div className="flex gap-4 flex-1 min-h-0">
+          <div className="flex flex-col lg:flex-row gap-4 flex-1 min-h-0">
             {/* ── Chat Prompt Area (left) ── */}
-            <div className="w-[524px] shrink-0">
-              <div className="bg-white rounded-lg shadow-[0px_0px_4px_0px_rgba(0,0,0,0.12)] p-6 h-[340px] flex flex-col">
+            <div className="w-full lg:w-[524px] lg:shrink-0">
+              <div className="bg-white rounded-lg shadow-[0px_0px_4px_0px_rgba(0,0,0,0.12)] p-4 sm:p-6 h-auto lg:h-[340px] flex flex-col">
                 <div className="bg-[rgba(238,242,245,0.6)] rounded-lg shadow-[0px_0px_4px_0px_rgba(0,0,0,0.12)] flex-1 flex flex-col items-center justify-between p-3">
                   {/* Top: Logo + title */}
                   <div className="flex flex-col items-center gap-1.5 pt-2">
@@ -563,29 +563,29 @@ export default function MyBrainPage() {
                   </form>
 
                   {/* Bottom action buttons */}
-                  <div className="flex items-center gap-3">
+                  <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                     <button
                       type="button"
-                      className="flex items-center gap-0.5 px-2 py-0.5 rounded-full bg-[var(--mim-info-bg)] border border-[var(--mim-suggestion-border)] text-xs font-semibold text-[var(--mim-text-primary)] tracking-tight mix-blend-multiply"
+                      className="flex items-center gap-1.5 px-3 py-1.5 h-8 rounded-full bg-[var(--mim-info-bg)] border border-[var(--mim-suggestion-border)] text-xs font-semibold text-[var(--mim-text-primary)] tracking-tight mix-blend-multiply"
                     >
                       <Image
                         src="/icons/gophers.png"
                         alt=""
-                        width={24}
-                        height={27}
+                        width={20}
+                        height={23}
                         className="shrink-0"
                       />
                       Launch a Gopher
                     </button>
                     <button
                       type="button"
-                      className="flex items-center gap-0.5 px-2 py-0.5 rounded-full bg-[var(--mim-info-bg)] border border-[var(--mim-suggestion-border)] text-xs font-semibold text-[var(--mim-text-primary)] tracking-tight mix-blend-multiply"
+                      className="flex items-center gap-1.5 px-3 py-1.5 h-8 rounded-full bg-[var(--mim-info-bg)] border border-[var(--mim-suggestion-border)] text-xs font-semibold text-[var(--mim-text-primary)] tracking-tight mix-blend-multiply"
                     >
                       <Image
                         src="/icons/gophers.png"
                         alt=""
-                        width={24}
-                        height={27}
+                        width={20}
+                        height={23}
                         className="shrink-0"
                       />
                       Schedule a Meeting
@@ -603,12 +603,12 @@ export default function MyBrainPage() {
             </div>
 
             {/* ── Important Conversations Panel (right) ── */}
-            <div className="flex-1 bg-white rounded-lg shadow-[0px_0px_4px_0px_rgba(0,0,0,0.12)] flex flex-col min-h-0">
+            <div className="flex-1 bg-white rounded-lg shadow-[0px_0px_4px_0px_rgba(0,0,0,0.12)] flex flex-col min-h-0 min-w-0">
               {/* Header */}
               <div className="shrink-0 p-3 rounded-t-lg shadow-[0px_1px_6px_0px_rgba(0,0,0,0.12)]">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-3">
-                    <h3 className="text-base font-semibold text-[var(--mim-text-primary)] tracking-tight">
+                <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+                  <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+                    <h3 className="text-sm sm:text-base font-semibold text-[var(--mim-text-primary)] tracking-tight">
                       Important Conversations
                     </h3>
                     {importantLastUpdated && (
@@ -692,7 +692,7 @@ export default function MyBrainPage() {
                       <div key={item.id}>
                         <div className="py-1.5">
                           {/* Card header bar */}
-                          <div className="bg-[rgba(238,242,245,0.6)] shadow-[0px_0px_4px_0px_rgba(0,0,0,0.15)] flex items-center justify-between px-1.5 py-1 h-9">
+                          <div className="bg-[rgba(238,242,245,0.6)] shadow-[0px_0px_4px_0px_rgba(0,0,0,0.15)] flex flex-wrap items-center justify-between gap-1 px-1.5 py-1 min-h-9">
                             <div className="flex items-center gap-1.5">
                               {isResolved ? (
                                 <CheckCircle2 className="w-[22px] h-[22px] text-emerald-500" />
@@ -836,7 +836,7 @@ export default function MyBrainPage() {
             {/* ── Body: Prior Conversations sidebar + Chat thread ── */}
             <div className="flex flex-1 min-h-0">
               {/* Prior Conversations Panel */}
-              <div className="w-[287px] shrink-0 bg-[#f3f2ed] flex flex-col min-h-0 rounded-bl-xl">
+              <div className="hidden md:flex w-[287px] shrink-0 bg-[#f3f2ed] flex-col min-h-0 rounded-bl-xl">
                 <div className="shrink-0 bg-white px-4 py-3 flex items-center justify-between shadow-[0px_1px_3px_0px_rgba(0,0,0,0.06)]">
                   <h3 className="text-sm font-semibold text-[var(--mim-text-primary)]">
                     Prior Conversations
@@ -920,7 +920,7 @@ export default function MyBrainPage() {
                         <div className="flex items-center gap-2">
                           <button
                             type="button"
-                            className="flex items-center gap-0.5 px-2 py-0.5 rounded-full bg-[var(--mim-info-bg)] border border-[var(--mim-suggestion-border)] text-xs font-semibold text-[var(--mim-text-primary)] mix-blend-multiply"
+                            className="flex items-center gap-1.5 px-3 py-1.5 h-8 rounded-full bg-[var(--mim-info-bg)] border border-[var(--mim-suggestion-border)] text-xs font-semibold text-[var(--mim-text-primary)] mix-blend-multiply"
                           >
                             <Image
                               src="/icons/gophers.png"
@@ -933,7 +933,7 @@ export default function MyBrainPage() {
                           </button>
                           <button
                             type="button"
-                            className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#f2e9fa] border border-[#e8d7ff] text-xs font-semibold text-[var(--mim-text-primary)] mix-blend-multiply"
+                            className="flex items-center gap-1.5 px-3 py-1.5 h-8 rounded-full bg-[#f2e9fa] border border-[#e8d7ff] text-xs font-semibold text-[var(--mim-text-primary)] mix-blend-multiply"
                           >
                             <Image
                               src="/icons/mimbrain-logo.png"
