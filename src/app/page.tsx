@@ -26,6 +26,8 @@ import {
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 
+/* eslint-disable @next/next/no-img-element */
+
 // ─── Types ──────────────────────────────────────────────────────────────────
 
 interface KpiCard {
@@ -389,15 +391,15 @@ export default function MyBrainPage() {
   // ── KPI icon ──
   function renderKpiIcon(icon: string) {
     const map: Record<string, string> = {
-      revenue: "/icons/revenue.png",
-      items: "/icons/items-sold.png",
-      aov: "/icons/aov.png",
-      links: "/icons/links-created.png",
-      convert: "/icons/convert-to-buy.png",
+      revenue: "/icons/revenue.svg",
+      items: "/icons/items-sold.svg",
+      aov: "/icons/aov.svg",
+      links: "/icons/links-created.svg",
+      convert: "/icons/convert-to-buy.svg",
     };
     const src = map[icon];
     if (!src) return null;
-    return <Image src={src} alt="" width={40} height={40} />;
+    return <img src={src} alt="" className="w-10 h-10" />;
   }
 
   // ── Format brain response ──
@@ -504,11 +506,10 @@ export default function MyBrainPage() {
                 <div className="bg-[rgba(238,242,245,0.6)] rounded-lg shadow-[0px_0px_4px_0px_rgba(0,0,0,0.12)] flex-1 flex flex-col items-center justify-between p-3">
                   {/* Top: Logo + title */}
                   <div className="flex flex-col items-center gap-1.5 pt-2">
-                    <Image
-                      src="/icons/mimbrain-logo.png"
+                    <img
+                      src="/icons/mimbrain-logo.svg"
                       alt=""
-                      width={37}
-                      height={26}
+                      className="w-[37px] h-[26px]"
                     />
                     <h2 className="text-[26px] font-medium text-[var(--mim-text-primary)] tracking-tight text-center">
                       How can i help?
@@ -935,12 +936,10 @@ export default function MyBrainPage() {
                             type="button"
                             className="flex items-center gap-1.5 px-3 py-1.5 h-8 rounded-full bg-[#f2e9fa] border border-[#e8d7ff] text-xs font-semibold text-[var(--mim-text-primary)] mix-blend-multiply"
                           >
-                            <Image
-                              src="/icons/mimbrain-logo.png"
+                            <img
+                              src="/icons/mimbrain-logo.svg"
                               alt=""
-                              width={18}
-                              height={13}
-                              className="shrink-0"
+                              className="w-[18px] h-[13px] shrink-0"
                             />
                             Add To Knowledge
                           </button>
