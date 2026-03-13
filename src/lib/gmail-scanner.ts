@@ -14,6 +14,7 @@ import { computeFeedbackForEntities } from "./feedback-engine";
 import { loadTaxonomy, matchTaxonomyCategory, buildTaxonomyPromptSection, enforcePriorityRules } from "./taxonomy-loader";
 import { loadStandingOrders, buildStandingOrdersPromptSection } from "./instruction-loader";
 import { writeProvenance, recomputeKCSForEntities } from "./entity-intelligence";
+import { buildAcumenPromptSection } from "./harness-loader";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -44,6 +45,9 @@ interface ClassificationResult {
   tags: string[];
   sentiment: string;
   draft_reply: string | null;
+  acumen_category: string | null;
+  importance_level: string | null;
+  acumen_reasoning: string | null;
 }
 
 interface MessageDetails {
@@ -105,6 +109,8 @@ MiM works with these entity types:
 
 {{TAXONOMY_SECTION}}
 
+{{ACUMEN_SECTION}}
+
 You will receive:
 - The message content (subject, body, sender)
 - A list of resolved entities that the sender/recipients match to in our database
@@ -149,7 +155,10 @@ Respond with ONLY a JSON object in this exact format:
     }
   ],
   "tags": ["follow-up", "meeting-request", "deal-update", "partnership", "intro-request", "merch", "newsletter", "fundraising", "order", "team-store", etc.],
-  "draft_reply": "A ready-to-send 2-3 sentence reply to this email, or null if no reply is needed"
+  "draft_reply": "A ready-to-send 2-3 sentence reply to this email, or null if no reply is needed",
+  "acumen_category": "fundraising" | "legal" | "customer-partner-ops" | "accounting-finance" | "scheduling" | "product-engineering" | "ux-design" | "marketing" | "ai" | "family" | "administration",
+  "importance_level": "high" | "medium" | "low",
+  "acumen_reasoning": "Brief explanation of why this category and importance were chosen"
 }
 
 IMPORTANT:
@@ -192,7 +201,10 @@ Example 1 — Investor follow-up email:
     }
   ],
   "tags": ["fundraising", "deal-update", "follow-up"],
-  "draft_reply": "Hi Sarah, thanks for the heads up on timing. I'll have the updated P&L, revenue forecast, and cap table over to you by Friday EOD. Let me know if you need anything else ahead of the partner meeting."
+  "draft_reply": "Hi Sarah, thanks for the heads up on timing. I'll have the updated P&L, revenue forecast, and cap table over to you by Friday EOD. Let me know if you need anything else ahead of the partner meeting.",
+  "acumen_category": "fundraising",
+  "importance_level": "high",
+  "acumen_reasoning": "Investor requesting financials ahead of partner meeting — active due diligence with time pressure"
 }
 
 Example 2 — Partner inquiry:
@@ -213,7 +225,10 @@ Example 2 — Partner inquiry:
     }
   ],
   "tags": ["partnership", "team-store", "merch", "meeting-request"],
-  "draft_reply": "Hi! Thanks for reaching out — we'd love to help Bay State FC get set up with a team store for spring season. Are you available for a quick 30-minute call this week? I can walk you through how our Drop links work and have a sample ready with your logo."
+  "draft_reply": "Hi! Thanks for reaching out — we'd love to help Bay State FC get set up with a team store for spring season. Are you available for a quick 30-minute call this week? I can walk you through how our Drop links work and have a sample ready with your logo.",
+  "acumen_category": "customer-partner-ops",
+  "importance_level": "medium",
+  "acumen_reasoning": "New customer inquiry for team store setup — revenue opportunity but not urgent"
 }
 
 Example 3 — Newsletter (skip):
@@ -225,7 +240,10 @@ Example 3 — Newsletter (skip):
   "sentiment": "neutral",
   "action_items": [],
   "tags": ["newsletter"],
-  "draft_reply": null
+  "draft_reply": null,
+  "acumen_category": "marketing",
+  "importance_level": "low",
+  "acumen_reasoning": "Automated newsletter — industry reading, no action required"
 }`;
 
 // ─── Entity Resolver ────────────────────────────────────────────────────────
@@ -708,6 +726,11 @@ export async function runGmailScanner(
     const taxonomySection = buildTaxonomyPromptSection(taxonomy);
     agentSystemPrompt = agentSystemPrompt.replace("{{TAXONOMY_SECTION}}", taxonomySection);
     addLog(`Injected taxonomy (${taxonomy.length} categories) into classifier prompt`);
+
+    // ── Inject Acumen operational categories into system prompt ──
+    const acumenSection = buildAcumenPromptSection();
+    agentSystemPrompt = agentSystemPrompt.replace("{{ACUMEN_SECTION}}", acumenSection);
+    addLog(`Injected Acumen harness (${acumenSection.split("###").length - 1} categories) into classifier prompt`);
 
     // ── Inject standing orders from brain.instructions ──
     const standingOrders = await loadStandingOrders(sb);
@@ -1214,6 +1237,10 @@ export async function runGmailScanner(
           completion_tokens: result.completion_tokens || null,
           model: agentModel,
           agent_run_id: runId,
+          acumen_category: result.acumen_category || null,
+          importance_level: result.importance_level || null,
+          acumen_reasoning: result.acumen_reasoning || null,
+          ceo_review_status: "pending",
         });
       } catch { /* ignore logging error */ }
 
