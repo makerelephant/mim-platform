@@ -81,6 +81,44 @@ export async function getOrgWithTypes(sb: SupabaseClient, orgId: string) {
   };
 }
 
+// ── Provenance reads ──
+
+export async function getEntityProvenance(
+  sb: SupabaseClient,
+  entityType: string,
+  entityId: string,
+  limit = 50,
+) {
+  const { data, error } = await sb
+    .schema('brain').from('entity_provenance')
+    .select('*')
+    .eq('entity_type', entityType)
+    .eq('entity_id', entityId)
+    .order('captured_at', { ascending: false })
+    .limit(limit);
+  if (error) throw error;
+  return data ?? [];
+}
+
+export async function getLatestFieldProvenance(
+  sb: SupabaseClient,
+  entityType: string,
+  entityId: string,
+  fieldName: string,
+) {
+  const { data, error } = await sb
+    .schema('brain').from('entity_provenance')
+    .select('*')
+    .eq('entity_type', entityType)
+    .eq('entity_id', entityId)
+    .eq('field_name', fieldName)
+    .order('captured_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw error;
+  return data ?? null;
+}
+
 // ── Writes ──
 
 export async function upsertActivity(

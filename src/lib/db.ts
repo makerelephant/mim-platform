@@ -42,7 +42,7 @@ export async function getOrgs(filters?: {
   let orgQuery = supabase
     .schema('core')
     .from('organizations')
-    .select('id, name, website, avatar_url, notes, location, geography, created_at, updated_at');
+    .select('id, name, website, avatar_url, notes, location, geography, created_at, updated_at, knowledge_completeness_score, confidence_score, verified');
 
   if (filters?.search) orgQuery = orgQuery.ilike('name', `%${filters.search}%`);
 
@@ -262,6 +262,33 @@ export async function getTaxonomyTree() {
     .select('*').order('depth').order('sort_order');
   if (error) throw error;
   return data ?? [];
+}
+
+// ── Entity Intelligence reads ──
+
+export async function getAggregateKCS() {
+  const [orgResult, contactResult] = await Promise.all([
+    supabase.schema('core').from('organizations')
+      .select('knowledge_completeness_score'),
+    supabase.schema('core').from('contacts')
+      .select('knowledge_completeness_score'),
+  ]);
+
+  const orgScores = (orgResult.data ?? []).map((o) => o.knowledge_completeness_score as number);
+  const contactScores = (contactResult.data ?? []).map((c) => c.knowledge_completeness_score as number);
+  const allScores = [...orgScores, ...contactScores];
+
+  if (allScores.length === 0) return { avgKcs: 0, entityCount: 0, orgCount: 0, contactCount: 0 };
+
+  const sum = allScores.reduce((a, b) => a + b, 0);
+  const avgKcs = Math.round((sum / allScores.length) * 1000) / 1000;
+
+  return {
+    avgKcs,
+    entityCount: allScores.length,
+    orgCount: orgScores.length,
+    contactCount: contactScores.length,
+  };
 }
 
 // ── Platform reads ──

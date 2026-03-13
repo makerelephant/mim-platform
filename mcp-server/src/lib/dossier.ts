@@ -120,11 +120,11 @@ export async function buildEntityDossier(
     // 1. Entity details
     entityType === "organizations"
       ? sb.schema("core").from("organizations")
-          .select("name, notes")
+          .select("name, notes, knowledge_completeness_score, confidence_score, enrichment_gaps, verified")
           .eq("id", entityId)
           .single()
       : sb.schema("core").from("contacts")
-          .select("first_name, last_name, role, email")
+          .select("first_name, last_name, role, email, knowledge_completeness_score, confidence_score, enrichment_gaps, verified")
           .eq("id", entityId)
           .single(),
 
@@ -201,8 +201,13 @@ export async function buildEntityDossier(
   let contactDetails: ContactDetails | null = null;
   let entityName = "Unknown";
 
+  // Extract KCS fields from entity result
+  let kcsScore: number | null = null;
+  let kcsVerified = false;
+  let kcsGaps: string[] = [];
+
   if (entityType === "organizations" && entityResult.data) {
-    const raw = entityResult.data as { name: string; notes: string | null };
+    const raw = entityResult.data as { name: string; notes: string | null; knowledge_completeness_score: number | null; confidence_score: number | null; enrichment_gaps: string[] | null; verified: boolean | null };
     const pipeline = (pipelineResult.data ?? []) as { status: string | null; pipeline_type: string; connection_status: string | null; lifecycle_status: string | null }[];
     orgDetails = {
       name: raw.name,
@@ -212,9 +217,16 @@ export async function buildEntityDossier(
       notes: raw.notes,
     };
     entityName = orgDetails.name;
+    kcsScore = raw.knowledge_completeness_score;
+    kcsVerified = raw.verified ?? false;
+    kcsGaps = raw.enrichment_gaps ?? [];
   } else if (entityType === "contacts" && entityResult.data) {
-    contactDetails = entityResult.data as ContactDetails;
+    const raw = entityResult.data as ContactDetails & { knowledge_completeness_score: number | null; confidence_score: number | null; enrichment_gaps: string[] | null; verified: boolean | null };
+    contactDetails = raw;
     entityName = [contactDetails.first_name, contactDetails.last_name].filter(Boolean).join(" ") || "Unknown";
+    kcsScore = raw.knowledge_completeness_score;
+    kcsVerified = raw.verified ?? false;
+    kcsGaps = raw.enrichment_gaps ?? [];
   }
 
   // Parse contact roles
@@ -287,6 +299,9 @@ export async function buildEntityDossier(
     knowledgeItems,
     stats: { totalEmails, lastContactDate, daysSinceLastContact },
     feedbackSummary,
+    kcsScore,
+    kcsVerified,
+    kcsGaps,
   });
 
   return {
@@ -318,6 +333,9 @@ function renderDossier(d: {
   knowledgeItems: KnowledgeItem[];
   stats: { totalEmails: number; lastContactDate: string | null; daysSinceLastContact: number | null };
   feedbackSummary: string | null;
+  kcsScore: number | null;
+  kcsVerified: boolean;
+  kcsGaps: string[];
 }): string {
   const lines: string[] = [];
 
@@ -384,6 +402,14 @@ function renderDossier(d: {
       const typeLabel = k.file_type ? `[${k.file_type}]` : `[${k.source_type}]`;
       lines.push(`  - ${typeLabel} "${truncate(k.title, 50)}" (${age})${k.summary ? ` — ${truncate(k.summary, 80)}` : ""}`);
     }
+  }
+
+  // Knowledge completeness
+  if (d.kcsScore !== null && d.kcsScore > 0) {
+    const pct = Math.round(d.kcsScore * 100);
+    const verified = d.kcsVerified ? " [VERIFIED]" : "";
+    const gaps = d.kcsGaps.length > 0 ? ` | Gaps: ${d.kcsGaps.join(", ")}` : "";
+    lines.push(`Knowledge: ${pct}% complete${verified}${gaps}`);
   }
 
   if (d.feedbackSummary) {

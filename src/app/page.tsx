@@ -138,6 +138,21 @@ export default function MyBrainPage() {
           setConversations(convos);
         }
 
+        // Fetch aggregate KCS for knowledge card
+        const [orgKcsResult, contactKcsResult] = await Promise.all([
+          supabase.schema('core').from('organizations').select('knowledge_completeness_score'),
+          supabase.schema('core').from('contacts').select('knowledge_completeness_score'),
+        ]);
+        const allKcsScores = [
+          ...(orgKcsResult.data ?? []).map((o) => (o.knowledge_completeness_score as number) ?? 0),
+          ...(contactKcsResult.data ?? []).map((c) => (c.knowledge_completeness_score as number) ?? 0),
+        ];
+        const entityCount = allKcsScores.length;
+        const avgKcs = entityCount > 0
+          ? Math.round((allKcsScores.reduce((a, b) => a + b, 0) / entityCount) * 100)
+          : 0;
+        const kcsColor = avgKcs > 50 ? "text-emerald-600" : avgKcs > 25 ? "text-amber-500" : "text-red-500";
+
         setKpis([
           {
             label: "REVENUE",
@@ -173,6 +188,13 @@ export default function MyBrainPage() {
             subtitle: "% who visit and buy",
             icon: "convert",
             valueColor: "text-[#98bfd5]",
+          },
+          {
+            label: "KNOWLEDGE",
+            value: `${avgKcs}%`,
+            subtitle: `avg completeness (${entityCount} entities)`,
+            icon: "knowledge",
+            valueColor: kcsColor,
           },
         ]);
 
@@ -397,6 +419,9 @@ export default function MyBrainPage() {
       links: "/icons/links-created.svg",
       convert: "/icons/convert-to-buy.svg",
     };
+    if (icon === "knowledge") {
+      return <BookOpen className="w-10 h-10 text-[#98bfd5]" />;
+    }
     const src = map[icon];
     if (!src) return null;
     return <img src={src} alt="" className="w-10 h-10" />;
@@ -607,13 +632,13 @@ export default function MyBrainPage() {
             <div className="flex-1 bg-white rounded-lg shadow-[0px_0px_4px_0px_rgba(0,0,0,0.12)] flex flex-col min-h-0 min-w-0">
               {/* Header */}
               <div className="shrink-0 p-3 rounded-t-lg shadow-[0px_1px_6px_0px_rgba(0,0,0,0.12)]">
-                <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
-                  <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-                    <h3 className="text-sm sm:text-base font-semibold text-[var(--mim-text-primary)] tracking-tight">
+                <div className="flex items-center justify-between gap-3 mb-2">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <h3 className="text-base font-semibold text-[var(--mim-text-primary)] tracking-tight whitespace-nowrap" style={{ fontFamily: "'Inter', sans-serif" }}>
                       Important Conversations
                     </h3>
                     {importantLastUpdated && (
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-normal bg-[#f3f8ff] text-[var(--mim-system)]">
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-normal bg-[#f3f8ff] text-[#3e4c60] whitespace-nowrap">
                         Last updated: {importantLastUpdated}
                       </span>
                     )}
@@ -621,7 +646,8 @@ export default function MyBrainPage() {
                   <button
                     onClick={loadImportantConversations}
                     disabled={importantLoading}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-[var(--mim-system)] text-xs font-semibold text-white"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[6px] bg-[#3e4c60] text-xs font-semibold text-white shrink-0"
+                    style={{ fontFamily: "'Geist', sans-serif" }}
                   >
                     Update
                     <Cable
@@ -635,7 +661,7 @@ export default function MyBrainPage() {
                   {activeFilters.includes("slack") && (
                     <button
                       onClick={() => toggleFilter("slack")}
-                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-[#fdf2fa] border border-[#fcceee] text-[#c11574] mix-blend-multiply"
+                      className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-xs font-medium bg-[#fdf2fa] border border-[#fcceee] text-[#c11574] mix-blend-multiply"
                     >
                       <X className="w-3 h-3" />
                       Slack
@@ -644,7 +670,7 @@ export default function MyBrainPage() {
                   {activeFilters.includes("gmail") && (
                     <button
                       onClick={() => toggleFilter("gmail")}
-                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-[#f0f9ff] border border-[#b9e6fe] text-[#026aa2] mix-blend-multiply"
+                      className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-xs font-medium bg-[#f0f9ff] border border-[#b9e6fe] text-[#026aa2] mix-blend-multiply"
                     >
                       <X className="w-3 h-3" />
                       Gmail
@@ -654,14 +680,16 @@ export default function MyBrainPage() {
                     <>
                       <button
                         onClick={() => toggleFilter("slack")}
-                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-[#fdf2fa] border border-[#fcceee] text-[#c11574] mix-blend-multiply"
+                        className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-xs font-medium bg-[#fdf2fa] border border-[#fcceee] text-[#c11574] mix-blend-multiply"
                       >
+                        <X className="w-3 h-3" />
                         Filter 1
                       </button>
                       <button
                         onClick={() => toggleFilter("gmail")}
-                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-[#f0f9ff] border border-[#b9e6fe] text-[#026aa2] mix-blend-multiply"
+                        className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-xs font-medium bg-[#f0f9ff] border border-[#b9e6fe] text-[#026aa2] mix-blend-multiply"
                       >
+                        <X className="w-3 h-3" />
                         Filter 2
                       </button>
                     </>
@@ -693,31 +721,31 @@ export default function MyBrainPage() {
                       <div key={item.id}>
                         <div className="py-1.5">
                           {/* Card header bar */}
-                          <div className="bg-[rgba(238,242,245,0.6)] shadow-[0px_0px_4px_0px_rgba(0,0,0,0.15)] flex flex-wrap items-center justify-between gap-1 px-1.5 py-1 min-h-9">
-                            <div className="flex items-center gap-1.5">
+                          <div className="bg-[rgba(238,242,245,0.6)] shadow-[0px_0px_4px_0px_rgba(0,0,0,0.15)] flex items-center justify-between px-1.5 py-1 h-9">
+                            <div className="flex items-center gap-1.5 min-w-0">
                               {isResolved ? (
-                                <CheckCircle2 className="w-[22px] h-[22px] text-emerald-500" />
+                                <CheckCircle2 className="w-[22px] h-[22px] text-emerald-500 shrink-0" />
                               ) : (
-                                <Circle className="w-6 h-6 text-slate-300" />
+                                <Circle className="w-6 h-6 text-slate-300 shrink-0" />
                               )}
-                              <div className="bg-white rounded px-3 h-6 flex items-center gap-1.5">
+                              <div className="bg-white rounded px-3 h-6 flex items-center gap-1.5 shrink-0">
                                 <Image
                                   src="/icons/gophers.png"
                                   alt=""
                                   width={17}
                                   height={20}
                                 />
-                                <span className="text-xs text-[var(--mim-text-secondary)]">
+                                <span className="text-xs text-[#6e7b80] whitespace-nowrap" style={{ fontFamily: "'Inter', sans-serif" }}>
                                   {formatDistanceToNow(item.createdAt, {
                                     addSuffix: false,
                                   })}{" "}
                                   Ago from{" "}
-                                  <span className="font-bold text-[var(--mim-text-primary)]">
+                                  <span className="font-bold text-[#1e252a]">
                                     {sourceLabel(item.source)}
                                   </span>
                                 </span>
                               </div>
-                              <div className="flex items-center gap-1">
+                              <div className="flex items-center gap-1 shrink-0">
                                 <span
                                   className={`w-2 h-2 rounded-full ${pri.color}`}
                                 />
@@ -726,9 +754,9 @@ export default function MyBrainPage() {
                                 </span>
                               </div>
                             </div>
-                            <div className="flex items-center gap-6 pr-1">
+                            <div className="flex items-center gap-6 pr-1 shrink-0">
                               <button className="text-slate-400 hover:text-slate-600">
-                                <Trash2 className="w-5 h-5" />
+                                <Trash2 className="w-6 h-6" />
                               </button>
                               <button className="text-slate-400 hover:text-slate-600">
                                 <Maximize2 className="w-5 h-5" />
@@ -746,10 +774,10 @@ export default function MyBrainPage() {
                             </p>
                           </div>
 
-                          {/* Suggested action box */}
-                          {item.suggestedAction && (
-                            <div className="mt-2 mx-1.5 bg-[rgba(236,250,255,0.2)] border border-[var(--mim-info-border)] rounded-lg px-1.5 py-2">
-                              <p className="text-xs text-[var(--mim-core-blue)] leading-4">
+                          {/* Suggested action box — always visible */}
+                          <div className="mt-2 mx-1.5 bg-[rgba(236,250,255,0.2)] rounded-lg px-1.5 py-2" style={{ border: "0.7px solid #a9d8ff" }}>
+                            {item.suggestedAction && (
+                              <p className="text-xs text-[#289bff] leading-4 mb-3" style={{ fontFamily: "'Geist', sans-serif" }}>
                                 <span className="font-bold">
                                   Suggested Action
                                 </span>
@@ -758,40 +786,26 @@ export default function MyBrainPage() {
                                   {item.suggestedAction}
                                 </span>
                               </p>
-                              <div className="flex items-center gap-1.5 mt-3">
-                                <button className="inline-flex items-center gap-1 px-3 h-5 rounded-md bg-white border border-gray-200/60 text-xs font-medium text-[var(--mim-text-primary)]">
-                                  <CheckCircle2 className="w-3 h-3" />
-                                  Add To Tasks
-                                </button>
-                                <button className="inline-flex items-center gap-1 px-3 h-5 rounded-md bg-white border border-gray-200/60 text-xs font-medium text-[var(--mim-text-primary)]">
-                                  <span className="text-[var(--mim-system-border)]">+</span>
-                                  MiM Brain
-                                </button>
-                                <div className="flex items-center gap-1 ml-auto">
-                                  <button className="text-slate-400 hover:text-slate-600">
-                                    <ThumbsUp className="w-3.5 h-3.5" />
-                                  </button>
-                                  <button className="text-slate-400 hover:text-slate-600">
-                                    <ThumbsDown className="w-3.5 h-3.5" />
-                                  </button>
-                                </div>
-                              </div>
-                            </div>
-                          )}
-
-                          {/* No suggested action: show default action bar */}
-                          {!item.suggestedAction && (
-                            <div className="flex items-center gap-1.5 mt-2 px-1.5">
-                              <button className="inline-flex items-center gap-1 px-3 h-5 rounded-md bg-white border border-gray-200/60 text-xs font-medium text-[var(--mim-text-primary)]">
+                            )}
+                            <div className="flex items-center gap-1.5">
+                              <button className="inline-flex items-center gap-1 px-3 h-5 rounded-[6px] bg-white text-xs font-medium text-[#1e252a]" style={{ border: "0.7px solid rgba(208,213,221,0.6)", fontFamily: "'Geist', sans-serif" }}>
                                 <CheckCircle2 className="w-3 h-3" />
                                 Add To Tasks
                               </button>
-                              <button className="inline-flex items-center gap-1 px-3 h-5 rounded-md bg-white border border-gray-200/60 text-xs font-medium text-[var(--mim-text-primary)]">
-                                <span className="text-[var(--mim-system-border)]">+</span>
+                              <button className="inline-flex items-center gap-1 px-3 h-5 rounded-[6px] bg-white text-xs font-medium text-[#1e252a]" style={{ border: "0.7px solid rgba(208,213,221,0.6)", fontFamily: "'Geist', sans-serif" }}>
+                                <span className="text-[#627c9e]">+</span>
                                 MiM Brain
                               </button>
+                              <div className="flex items-center gap-1 ml-auto">
+                                <button className="text-slate-400 hover:text-slate-600">
+                                  <ThumbsUp className="w-3.5 h-3.5" />
+                                </button>
+                                <button className="text-slate-400 hover:text-slate-600">
+                                  <ThumbsDown className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
                             </div>
-                          )}
+                          </div>
                         </div>
 
                         {/* Divider */}

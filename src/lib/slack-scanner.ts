@@ -12,6 +12,7 @@ import { buildEntityDossier } from "./entity-dossier";
 import { computeFeedbackForEntities } from "./feedback-engine";
 import { loadTaxonomy, matchTaxonomyCategory, buildTaxonomyPromptSection, enforcePriorityRules } from "./taxonomy-loader";
 import { loadStandingOrders, buildStandingOrdersPromptSection } from "./instruction-loader";
+import { recomputeKCSForEntities } from "./entity-intelligence";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -859,6 +860,14 @@ export async function runSlackScanner(
         addLog(`Computed feedback for ${feedbackCount} entities`);
       } catch (e) {
         addLog(`Feedback computation failed: ${e instanceof Error ? e.message : String(e)}`);
+      }
+
+      // ── Recompute KCS for all processed entities ──
+      try {
+        const kcsCount = await recomputeKCSForEntities(sb, processedEntities);
+        addLog(`Recomputed KCS for ${kcsCount} entities`);
+      } catch (e) {
+        addLog(`KCS recompute failed: ${e instanceof Error ? e.message : String(e)}`);
       }
     }
 

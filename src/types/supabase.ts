@@ -30,6 +30,14 @@ export interface CoreOrganization {
   source: string | null
   created_at: string
   updated_at: string
+  // Entity intelligence fields
+  confidence_score: number
+  knowledge_completeness_score: number
+  enrichment_priority: string // 'none' | 'low' | 'medium' | 'high'
+  last_enriched_at: string | null
+  enrichment_gaps: string[]
+  created_source: string | null
+  verified: boolean
 }
 
 export interface CoreOrgType {
@@ -72,6 +80,14 @@ export interface CoreContact {
   owner_user_id: string | null
   created_at: string
   updated_at: string
+  // Entity intelligence fields
+  confidence_score: number
+  knowledge_completeness_score: number
+  enrichment_priority: string // 'none' | 'low' | 'medium' | 'high'
+  last_enriched_at: string | null
+  enrichment_gaps: string[]
+  created_source: string | null
+  verified: boolean
 }
 
 export interface CoreRelationship {
@@ -328,6 +344,38 @@ export interface BrainInstruction {
   updated_at: string
 }
 
+export interface BrainEntityProvenance {
+  id: string
+  entity_type: string  // 'organizations' | 'contacts'
+  entity_id: string
+  field_name: string
+  field_value: string | null
+  source_type: string  // 'scanner' | 'upload' | 'enrichment' | 'derived' | 'manual' | 'correction'
+  source_ref: string | null
+  source_trust: string // 'high' | 'medium' | 'low'
+  confidence: number
+  captured_at: string
+  supersedes: string | null
+}
+
+export interface BrainEnrichmentQueue {
+  id: string
+  entity_type: string
+  entity_id: string
+  scanner_type: string // 'web' | 'social' | 'registry' | 'news'
+  priority: string
+  status: string       // 'pending' | 'running' | 'completed' | 'failed'
+  attempt_count: number
+  max_attempts: number
+  result: Json | null
+  fields_updated: string[] | null
+  kcs_before: number | null
+  kcs_after: number | null
+  created_at: string
+  started_at: string | null
+  completed_at: string | null
+}
+
 // ─────────────────────────────────────────────────────────────────
 // ENRICHED TYPES — Assembled from multiple tables (Option B pattern)
 // ─────────────────────────────────────────────────────────────────
@@ -369,3 +417,12 @@ export type Priority = typeof PRIORITIES[number]
 
 export const TEAM_ROLES = ['ceo', 'product', 'engineering', 'bd', 'operations'] as const
 export type TeamRole = typeof TEAM_ROLES[number]
+
+export const ENRICHMENT_PRIORITIES = ['none', 'low', 'medium', 'high'] as const
+export type EnrichmentPriority = typeof ENRICHMENT_PRIORITIES[number]
+
+export const SOURCE_TYPES = ['scanner', 'upload', 'enrichment', 'derived', 'manual', 'correction'] as const
+export type SourceType = typeof SOURCE_TYPES[number]
+
+export const SOURCE_TRUST_LEVELS = ['high', 'medium', 'low'] as const
+export type SourceTrustLevel = typeof SOURCE_TRUST_LEVELS[number]

@@ -13,6 +13,7 @@ import { buildEntityDossier } from "./entity-dossier";
 import { computeFeedbackForEntities } from "./feedback-engine";
 import { loadTaxonomy, matchTaxonomyCategory, buildTaxonomyPromptSection, enforcePriorityRules } from "./taxonomy-loader";
 import { loadStandingOrders, buildStandingOrdersPromptSection } from "./instruction-loader";
+import { writeProvenance, recomputeKCSForEntities } from "./entity-intelligence";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -900,12 +901,24 @@ export async function runGmailScanner(
             last_name: lastName,
             email: fromEmail,
             source: "gmail-scanner",
+            created_source: "gmail-scanner",
           }).select("id").single();
 
           if (newContact) {
             existingContactId = newContact.id;
             contactsCreated++;
             addLog(`  Auto-created contact: ${senderDisplayName} <${fromEmail}>`);
+            // Write provenance for auto-created contact fields
+            const contactFields: Record<string, string | null> = {
+              first_name: firstName,
+              last_name: lastName,
+              email: fromEmail,
+            };
+            try {
+              await writeProvenance(sb, 'contacts', newContact.id, contactFields, 'scanner', `gmail_${msgId}`, 'medium', 0.7);
+            } catch (e) {
+              addLog(`  Provenance write failed for contact: ${e instanceof Error ? e.message : String(e)}`);
+            }
           }
         }
 
@@ -1104,6 +1117,7 @@ export async function runGmailScanner(
                   name: orgName,
                   website: senderDomain,
                   source: "gmail-scanner",
+                  created_source: "gmail-scanner",
                 }).select("id").single();
 
                 if (newOrg) {
@@ -1122,6 +1136,15 @@ export async function runGmailScanner(
                     status: "new",
                   });
                   addLog(`  Auto-created org: "${orgName}" [${matchedCategory.org_type_match}] from domain ${senderDomain}`);
+                  // Write provenance for auto-created org fields
+                  try {
+                    await writeProvenance(sb, 'organizations', newOrg.id, {
+                      name: orgName,
+                      website: senderDomain,
+                    }, 'scanner', `gmail_${msgId}`, 'medium', 0.6);
+                  } catch (e) {
+                    addLog(`  Provenance write failed for org: ${e instanceof Error ? e.message : String(e)}`);
+                  }
                 }
               }
 
@@ -1281,6 +1304,14 @@ export async function runGmailScanner(
         addLog(`Computed feedback for ${feedbackCount} entities`);
       } catch (e) {
         addLog(`Feedback computation failed: ${e instanceof Error ? e.message : String(e)}`);
+      }
+
+      // ── Recompute KCS for all processed entities ──
+      try {
+        const kcsCount = await recomputeKCSForEntities(sb, processedEntities);
+        addLog(`Recomputed KCS for ${kcsCount} entities`);
+      } catch (e) {
+        addLog(`KCS recompute failed: ${e instanceof Error ? e.message : String(e)}`);
       }
     }
 
