@@ -566,6 +566,9 @@ async function classifyMessage(
       tags: ["unclassified"],
       sentiment: "neutral",
       draft_reply: null,
+      acumen_category: null,
+      importance_level: null,
+      acumen_reasoning: null,
     };
   }
 }
