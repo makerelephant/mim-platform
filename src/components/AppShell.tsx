@@ -19,7 +19,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <Suspense>
         <Sidebar />
       </Suspense>
-      <main className="flex-1 overflow-y-auto bg-[#f3f3f3] p-6">
+      <main className="flex-1 overflow-y-auto bg-[#f3f3f3] p-4 sm:p-6">
         {children}
       </main>
     </div>
