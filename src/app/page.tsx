@@ -449,15 +449,15 @@ export default function MyBrainPage() {
       <div className="bg-white -mx-6 -mt-6 px-6 py-5 mb-4 shrink-0">
         <div className="flex items-end gap-3">
           <div>
-            <h1 className="text-4xl font-semibold text-[#1e252a] tracking-tight">
+            <h1 className="text-4xl font-semibold text-[var(--mim-text-primary)] tracking-tight">
               My Brain
             </h1>
-            <p className="text-sm text-[#6e7b80] tracking-tight">
+            <p className="text-sm text-[var(--mim-text-secondary)] tracking-tight">
               Hello Mark, Welcome Back.
             </p>
           </div>
           {lastVisit && (
-            <span className="inline-flex items-center px-3 py-0.5 rounded-full text-xs font-normal bg-[#f3f8ff] border border-[#c5ddff] text-[#3e4c60] mb-1">
+            <span className="inline-flex items-center px-3 py-0.5 rounded-full text-xs font-normal bg-[#f3f8ff] border border-[#c5ddff] text-[var(--mim-system)] mb-1">
               Last Visit: {lastVisit}
             </span>
           )}
@@ -510,14 +510,14 @@ export default function MyBrainPage() {
                       width={37}
                       height={26}
                     />
-                    <h2 className="text-[26px] font-medium text-[#1e252a] tracking-tight text-center">
+                    <h2 className="text-[26px] font-medium text-[var(--mim-text-primary)] tracking-tight text-center">
                       How can i help?
                     </h2>
                   </div>
 
                   {/* Input area */}
                   <form onSubmit={handleSubmit} className="w-full max-w-[455px]">
-                    <div className="bg-white rounded-[18px] border border-[#a9d8ff]/50 shadow-[0px_0.5px_6px_0px_rgba(0,0,0,0.12)] px-3.5 pt-2.5 pb-2.5 h-[89px] flex flex-col justify-between">
+                    <div className="bg-white rounded-[18px] border border-[var(--mim-info-border)]/50 shadow-[0px_0.5px_6px_0px_rgba(0,0,0,0.12)] px-3.5 pt-2.5 pb-2.5 h-[89px] flex flex-col justify-between">
                       <div className="flex items-start pl-3">
                         <input
                           type="text"
@@ -525,7 +525,7 @@ export default function MyBrainPage() {
                           onChange={(e) => setChatInput(e.target.value)}
                           placeholder="Ask The MiMBrain Anything about the business."
                           disabled={isAsking}
-                          className="w-full text-sm text-slate-700 placeholder:text-[#b0b8bb] bg-transparent outline-none"
+                          className="w-full text-sm text-slate-700 placeholder:text-[var(--mim-text-placeholder)] bg-transparent outline-none"
                         />
                       </div>
                       <div className="flex items-center justify-end gap-6">
@@ -566,7 +566,7 @@ export default function MyBrainPage() {
                   <div className="flex items-center gap-3">
                     <button
                       type="button"
-                      className="flex items-center gap-0.5 px-2 py-0.5 rounded-full bg-[#ecfaff] border border-[#b9e6ff] text-xs font-semibold text-[#1e252a] tracking-tight mix-blend-multiply"
+                      className="flex items-center gap-0.5 px-2 py-0.5 rounded-full bg-[var(--mim-info-bg)] border border-[var(--mim-suggestion-border)] text-xs font-semibold text-[var(--mim-text-primary)] tracking-tight mix-blend-multiply"
                     >
                       <Image
                         src="/icons/gophers.png"
@@ -579,7 +579,7 @@ export default function MyBrainPage() {
                     </button>
                     <button
                       type="button"
-                      className="flex items-center gap-0.5 px-2 py-0.5 rounded-full bg-[#ecfaff] border border-[#b9e6ff] text-xs font-semibold text-[#1e252a] tracking-tight mix-blend-multiply"
+                      className="flex items-center gap-0.5 px-2 py-0.5 rounded-full bg-[var(--mim-info-bg)] border border-[var(--mim-suggestion-border)] text-xs font-semibold text-[var(--mim-text-primary)] tracking-tight mix-blend-multiply"
                     >
                       <Image
                         src="/icons/gophers.png"
@@ -592,7 +592,7 @@ export default function MyBrainPage() {
                     </button>
                     <button
                       onClick={() => setView("chat")}
-                      className="flex items-center gap-1.5 text-xs font-medium text-[#33637f]"
+                      className="flex items-center gap-1.5 text-xs font-medium text-[var(--mim-primary-hover)]"
                     >
                       See Old Convos
                       <ArrowRight className="w-4 h-4" />
@@ -608,11 +608,11 @@ export default function MyBrainPage() {
               <div className="shrink-0 p-3 rounded-t-lg shadow-[0px_1px_6px_0px_rgba(0,0,0,0.12)]">
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-3">
-                    <h3 className="text-base font-semibold text-[#1e252a] tracking-tight">
+                    <h3 className="text-base font-semibold text-[var(--mim-text-primary)] tracking-tight">
                       Important Conversations
                     </h3>
                     {importantLastUpdated && (
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-normal bg-[#f3f8ff] text-[#3e4c60]">
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-normal bg-[#f3f8ff] text-[var(--mim-system)]">
                         Last updated: {importantLastUpdated}
                       </span>
                     )}
@@ -620,7 +620,7 @@ export default function MyBrainPage() {
                   <button
                     onClick={loadImportantConversations}
                     disabled={importantLoading}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-[#3e4c60] text-xs font-semibold text-white"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-[var(--mim-system)] text-xs font-semibold text-white"
                   >
                     Update
                     <Cable
@@ -706,12 +706,12 @@ export default function MyBrainPage() {
                                   width={17}
                                   height={20}
                                 />
-                                <span className="text-xs text-[#6e7b80]">
+                                <span className="text-xs text-[var(--mim-text-secondary)]">
                                   {formatDistanceToNow(item.createdAt, {
                                     addSuffix: false,
                                   })}{" "}
                                   Ago from{" "}
-                                  <span className="font-bold text-[#1e252a]">
+                                  <span className="font-bold text-[var(--mim-text-primary)]">
                                     {sourceLabel(item.source)}
                                   </span>
                                 </span>
@@ -747,8 +747,8 @@ export default function MyBrainPage() {
 
                           {/* Suggested action box */}
                           {item.suggestedAction && (
-                            <div className="mt-2 mx-1.5 bg-[rgba(236,250,255,0.2)] border border-[#a9d8ff] rounded-lg px-1.5 py-2">
-                              <p className="text-xs text-[#289bff] leading-4">
+                            <div className="mt-2 mx-1.5 bg-[rgba(236,250,255,0.2)] border border-[var(--mim-info-border)] rounded-lg px-1.5 py-2">
+                              <p className="text-xs text-[var(--mim-core-blue)] leading-4">
                                 <span className="font-bold">
                                   Suggested Action
                                 </span>
@@ -758,12 +758,12 @@ export default function MyBrainPage() {
                                 </span>
                               </p>
                               <div className="flex items-center gap-1.5 mt-3">
-                                <button className="inline-flex items-center gap-1 px-3 h-5 rounded-md bg-white border border-gray-200/60 text-xs font-medium text-[#1e252a]">
+                                <button className="inline-flex items-center gap-1 px-3 h-5 rounded-md bg-white border border-gray-200/60 text-xs font-medium text-[var(--mim-text-primary)]">
                                   <CheckCircle2 className="w-3 h-3" />
                                   Add To Tasks
                                 </button>
-                                <button className="inline-flex items-center gap-1 px-3 h-5 rounded-md bg-white border border-gray-200/60 text-xs font-medium text-[#1e252a]">
-                                  <span className="text-[#627c9e]">+</span>
+                                <button className="inline-flex items-center gap-1 px-3 h-5 rounded-md bg-white border border-gray-200/60 text-xs font-medium text-[var(--mim-text-primary)]">
+                                  <span className="text-[var(--mim-system-border)]">+</span>
                                   MiM Brain
                                 </button>
                                 <div className="flex items-center gap-1 ml-auto">
@@ -781,12 +781,12 @@ export default function MyBrainPage() {
                           {/* No suggested action: show default action bar */}
                           {!item.suggestedAction && (
                             <div className="flex items-center gap-1.5 mt-2 px-1.5">
-                              <button className="inline-flex items-center gap-1 px-3 h-5 rounded-md bg-white border border-gray-200/60 text-xs font-medium text-[#1e252a]">
+                              <button className="inline-flex items-center gap-1 px-3 h-5 rounded-md bg-white border border-gray-200/60 text-xs font-medium text-[var(--mim-text-primary)]">
                                 <CheckCircle2 className="w-3 h-3" />
                                 Add To Tasks
                               </button>
-                              <button className="inline-flex items-center gap-1 px-3 h-5 rounded-md bg-white border border-gray-200/60 text-xs font-medium text-[#1e252a]">
-                                <span className="text-[#627c9e]">+</span>
+                              <button className="inline-flex items-center gap-1 px-3 h-5 rounded-md bg-white border border-gray-200/60 text-xs font-medium text-[var(--mim-text-primary)]">
+                                <span className="text-[var(--mim-system-border)]">+</span>
                                 MiM Brain
                               </button>
                             </div>
@@ -822,12 +822,12 @@ export default function MyBrainPage() {
             <div className="shrink-0 flex items-center justify-between px-5 pt-4 pb-3">
               <button
                 onClick={handleBack}
-                className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-slate-200 bg-white text-sm font-medium text-[#1e252a] hover:bg-slate-50 transition-colors shadow-sm"
+                className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-slate-200 bg-white text-sm font-medium text-[var(--mim-text-primary)] hover:bg-slate-50 transition-colors shadow-sm"
               >
                 <ArrowLeft className="w-3.5 h-3.5" />
                 Back
               </button>
-              <button className="inline-flex items-center gap-1.5 text-xs font-medium text-[#289bff] hover:text-blue-600 transition-colors">
+              <button className="inline-flex items-center gap-1.5 text-xs font-medium text-[var(--mim-core-blue)] hover:text-blue-600 transition-colors">
                 Share this Conversation
                 <ExternalLink className="w-3.5 h-3.5" />
               </button>
@@ -838,7 +838,7 @@ export default function MyBrainPage() {
               {/* Prior Conversations Panel */}
               <div className="w-[287px] shrink-0 bg-[#f3f2ed] flex flex-col min-h-0 rounded-bl-xl">
                 <div className="shrink-0 bg-white px-4 py-3 flex items-center justify-between shadow-[0px_1px_3px_0px_rgba(0,0,0,0.06)]">
-                  <h3 className="text-sm font-semibold text-[#1e252a]">
+                  <h3 className="text-sm font-semibold text-[var(--mim-text-primary)]">
                     Prior Conversations
                   </h3>
                   <button className="text-slate-400 hover:text-slate-600">
@@ -857,8 +857,8 @@ export default function MyBrainPage() {
                         onClick={() => handleSelectConversation(convo)}
                         className={`w-full text-left px-3 py-2 rounded-lg text-xs transition-colors truncate ${
                           activeConversation?.id === convo.id
-                            ? "bg-white text-[#1e252a] font-medium shadow-sm"
-                            : "text-[#6e7b80] hover:bg-white/60"
+                            ? "bg-white text-[var(--mim-text-primary)] font-medium shadow-sm"
+                            : "text-[var(--mim-text-secondary)] hover:bg-white/60"
                         }`}
                       >
                         {convo.title}
@@ -876,7 +876,7 @@ export default function MyBrainPage() {
                     <div key={i}>
                       {msg.role === "user" ? (
                         <div className="bg-[#f1eff3] rounded-xl px-4 py-3 max-w-[85%]">
-                          <p className="text-sm text-[#1e252a]">{msg.content}</p>
+                          <p className="text-sm text-[var(--mim-text-primary)]">{msg.content}</p>
                         </div>
                       ) : (
                         <div className="pl-2 max-w-[90%]">
@@ -905,7 +905,7 @@ export default function MyBrainPage() {
                 {/* Bottom chat input */}
                 <div className="shrink-0 px-5 pb-4">
                   <form onSubmit={handleSubmit}>
-                    <div className="bg-white rounded-[18px] border border-[#a9d8ff]/50 shadow-[0px_0.5px_6px_0px_rgba(0,0,0,0.12)] px-3.5 pt-2.5 pb-2.5 h-[89px] flex flex-col justify-between">
+                    <div className="bg-white rounded-[18px] border border-[var(--mim-info-border)]/50 shadow-[0px_0.5px_6px_0px_rgba(0,0,0,0.12)] px-3.5 pt-2.5 pb-2.5 h-[89px] flex flex-col justify-between">
                       <div className="flex items-start pl-3">
                         <input
                           type="text"
@@ -913,14 +913,14 @@ export default function MyBrainPage() {
                           onChange={(e) => setChatInput(e.target.value)}
                           placeholder="Ask Anything about the business."
                           disabled={isAsking}
-                          className="w-full text-sm text-slate-700 placeholder:text-[#b0b8bb] bg-transparent outline-none"
+                          className="w-full text-sm text-slate-700 placeholder:text-[var(--mim-text-placeholder)] bg-transparent outline-none"
                         />
                       </div>
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           <button
                             type="button"
-                            className="flex items-center gap-0.5 px-2 py-0.5 rounded-full bg-[#ecfaff] border border-[#b9e6ff] text-xs font-semibold text-[#1e252a] mix-blend-multiply"
+                            className="flex items-center gap-0.5 px-2 py-0.5 rounded-full bg-[var(--mim-info-bg)] border border-[var(--mim-suggestion-border)] text-xs font-semibold text-[var(--mim-text-primary)] mix-blend-multiply"
                           >
                             <Image
                               src="/icons/gophers.png"
@@ -933,7 +933,7 @@ export default function MyBrainPage() {
                           </button>
                           <button
                             type="button"
-                            className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#f2e9fa] border border-[#e8d7ff] text-xs font-semibold text-[#1e252a] mix-blend-multiply"
+                            className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#f2e9fa] border border-[#e8d7ff] text-xs font-semibold text-[var(--mim-text-primary)] mix-blend-multiply"
                           >
                             <Image
                               src="/icons/mimbrain-logo.png"

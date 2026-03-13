@@ -118,7 +118,8 @@ function isActive(
 
 function SectionLabel({ label }: { label: string }) {
   return (
-    <p className="px-3 pt-5 pb-1.5 text-[10px] font-semibold tracking-[0.14em] text-slate-400 uppercase select-none">
+    <p className="px-3 pt-5 pb-1.5 text-[10px] font-semibold tracking-[2px] text-[#C7D2E5]/50 uppercase select-none"
+       style={{ fontFamily: "'Inter', sans-serif" }}>
       {label}
     </p>
   );
@@ -148,13 +149,14 @@ function NavLink({
     <Link
       href={item.href}
       className={`
-        group flex items-center gap-3 px-3 py-[7px] rounded-lg text-sm font-medium
+        group flex items-center gap-3 px-3 py-[7px] rounded-md text-sm font-medium
         transition-all duration-100
         ${active
-          ? "bg-[#4B8BF5] text-white shadow-sm shadow-blue-600/20"
-          : "text-[#c8d0da] hover:bg-[#4a5a70] hover:text-white"
+          ? "bg-[var(--mim-info)] text-white shadow-sm shadow-blue-600/20"
+          : "text-white hover:bg-[var(--mim-sidebar-hover)] hover:text-white"
         }
       `}
+      style={{ fontFamily: "'Geist', sans-serif" }}
     >
       <Image
         src={item.icon}
@@ -163,7 +165,7 @@ function NavLink({
         height={16}
         className={`shrink-0 transition-all brightness-0 invert ${active ? "opacity-100" : "opacity-70 group-hover:opacity-100"}`}
       />
-      <span className="truncate">{item.label}</span>
+      <span className="truncate capitalize">{item.label}</span>
       {active && (
         <span className="ml-auto h-1.5 w-1.5 rounded-full bg-amber-400 shrink-0" />
       )}
@@ -205,17 +207,17 @@ export function Sidebar() {
   }
 
   return (
-    <aside className="w-56 flex flex-col shrink-0" style={{ backgroundColor: "#3E4C60" }}>
+    <aside className="w-[304px] flex flex-col shrink-0" style={{ backgroundColor: "var(--mim-system)" }}>
 
       {/* ── Logo ── */}
-      <div className="px-4 py-4 border-b border-white/10">
+      <div className="px-6 py-4 border-b border-white/10">
         <div className="flex items-center gap-2">
-          <Image src="/icons/MiMbrain Icon.png" alt="MiM" width={28} height={28} className="shrink-0" />
+          <Image src="/icons/MiMbrain Icon.png" alt="MiM" width={50} height={36} className="shrink-0" />
         </div>
       </div>
 
       {/* ── Nav ── */}
-      <nav className="flex-1 overflow-y-auto py-1 scrollbar-none">
+      <nav className="flex-1 overflow-y-auto py-1 px-2 scrollbar-none">
         <NavSectionBlock section={SECTION_PERSONAL}  pathname={pathname} searchParams={searchParams} />
         <NavSectionBlock section={SECTION_ORGS}      pathname={pathname} searchParams={searchParams} />
         <NavSectionBlock section={SECTION_PEOPLE}    pathname={pathname} searchParams={searchParams} />
@@ -226,29 +228,34 @@ export function Sidebar() {
       </nav>
 
       {/* ── User profile + sign out ── */}
-      <div className="border-t border-white/10 p-3">
-        <div className="flex items-center gap-3 px-1 mb-2">
-          <div className="h-9 w-9 rounded-full overflow-hidden shrink-0">
-            <Image src="/icons/Ellipse 2831.png" alt="Mark Slater" width={36} height={36} />
-          </div>
-          <div className="min-w-0 flex-1">
-            <p className="text-sm font-medium text-white truncate">Mark Slater</p>
-            <p className="text-[11px] text-[#8a97a8] truncate">Co-Founder and CEO</p>
+      <div className="p-3" style={{ backgroundColor: "var(--mim-user-bar)" }}>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="h-11 w-11 rounded-full overflow-hidden shrink-0">
+              <Image src="/icons/Ellipse 2831.png" alt="Mark Slater" width={44} height={44} />
+            </div>
+            <div className="min-w-0">
+              <p className="text-base font-medium text-[var(--mim-system)] leading-5" style={{ fontFamily: "'Inter', sans-serif" }}>Mark Slater</p>
+              <p className="text-xs font-medium text-white leading-[14px]" style={{ fontFamily: "'Inter', sans-serif" }}>Co-Founder and CEO</p>
+            </div>
           </div>
           <button
             onClick={handleSignOut}
-            className="flex items-center gap-1 px-2 py-1 rounded-md text-[11px] text-[#8a97a8] hover:bg-[#4a5a70] hover:text-white transition-colors"
+            className="flex items-center gap-0.5 px-3 py-1.5 rounded-md bg-white/30 text-[10px] font-semibold text-[var(--mim-system)] hover:bg-white/40 transition-colors"
             title="Log Out"
+            style={{ fontFamily: "'Geist', sans-serif" }}
           >
             Log Out
-            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-            </svg>
+            <Image src="/icons/account settings.png" alt="" width={16} height={16} className="brightness-0 opacity-70" />
           </button>
         </div>
-        <p className="text-[10px] text-[#6b7a8d] text-center mt-2">
-          Made In Motion PBC<br />
-          Built in Boston. 2026.
+      </div>
+      <div className="py-3" style={{ backgroundColor: "var(--mim-system)" }}>
+        <p className="text-sm font-semibold text-[#8598a8] text-center" style={{ fontFamily: "'Inter', sans-serif" }}>
+          Made In Motion PBC
+        </p>
+        <p className="text-xs font-normal text-[#8598a8] text-center" style={{ fontFamily: "'Inter', sans-serif" }}>
+          Built In Boston. 2026.
         </p>
       </div>
 
