@@ -48,6 +48,22 @@
 }
 
 :root {
+  /* ── MiMBrain Design Tokens (from Figma) ── */
+  --mim-system: #3E4C60;
+  --mim-system-border: #C7D2E5;
+  --mim-info: #289BFF;
+  --mim-info-border: #A9D8FF;
+  --mim-info-bg: #ECFAFF;
+  --mim-suggestion-border: #B9E6FF;
+  --mim-text-primary: #1E252A;
+  --mim-text-secondary: #6E7B80;
+  --mim-text-placeholder: #B0B8BB;
+  --mim-primary-hover: #33637F;
+  --mim-primary-disabled: #98BFD5;
+  --mim-core-blue: #289BFF;
+  --mim-user-bar: #848FA0;
+  --mim-sidebar-hover: #4a5a70;
+
   --radius: 0.625rem;
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
