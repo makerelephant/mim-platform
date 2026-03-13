@@ -548,6 +548,9 @@ async function classifyMessage(
       tags: data.tags || [],
       sentiment: data.sentiment || "neutral",
       draft_reply: data.draft_reply || null,
+      acumen_category: data.acumen_category || null,
+      importance_level: data.importance_level || null,
+      acumen_reasoning: data.acumen_reasoning || null,
       prompt_tokens: response.usage?.input_tokens,
       completion_tokens: response.usage?.output_tokens,
     };
