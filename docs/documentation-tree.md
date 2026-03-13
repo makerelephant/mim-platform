@@ -41,8 +41,9 @@ brain/
 | 4 | Product Requirements (PRDs) | Not started | `docs/product/` |
 | 5 | Feature Catalog | Not started | `docs/product/` |
 | 6 | Stack Glossary | Done | `docs/product/stack-glossary.md` |
-| 7 | Design Mocks | Partial (Figma) | Figma project files |
-| 8 | User Flows | Not started | `docs/product/` |
+| 7 | UI Requirements | In review | `docs/product/ui-requirements.md` |
+| 8 | Design Mocks | Partial (Figma) | Figma project files |
+| 9 | User Flows | Not started | `docs/product/` |
 
 ---
 
@@ -50,10 +51,10 @@ brain/
 
 | # | Document | Status | Location |
 |---|----------|--------|----------|
-| 9 | Architecture | Done | `docs/technical/architecture-mimbrain-v2.md` |
-| 10 | Schema Reference | Not started | `docs/technical/` |
-| 11 | API Reference | Not started | `docs/technical/` |
-| 12 | Infrastructure | Not started | `docs/technical/` |
+| 10 | Architecture | Done | `docs/technical/architecture-mimbrain-v2.md` |
+| 11 | Schema Reference | Not started | `docs/technical/` |
+| 12 | API Reference | Not started | `docs/technical/` |
+| 13 | Infrastructure | Not started | `docs/technical/` |
 
 ---
 
@@ -61,10 +62,12 @@ brain/
 
 | # | Document | Status | Location |
 |---|----------|--------|----------|
-| 13 | Acumen Classifiers | Done (11 categories) | `brain/pipelines/email-classification/` |
-| 14 | Harness Rules | Partial (email only) | `docs/operational/harness-scope-email-categories.md` |
-| 15 | Department Docs | Done (11 departments) | `brain/departments/` |
-| 16 | Master Effort List | Done | `docs/operational/master-effort-list.md` |
+| 14 | Acumen Classifiers | Done (11 categories) | `brain/pipelines/email-classification/` |
+| 15 | Harness Rules | Partial (email only) | `docs/operational/harness-scope-email-categories.md` |
+| 16 | Harness Loader | Done | `src/lib/harness-loader.ts` |
+| 17 | Department Docs | Done (11 departments) | `brain/departments/` |
+| 18 | Decision Log SQL | Done | `sql/acumen-decision-log.sql` |
+| 19 | Master Effort List | Done | `docs/operational/master-effort-list.md` |
 
 ---
 
@@ -72,9 +75,9 @@ brain/
 
 | # | Document | Status | Location |
 |---|----------|--------|----------|
-| 17 | Session Notes | Ongoing | `docs/process/session-notes-*.md` |
-| 18 | Decision Register | Not started | `docs/process/` |
-| 19 | Onboarding Guide | Done | `docs/ONBOARDING.md` |
+| 20 | Session Notes | Ongoing | `docs/process/session-notes-*.md` |
+| 21 | Decision Register | Not started | `docs/process/` |
+| 22 | Onboarding Guide | Done | `docs/ONBOARDING.md` |
 
 ---
 
@@ -82,10 +85,11 @@ brain/
 
 | Status | Count |
 |--------|-------|
-| Done | 8 |
+| Done | 11 |
 | Partial | 2 |
-| Not started | 9 |
-| **Total** | **19** |
+| In review | 1 |
+| Not started | 8 |
+| **Total** | **22** |
 
 ---
 

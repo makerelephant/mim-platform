@@ -32,8 +32,9 @@ interface NavSection {
 const SECTION_PERSONAL: NavSection = {
   label: "PERSONAL",
   items: [
-    { href: "/",      label: "My Brain", icon: "/icons/Brain Icon.png" },
-    { href: "/tasks", label: "My Tasks", icon: "/icons/Tasks Icon.png" },
+    { href: "/",          label: "My Brain",   icon: "/icons/Brain Icon.png" },
+    { href: "/tasks",     label: "My Tasks",   icon: "/icons/Tasks Icon.png" },
+    { href: "/decisions", label: "Decisions",  icon: "/icons/intelligence.png" },
   ],
 };
 
