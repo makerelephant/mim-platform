@@ -756,7 +756,62 @@ None of this requires the CEO to know what data exists or where it lives. The br
 
 ---
 
-## 10. Open Decisions
+## 10. Design Constraint: Person Feed Compatibility
+
+### The Insight
+
+MiMBrain already builds structured intelligence profiles for every entity it encounters — identity, capabilities, relationships, activity, reputation. It does this internally by scraping, classifying, and inferring from signals.
+
+In an AI-native world, entities will publish this information themselves as machine-readable feeds — structured streams of identity + intent + activity + capabilities that AI agents subscribe to. Think of it as RSS for people and organizations, but structured for AI reasoning.
+
+The internal entity intelligence model we're building and the external person feed protocol are **the same data structure**. One is inferred privately. The other is published openly. They must be compatible.
+
+### What This Means for Schema Design
+
+Every entity intelligence table and field must pass this test:
+
+> *"Could this field be populated either by our scanner inferring it, OR by the entity publishing it directly in a structured feed?"*
+
+If yes, the schema is correct. If a field can only exist through internal inference and has no external equivalent, question whether it belongs in the entity model or in a separate internal-only table.
+
+### The 10 Layers of a Person Feed
+
+For reference, a complete AI-native person feed contains:
+
+| Layer | Description | Internal Equivalent |
+|-------|-------------|-------------------|
+| Identity | Name, roles, verified accounts, location | Entity core fields |
+| Capabilities | Skills, tools, expertise, industries | Not yet modeled — future |
+| Intent | What they're seeking, available for | Not yet modeled — future |
+| Activity | Projects, events, launches, commits | `brain.correspondence`, `brain.tasks`, `brain.activity` |
+| Knowledge | Topics of interest, current questions | `brain.derived_insights` (about them) |
+| Relationships | Collaborators, communities, affiliations | `core.relationships`, `core.org_types` |
+| Availability | Contact methods, response window, open-to | Not yet modeled — future |
+| Reputation | Endorsements, outcomes, citations | `entity_feedback.usefulness_score` (internal only) |
+| Personal | Values, work style, hobbies | Not yet modeled — future |
+| Status | Currently working on, location, availability | Not yet modeled — future |
+
+**Layers 1, 4, 6 map to existing schema.** Layers 2, 3, 7, 8, 9, 10 are future extensions. The schema should not prevent adding them.
+
+### How This Evolves With the Cadence
+
+**The 1:** MiMBrain builds entity profiles internally for everyone the CEO interacts with. Scanners infer. The CEO's own Motion feed is his person feed (rendered as UI, not JSON).
+
+**The 10:** Team members publish structured signals within the shared brain. Internal person feeds between team members.
+
+**The 1,000:** External protocol. Entities publish feeds. Scanners become subscribers. Enrichment flips from pull (scrape) to push (subscribe). The CEO's person feed becomes publishable — attached to email footers, discoverable at a well-known endpoint.
+
+### Near-Term Implication: Email Context Block
+
+When MiMBrain sends or drafts email on behalf of the CEO, it could attach a machine-readable context block (in headers or footer) that any AI reading the email can parse. This is a small build with high leverage — not a protocol, just a practical step.
+
+### Rule
+
+**Do not build the protocol. Do not build the external publishing layer. But design every entity intelligence table so the data could be serialized as a person feed without restructuring.**
+
+---
+
+## 11. Open Decisions
 
 These decisions should be made before implementation begins:
 
@@ -774,7 +829,7 @@ These decisions should be made before implementation begins:
 
 ---
 
-## 11. Success Metrics
+## 12. Success Metrics
 
 The brain is succeeding when:
 
