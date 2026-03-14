@@ -4,6 +4,16 @@
 
 MiMBrain is an autonomous business intelligence platform for Made in Motion, a youth sports technology company. It processes business data (emails, messages, documents), classifies it, prioritizes it, and recommends actions — with the goal of becoming an autonomous Chief Operating Officer.
 
+## Guardrails — Non-Negotiable Beliefs
+
+These five beliefs govern every product, hiring, and architecture decision. They are not aspirational — they are operational constraints.
+
+1. **AI will be 1000x smarter than humans within 12 months.** Build for that world, not this one.
+2. **Probabilistic products like ours will be reimagined on AI stacks in their entirety.** Nothing we build should be inherited from the era of deterministic software.
+3. **Every hire must be 1 of 10 people total to get us to a billion-dollar company.** No filler. No "nice to have" roles.
+4. **Everyone must be in motion.** Us. Our customers. Our users. Everyone.
+5. **Don't design for a deterministic architecture that will no longer exist.** If it assumes static schemas, fixed workflows, or human-in-the-loop by default — rethink it.
+
 ## Critical Context: UI Paradigm Shift (March 2026)
 
 The platform is undergoing a radical UI redesign. **All 34 static CRM-style pages are being replaced** with a feed-first architecture. Do not build or maintain static pages.

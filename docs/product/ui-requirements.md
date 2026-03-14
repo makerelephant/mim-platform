@@ -11,6 +11,20 @@
 
 ---
 
+## 0. Guardrails
+
+Five beliefs that govern every decision — product, architecture, and hiring. See `CLAUDE.md` for the full list. The short version:
+
+1. AI will be 1000x smarter than humans within 12 months. Build for that world.
+2. Nothing we build should be inherited from the era of deterministic software.
+3. Every hire must be 1 of 10 people to reach a billion-dollar company.
+4. Everyone must be in motion — us, our customers, our users.
+5. Don't design for a deterministic architecture that will no longer exist.
+
+**Design implication:** Every screen, component, and interaction must pass the test: *"Does this assume a static, human-driven, deterministic world that won't exist in 12 months?"* If yes, rethink it.
+
+---
+
 ## 1. Platform Architecture
 
 The platform has three elements. Two are where the CEO lives. One is where they visit.
