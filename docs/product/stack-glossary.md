@@ -4,7 +4,43 @@
 >
 > **Rule:** If it doesn't have an entry here, it doesn't have a name yet. Add before you build.
 >
-> **Last updated:** 2026-03-13
+> **Last updated:** 2026-03-14
+
+---
+
+## Your Motion
+
+**The feed.** The CEO's entire operational life in a single scrollable stream of interactive cards. Decisions, signals, tasks, intelligence, snapshots — everything flows through one surface. Your Motion replaces all traditional CRM pages. There are no static views — only the river.
+
+---
+
+## Your Clearing
+
+**The thinking space.** Where the CEO steps away from the execution flow to think, prepare, and capture thoughts. Freeform notes, file ingestion, brain-assisted reflection. NOT a creation tool — the CEO uses whatever external tools they prefer (Keynote, Google Slides, Excel). The Clearing is the gate for deeper work, not a workshop.
+
+---
+
+## Engine Room
+
+**The configuration layer.** Where integrations, permissions, and system settings live. At its center is the Motion Map. Visited during setup and occasional tuning — does not compete for attention with Motion or Clearing.
+
+---
+
+## Motion Map
+
+**The brain's operating logic, made visible.** The CEO's readable view of how the brain classifies, prioritizes, and routes information. Shows the 11 business categories, importance tiers, and routing rules. This is the user-facing name for what engineers call the harness.
+
+---
+
+## Snapshotting
+
+**On-demand data views.** When the CEO asks "show me all pipeline deals" or "give me a company KPI report," the brain compiles a visual data card and drops it into the feed. Snapshots replace all static CRM pages — no permanent views, just generated-on-demand visual depictions of data.
+
+---
+
+## Cards
+
+**The interactive unit of the feed.** Every item in Your Motion is a card. Cards have four zones: header (category + entity + importance), body (what happened), expand trigger (reasoning + source + entities), and actions (what you can do). Card types include: Decision, Action/Spawn, Signal, Briefing, Snapshot, Intelligence, and Reflection.
 
 ---
 
@@ -37,12 +73,6 @@ Acumen has three parts:
 ## Entity Dossier
 
 **The memory file.** When the brain encounters a person or organization, it pulls together everything it knows — emails, tasks, pipeline deals, notes, correspondence history — into a single context block. This is the brain's institutional memory about a specific entity.
-
----
-
-## Taxonomy
-
-**The category list.** A structured set of business-specific labels that classifiers use to sort incoming data. Currently 14 categories loaded from the database. The taxonomy ensures classification is consistent and business-relevant, not generic.
 
 ---
 

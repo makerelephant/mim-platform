@@ -2,7 +2,7 @@
 
 > **Audience:** New agents, engineers, or contributors picking up this project for the first time.
 >
-> **Goal:** Understand what MiMBrain is, how the codebase is organized, and where to find everything you need — in under 10 minutes.
+> **Goal:** Understand what MiMBrain is, what's changed, and where to find everything — in under 10 minutes.
 
 ---
 
@@ -12,31 +12,49 @@ MiMBrain is an autonomous business intelligence platform built for Made in Motio
 
 ---
 
-## Read These First (In This Order)
+## Start Here: CLAUDE.md
 
-1. **`docs/product/stack-glossary.md`** — Plain-English definitions of every named component. Start here to learn the vocabulary.
-2. **`docs/technical/architecture-mimbrain-v2.md`** — Full system architecture. How all the pieces connect.
-3. **`docs/operational/master-effort-list.md`** — Every planned effort/epic with current status. Shows what's built, what's next, and what's future.
-4. **`docs/documentation-tree.md`** — Master index of all documentation with status and locations.
+Read `CLAUDE.md` at the project root first. It has the critical context about the UI paradigm shift, terminology, and "do not" rules.
+
+## Then Read These (In This Order)
+
+1. **`docs/product/ui-requirements.md`** — Governing architecture document. Defines the three surfaces (Your Motion, Your Clearing, Engine Room), card types, emotional design principles, snapshotting.
+2. **`docs/product/design-brief.md`** — Figma-actionable specs. Card anatomy, screen layouts, visual language, interaction inventory.
+3. **`docs/technical/architecture-mimbrain-v2.md`** — Backend architecture. Entity-centric design, three memory types, harness operating model, autonomy layer. Still the north star.
+4. **`docs/operational/master-effort-list.md`** — All planned efforts/epics with status.
+5. **`docs/product/stack-glossary.md`** — Plain-English definitions of every named component.
+
+---
+
+## The Paradigm Shift (March 2026)
+
+The platform is moving from a traditional CRM with 34 static pages to a **feed-first architecture**:
+
+- **Your Motion** — A scrollable feed of interactive cards. The CEO's entire operational life streams here. No permanent pages — data views are "snapshots" generated on demand.
+- **Your Clearing** — A thinking/prep space. Freeform notes, file ingestion, brain-assisted reflection. NOT a creation tool.
+- **Engine Room** — Configuration layer. Motion Map (the brain's operating logic made visible), integrations, data connections.
+
+The backend architecture (architecture-mimbrain-v2.md) is unchanged. Only the UI presentation layer changed.
 
 ---
 
 ## Folder Structure
 
 ```
+CLAUDE.md               — Read this first (agent/contributor guide)
 src/                    — Application source code (Next.js)
 brain/
   departments/          — Domain expertise docs (11 business departments)
   pipelines/
     email-classification/  — Classifier rules per category
 docs/
-  strategic/            — CEO, investor, board-facing docs
-  product/              — Product management and design docs
-  technical/            — Architecture, schema, API, infrastructure
-  operational/          — Acumen rules, harness, effort tracking
-  process/              — Session notes, decisions, onboarding
+  product/              — UI requirements, design brief, glossary
+  technical/            — Architecture, integrations
+  operational/          — Harness scope, effort tracking
+  strategic/            — (placeholder — CEO/investor docs)
 public/                 — Static assets (icons, images)
 supabase/               — Database migrations and functions
+sql/                    — SQL scripts (acumen decision log)
 ```
 
 ---
@@ -47,38 +65,23 @@ Acumen is how MiMBrain thinks. It has three parts:
 
 1. **Classifiers** (`brain/pipelines/email-classification/`) — Sort incoming data into 11 business categories
 2. **Harness** (`brain/departments/`) — Rules, importance weights, and domain knowledge per category
-3. **Decision Log** — Records every decision for accuracy scoring (not yet built)
+3. **Decision Log** — Records every classification decision for CEO review and accuracy scoring. Built and operational via `/decisions` page.
 
 ---
 
-## How to Contribute
+## Current State
 
-### Adding a new document
-1. Add an entry to `docs/documentation-tree.md` first
-2. Place the file in the correct folder (`strategic/`, `product/`, `technical/`, `operational/`, or `process/`)
-3. Commit with a clear message describing what was added
-
-### Writing session notes
-- File name format: `docs/process/session-notes-YYYY-MM-DD-topic.md`
-- Keep them concise — what changed, what was decided, what's next
-- Session notes are changelogs, not transcripts
-
-### Modifying Acumen rules
-- Classifier rules live in `brain/pipelines/email-classification/`
-- Department docs live in `brain/departments/`
-- One file per category in each folder
-- Changes to rules should be reviewed before deployment
-
-### Working on the codebase
-- Next.js 16 with Turbopack
-- Supabase backend (Postgres, multi-schema)
-- Deployed on Vercel (`npx vercel --prod --yes`)
-- MCP server provides 28 tools across 9 domains
+- **Backend:** CRM data layer complete, Gmail scanner classifying with Acumen categories, decision logging operational, brain chat working
+- **Frontend:** Old CRM UI exists (34 pages) but is being replaced by feed architecture. Decision review page built.
+- **Training:** Acumen classifier running on live emails. CEO reviews classifications via `/decisions`. Accuracy not yet measured at scale.
 
 ---
 
 ## Key Decisions Already Made
 
+- **Feed-first architecture** — No static CRM pages. Everything flows through Your Motion as interactive cards.
+- **Burning Man principle** — Celebrate impermanence. No permanent pages.
+- **Gate, not workshop** — The platform doesn't compete with creation tools (Google Slides, Excel, etc.)
 - **Acumen** is the name for the decision engine (classifiers + harness + decision log)
 - **11 email categories** defined: Legal, Customer/Partner Ops, Accounting & Finance, Scheduling, Fundraising, Product/Engineering, UX & Design, Marketing, AI, Family, Administration
 - **Harness docs are markdown** — loaded at runtime, not hardcoded into prompts
@@ -90,14 +93,16 @@ Acumen is how MiMBrain thinks. It has three parts:
 
 ## What's Not Built Yet
 
-Check `docs/operational/master-effort-list.md` for the full list, but the critical gaps are:
+Check `docs/operational/master-effort-list.md` for the full list. Critical gaps:
 
-- Decision logging and confidence scoring
-- Behavioral adaptation (brain learning from corrections)
-- Autonomous action execution (playbooks)
-- Multi-user auth
-- Knowledge base with semantic search (RAG foundation exists but not wired)
+- **Feed UI (Your Motion)** — The new feed architecture is designed but not yet built
+- **Your Clearing** — Thinking space not yet built
+- **Engine Room / Motion Map** — Configuration layer not yet built
+- **Snapshotting** — On-demand data views not yet built
+- **Behavioral adaptation** — Brain learning from corrections
+- **Autonomous action execution** — Playbooks
+- **Multi-user auth / Teams**
 
 ---
 
-*Last updated: 2026-03-13*
+*Last updated: 2026-03-14*

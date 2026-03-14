@@ -1,77 +1,87 @@
 # MiM Platform — Master Effort List
 
 > Living document. Captures all major efforts/epics at summary level. Add new items as they emerge — unpack in separate sessions.
+>
+> **UI paradigm shift (March 2026):** All static CRM pages are being replaced by a feed-first architecture (Your Motion + Your Clearing + Engine Room). Efforts below reflect this. See `docs/product/ui-requirements.md` for the governing architecture document.
 
 ---
 
 ## Currently Built / In Progress
 
-1. **Core CRM Platform** — Contacts, organizations, pipeline, tasks, support issues, activity log. CRUD complete, inline editing, entity linking. Operational.
+1. **Core Data Layer** — Contacts, organizations, pipeline, tasks, support issues, activity log. CRUD complete, entity linking, multi-schema DB architecture. Operational. *(The old static CRM UI exists but is being deprecated — data layer remains.)*
 
-2. **Communication Intelligence Pipeline** — Gmail + Slack scanners that classify inbound messages, resolve entities, create tasks, log correspondence. Functional but classifier doesn't yet use taxonomy.
+2. **Communication Intelligence Pipeline** — Gmail scanner classifies inbound messages using Acumen categories, resolves entities, creates tasks, logs correspondence. Classifier now uses 11 business categories with importance levels and reasoning. Operational.
 
-3. **Brain Chat Interface** — Chat-first dashboard with ask_brain API endpoint (entity resolution → dossiers → knowledge search → Claude synthesis). Figma-accurate UI. Working.
+3. **Brain Chat Interface** — Chat-first interface with ask_brain API endpoint (entity resolution → dossiers → knowledge search → Claude synthesis). Working. *(Will become a core interaction mode within Your Motion and Your Clearing.)*
 
-4. **Important Conversations Feed** — CEO-flagged items from `brain.ceo_context` with priority indicators, source badges, suggested actions. UI complete, action handlers not yet wired.
+4. **Decision Logging & CEO Review** — Acumen classifier writes category, importance, and reasoning to `brain.classification_log`. CEO reviews via `/decisions` page (correct/incorrect/partial). Operational but low volume.
 
 5. **Data Ontology Migration** — Multi-schema architecture (core/crm/intel/platform/brain), DB hardening, RLS, indexes, TypeScript types, route consolidation. Complete.
 
 6. **MCP Server** — 28 tools across 9 domains (knowledge, instructions, intelligence, tasks, contacts, organizations, pipeline, correspondence, system). Built, not yet deployed to a host.
 
+7. **Acumen Classifier System** — 11 email categories with harness rules, department docs, harness loader, classification pipeline. Complete and classifying live email.
+
 ---
 
 ## Near-Term Efforts
 
-7. **Parallel Entity Intelligence Layer** — New brain-schema tables for entity provenance, derived insights, decision logging, enrichment queue. The knowledge layer that makes entities smarter over time.
+8. **Your Motion — Feed Architecture** — Replace all static CRM pages with a single scrollable feed of interactive cards. Card types: Decision, Action/Spawn, Signal, Briefing, Snapshot, Intelligence, Reflection. This is the primary frontend build. See `docs/product/ui-requirements.md` and `docs/product/design-brief.md`.
 
-8. **Decision Logging & Confidence Gating** — Track every brain suggestion + CEO response. Compute alignment scores. Gate automation on demonstrated accuracy. The path from tool → COO.
+9. **Snapshotting Engine** — On-demand data views compiled by the brain into the feed. Replaces static pages for orgs, contacts, pipeline, KPIs. The brain generates visual data cards in response to user prompts.
 
-9. **Classifier Taxonomy Integration** — Wire the existing taxonomy into scanner classifier prompts so classification uses business-specific categories, not generic labels. Fix routing, priority escalation, casing bugs.
+10. **Your Clearing** — Thinking/prep space. Freeform notes, file ingestion, brain-assisted reflection. The gate for deeper work — not a creation tool.
 
-10. **Daily Synthesis Loop** — Automated agent that reads recent activity, cross-references signals, writes derived insights, produces CEO briefing to `brain.ceo_context`. The compounding mechanism.
+11. **Engine Room + Motion Map** — Configuration layer with the Motion Map at center (CEO's readable view of the harness). Integrations, data connections, permissions.
 
-11. **Approval Queue / Pending Review Workflow** — All scanner-created tasks start as `pending_review`. CEO approves, dismisses, or edits before they enter the work queue. Wired to decision logging.
+12. **Classifier Training at Scale** — Run scanner on higher email volume, accumulate CEO review data, compute per-category accuracy scores. Prove classifier before expanding autonomy. See `docs/operational/training-plan.md`.
+
+13. **Daily Synthesis Loop** — Automated agent that reads recent activity, cross-references signals, writes derived insights, produces CEO briefing cards in the feed. The compounding mechanism.
+
+14. **Parallel Entity Intelligence Layer** — New brain-schema tables for entity provenance, derived insights, enrichment queue. The knowledge layer that makes entities smarter over time.
 
 ---
 
 ## Medium-Term Efforts
 
-12. **Market Intelligence Scanners** — External data internalization across five categories: competitive intelligence, content concepts, M&A/strategic, customer/partner acquisition, consumer insights. Start with one, prove the pipeline.
+15. **Market Intelligence Scanners** — External data internalization: competitive intelligence, content concepts, M&A/strategic, customer/partner acquisition, consumer insights. Start with one, prove the pipeline.
 
-13. **Conversation Persistence & History** — Brain chat responses persisted to DB so prior conversations are fully reloadable. Thread continuity across sessions.
+16. **Conversation Persistence & History** — Brain chat responses persisted to DB so prior conversations are fully reloadable. Thread continuity across sessions.
 
-14. **Knowledge Ingestion Pipeline** — Accept any asset type (docs, CSVs, PDFs, images), extract content, classify, embed, map to entities. The "training data" ingest path.
+17. **Knowledge Ingestion Pipeline** — Accept any asset type (docs, CSVs, PDFs, images), extract content, classify, embed, map to entities. The "training data" ingest path. Key input channel for Your Clearing.
 
-15. **Commerce Integration** — Connect Printify/Drop data to platform. Real KPI values (revenue, items sold, AOV, conversion). Product creation event capture with design detail logging.
+18. **Commerce Integration** — Connect Printify/Drop data to platform. Real KPI values (revenue, items sold, AOV, conversion). Product creation event capture with design detail logging.
 
-16. **Behavioral Adaptation Engine** — System learns from CEO corrections and pattern data. Writes/updates its own behavioral rules. Confidence thresholds gate which rules auto-execute vs require approval.
+19. **Behavioral Adaptation Engine** — System learns from CEO corrections and pattern data. Writes/updates its own behavioral rules. Confidence thresholds gate which rules auto-execute vs require approval.
 
-17. **The MiMGina Notepad** — Mobile-first (iPhone) one-page note capture app. Minimal formatting (H1, subtitle, paragraph in Geist font), image/file attachment, voice dictation, save draft. Single submission button to MiM Brain with modal for: confidentiality rank (1-5), harness/category assignment, due date. First consumer of the MiMGina input door to Brain. Nothing else.
+20. **The MiMGina Notepad** — Mobile-first (iPhone) note capture. Minimal formatting, image/file attachment, voice dictation. Submits to MiM Brain with confidentiality rank, harness/category assignment, due date. First consumer of the MiMGina input door.
 
-18. **Automated Report Generation** — Monthly investor updates, internal company updates, and other recurring report types — all generated by MiM Brain from accumulated intelligence and delivered automatically.
+21. **Teams** — Add a second user acting independently on the same brain. Prerequisite to any scaling. Not multi-tenant — shared brain, separate views.
 
-19. **Long-Form Content & Research Publishing** — Establish MiM as youth sports market research leader. Brain-generated long-form research papers, weekly industry newsletters, daily content bites. Consumed by customers, partners, investors, acquirers. Also feeds into a semi-public Brain interface for prospects to converse and learn. Customer-facing platform where orgs (e.g., New England Surf) log in to see relevant content, revenue KPIs, user behavior insights on their campaigns.
+22. **Automated Report Generation** — Monthly investor updates, internal company updates, other recurring reports — generated by the brain from accumulated intelligence and delivered automatically.
 
-20. **Calendaring Tools** — TBD, to be unpacked.
-
-21. **Game Event & Scheduling Tools** — TBD, to be unpacked.
-
-22. **Team Chatting Tools** — TBD, to be unpacked.
+23. **Long-Form Content & Research Publishing** — Brain-generated research papers, weekly industry newsletters, daily content bites. Customer-facing platform where orgs see relevant content and KPI insights.
 
 ---
 
 ## Longer-Term Efforts
 
-23. **Harness Operating Model** — Structured MD behavioral contracts defining departments, processes, decision trees, scanner logic. Needs its own discovery/scoping session.
+24. **Harness Operating Model** — Structured MD behavioral contracts defining departments, processes, decision trees, scanner logic. Needs its own discovery/scoping session.
 
-24. **Autonomous Enrichment** — Self-directed scanner activation where the brain identifies entities with low knowledge completeness and triggers enrichment without being asked.
+25. **Autonomous Enrichment** — Self-directed scanner activation where the brain identifies entities with low knowledge completeness and triggers enrichment without being asked.
 
-25. **Asset/OCR Performance Intelligence** — Closed-loop system: capture product creation design decisions (colors, placement, sizing) → correlate with performance data (views, conversions) → derive actionable product insights.
+26. **Asset/OCR Performance Intelligence** — Closed-loop system: capture product creation design decisions → correlate with performance data → derive actionable product insights.
 
-26. **Model Abstraction Layer** — Abstract the LLM interface so Claude can be swapped for local models (Qwen, Llama) on high-volume structured tasks. Configuration not code changes.
+27. **Model Abstraction Layer** — Abstract the LLM interface so Claude can be swapped for local models on high-volume structured tasks. Configuration not code changes.
 
-27. **Multi-User / Auth** — Login system, role-based access, team member permissions. Currently single-user with no auth.
+28. **Multi-User / Auth** — Full login system, role-based access, team member permissions.
+
+29. **Calendaring Tools** — TBD, to be unpacked.
+
+30. **Game Event & Scheduling Tools** — TBD, to be unpacked.
+
+31. **Team Chatting Tools** — TBD, to be unpacked.
 
 ---
 
-*Last updated: 2026-03-12*
+*Last updated: 2026-03-14*
