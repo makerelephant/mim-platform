@@ -797,7 +797,14 @@ For reference, a complete AI-native person feed contains:
 
 **The 1:** MiMBrain builds entity profiles internally for everyone the CEO interacts with. Scanners infer. The CEO's own Motion feed is his person feed (rendered as UI, not JSON).
 
-**The 10:** Team members publish structured signals within the shared brain. Internal person feeds between team members.
+**The 10:** Team members each have their own Motion (private feed). They publish selected signals into the shared brain. The CEO's brain subscribes to what's published. Visibility isn't controlled by permissions tables — it's controlled by what each person chooses to emit. The person feed IS the access control model. No RBAC, no admin dashboards, no visibility matrices. The wall between private and shared is architectural: publish/subscribe, not permit/deny.
+
+| Feed Layer | Private (your Motion) | Published (shared brain) | Upward (CEO sees) |
+|------------|----------------------|--------------------------|-------------------|
+| Activity | All tasks, emails, work | Project milestones, blockers | Decisions needed, outcomes |
+| Intent | Personal goals | Team-relevant asks | Resource requests, strategic flags |
+| Status | Everything | Current focus, availability | Escalation-worthy signals only |
+| Knowledge | Notes, thinking | Shared learnings | Derived insights affecting company |
 
 **The 1,000:** External protocol. Entities publish feeds. Scanners become subscribers. Enrichment flips from pull (scrape) to push (subscribe). The CEO's person feed becomes publishable — attached to email footers, discoverable at a well-known endpoint.
 
