@@ -23,6 +23,14 @@ Five beliefs that govern every decision — product, architecture, and hiring. S
 
 **Design implication:** Every screen, component, and interaction must pass the test: *"Does this assume a static, human-driven, deterministic world that won't exist in 12 months?"* If yes, rethink it.
 
+### Company Cadence: 1 → 10 → 1,000
+
+1. **The 1** — Build Your Motion for the CEO. One person, fully orchestrated. ← **We are here.**
+2. **The 10** — The team of 10 share parts of their motion (internal ops, execution). This is teams.
+3. **The 1,000** — The regiment of efforts going to market. The product at scale.
+
+**Design implication:** Everything we design right now is for the 1. Do not generalize for multi-tenant, do not build admin dashboards, do not design onboarding flows. Nail the single-user orchestration experience first.
+
 ---
 
 ## 1. Platform Architecture
