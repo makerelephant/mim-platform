@@ -240,7 +240,23 @@ export default function FeedCard({ card, onAction, onDismiss }: FeedCardProps) {
       {/* ── Body ── */}
       {card.body && (
         <div className="px-5 pt-2 pb-3">
-          <p className="text-sm text-[#4b5563] leading-relaxed">{card.body}</p>
+          {card.card_type === "briefing" ? (
+            <div
+              className="text-sm text-[#4b5563] leading-relaxed prose prose-sm max-w-none prose-headings:text-[#1e252a] prose-strong:text-[#1e252a] prose-li:text-[#4b5563]"
+              dangerouslySetInnerHTML={{
+                __html: card.body
+                  .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+                  .replace(/^### (.+)$/gm, '<h4 class="text-sm font-bold mt-3 mb-1">$1</h4>')
+                  .replace(/^## (.+)$/gm, '<h3 class="text-base font-bold mt-4 mb-1">$1</h3>')
+                  .replace(/^# (.+)$/gm, '<h2 class="text-lg font-bold mt-4 mb-2">$1</h2>')
+                  .replace(/^- (.+)$/gm, '<li class="ml-4 list-disc">$1</li>')
+                  .replace(/\n{2,}/g, "<br/><br/>")
+                  .replace(/\n/g, "<br/>"),
+              }}
+            />
+          ) : (
+            <p className="text-sm text-[#4b5563] leading-relaxed">{card.body}</p>
+          )}
         </div>
       )}
 
