@@ -240,7 +240,7 @@ export default function FeedCard({ card, onAction, onDismiss }: FeedCardProps) {
       {/* ── Body ── */}
       {card.body && (
         <div className="px-5 pt-2 pb-3">
-          {card.card_type === "briefing" ? (
+          {(card.card_type === "briefing" || card.card_type === "snapshot") ? (
             <div
               className="text-sm text-[#4b5563] leading-relaxed prose prose-sm max-w-none prose-headings:text-[#1e252a] prose-strong:text-[#1e252a] prose-li:text-[#4b5563]"
               dangerouslySetInnerHTML={{
