@@ -18,6 +18,54 @@ MiM Brain is the instantiation of this conviction: an autonomous business intell
 
 ---
 
+## 0.1 The Single Ingestion Point
+
+**Every piece of data — regardless of source — enters through a single ingestion endpoint. No exceptions.**
+
+The brain has one door. Everything walks through it:
+
+- Email from Gmail
+- Message from Slack
+- Contact to add (forward a vcard, paste a URL, type a name)
+- Document dragged into the Clearing
+- Stripe webhook
+- Calendar event
+- RSS feed item
+- Person feed subscription (Phase 3)
+- Manual user input of any kind
+
+Nothing bypasses the brain. There are no "add contact" forms, no "create task" buttons, no direct database writes from UI. The brain is the only writer.
+
+**What happens at the ingestion point:**
+
+1. **Ingest** — parse and normalize the data into a common format
+2. **Classify** — run through the harness (acumen categories, priority, confidence)
+3. **Act** — create/update entities, log decisions, route to downstream systems
+4. **Emit** — produce a card into Motion if the CEO needs to see or act on it
+
+**Why this matters:**
+
+- **Training:** Every piece of data that flows through gets classified. Every classification is a training opportunity. Volume through this single point is how the brain gets smarter.
+- **Consistency:** The brain decides what a contact is, what a task is, what matters. Not the user clicking buttons.
+- **Auditability:** One log, one provenance chain, one decision trail for everything.
+- **Protocol compatibility:** This ingestion endpoint IS the brain's input feed. Motion IS the brain's output feed. When the person feed protocol goes external (Phase 3), the ingestion endpoint simply subscribes to external feeds — same door, new source.
+
+**The architecture:**
+
+```
+EVERYTHING (email, slack, documents, manual input, webhooks, feeds)
+    ↓
+[ Single Ingestion Endpoint ]
+    ↓
+[ Brain: classify → decide → act ]
+    ↓
+[ Motion Feed: cards out to CEO ]
+```
+
+**Rule:** Do not build any UI that writes directly to the database. All data mutation flows through the ingestion endpoint. The brain is the only actor.
+
+---
+
 ## 1. What Exists Today — Honest Assessment
 
 ### 1.1 What We've Built

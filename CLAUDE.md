@@ -93,6 +93,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=...
 
 - Build new static CRM pages or add sidebar navigation items (old pages are dormant, not deleted)
 - Build creation tools inside Your Clearing (it's a gate, not a workshop)
+- Build any UI that writes directly to the database — all data mutation flows through the single ingestion endpoint; the brain is the only actor
 - Add notification badges or counts
 - Use `<Image>` for SVGs — use `<img>` tags
 - Change the backend architecture (architecture-mimbrain-v2.md is the north star)
