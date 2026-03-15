@@ -140,6 +140,18 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
+    // Fire-and-forget: trigger brain learning pipeline for corrections
+    if (correction && (correction.wrong_category || correction.wrong_priority || correction.should_not_exist || correction.note)) {
+      const origin = request.nextUrl.origin;
+      fetch(`${origin}/api/brain/learn`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ card_id: id, correction }),
+      }).catch((learnErr) => {
+        console.error("Brain learn fire-and-forget failed:", learnErr);
+      });
+    }
+
     return NextResponse.json({ card: data });
   } catch (err) {
     return NextResponse.json({ error: String(err) }, { status: 500 });

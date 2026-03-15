@@ -3,6 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import Anthropic from "@anthropic-ai/sdk";
 import { processDocument, processTextInput, validateFileSize, EXTENSION_TO_TYPE } from "@/lib/document-processor";
 import { loadTaxonomy, matchTaxonomyCategory } from "@/lib/taxonomy-loader";
+import { chunkText, embedBatch, estimateTokens } from "@/lib/embeddings";
 
 export const maxDuration = 120;
 
@@ -317,6 +318,43 @@ Respond with ONLY a JSON object:
         })
         .eq("id", kbId);
 
+      // ── 6b. Generate embeddings and store in knowledge_chunks ──
+      let embeddingChunkCount = 0;
+      try {
+        const embeddingChunks = chunkText(contentText, 500);
+        if (embeddingChunks.length > 0) {
+          const embeddings = await embedBatch(embeddingChunks);
+          if (embeddings.length > 0) {
+            const chunkRows = embeddingChunks.map((chunk, idx) => ({
+              kb_id: kbId,
+              chunk_index: idx,
+              content: chunk,
+              token_count: estimateTokens(chunk),
+              embedding: JSON.stringify(embeddings[idx]),
+              metadata: {
+                title,
+                source_type: sourceType,
+                categories: taxonomyCategories,
+              },
+            }));
+
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const { error: chunkError } = await (sb as any)
+              .schema("brain")
+              .from("knowledge_chunks")
+              .insert(chunkRows);
+
+            if (chunkError) {
+              console.warn("knowledge_chunks insert failed (non-fatal):", chunkError.message);
+            } else {
+              embeddingChunkCount = chunkRows.length;
+            }
+          }
+        }
+      } catch (embErr) {
+        console.warn("Embedding generation failed (non-fatal):", embErr);
+      }
+
       // ── 7. Emit feed card ──
       try {
         const cardType = taxonomyCategories.some(c =>
@@ -376,6 +414,7 @@ Respond with ONLY a JSON object:
         tags: extractedTags,
         entities: entityIds,
         chunks: chunks.length,
+        embedding_chunks: embeddingChunkCount,
         text_length: contentText?.length || 0,
       });
     } catch (processingError) {
