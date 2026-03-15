@@ -22,11 +22,11 @@ export async function GET() {
 
     const sb = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Get all cards that have been acted on
+    // Get all cards that have been acted on (include correction data)
     const { data: actedCards, error } = await sb
       .schema("brain")
       .from("feed_cards")
-      .select("id, card_type, acumen_category, priority, ceo_action, source_type, entity_type, created_at")
+      .select("id, card_type, acumen_category, priority, ceo_action, ceo_action_note, ceo_correction, source_type, entity_type, created_at")
       .eq("status", "acted")
       .not("ceo_action", "is", null)
       .order("created_at", { ascending: false });
@@ -105,6 +105,60 @@ export async function GET() {
       priorityCounts[p] = (priorityCounts[p] || 0) + 1;
     }
 
+    // ── Correction analysis — what specifically is the brain getting wrong? ──
+    interface CorrectionSummary {
+      wrong_category: Record<string, { count: number; corrected_to: string[] }>;
+      wrong_priority: Record<string, { count: number; corrected_to: string[] }>;
+      should_not_exist: number;
+      total_with_corrections: number;
+      notes: string[];
+    }
+    const corrections: CorrectionSummary = {
+      wrong_category: {},
+      wrong_priority: {},
+      should_not_exist: 0,
+      total_with_corrections: 0,
+      notes: [],
+    };
+
+    for (const card of actedCards) {
+      if (card.ceo_action !== "no") continue;
+      const corr = card.ceo_correction as Record<string, unknown> | null;
+      if (!corr) continue;
+
+      corrections.total_with_corrections++;
+
+      if (corr.should_not_exist) {
+        corrections.should_not_exist++;
+      }
+
+      if (corr.wrong_category) {
+        const origCat = card.acumen_category || "uncategorized";
+        if (!corrections.wrong_category[origCat]) {
+          corrections.wrong_category[origCat] = { count: 0, corrected_to: [] };
+        }
+        corrections.wrong_category[origCat].count++;
+        if (typeof corr.wrong_category === "string" && corr.wrong_category) {
+          corrections.wrong_category[origCat].corrected_to.push(corr.wrong_category);
+        }
+      }
+
+      if (corr.wrong_priority) {
+        const origPri = card.priority || "medium";
+        if (!corrections.wrong_priority[origPri]) {
+          corrections.wrong_priority[origPri] = { count: 0, corrected_to: [] };
+        }
+        corrections.wrong_priority[origPri].count++;
+        if (typeof corr.wrong_priority === "string" && corr.wrong_priority) {
+          corrections.wrong_priority[origPri].corrected_to.push(corr.wrong_priority);
+        }
+      }
+
+      if (corr.note && typeof corr.note === "string") {
+        corrections.notes.push(corr.note);
+      }
+    }
+
     return NextResponse.json({
       success: true,
       total_acted: actedCards.length,
@@ -118,6 +172,7 @@ export async function GET() {
       categories,
       by_type: byType,
       priority_distribution: priorityCounts,
+      corrections,
       // M3 milestone check
       milestone_m3: {
         daily_volume_target: 100,
