@@ -8,6 +8,10 @@
     {
       "path": "/api/agents/daily-briefing",
       "schedule": "0 12 * * *"
+    },
+    {
+      "path": "/api/feed/resurface",
+      "schedule": "0 14 * * *"
     }
   ]
 }

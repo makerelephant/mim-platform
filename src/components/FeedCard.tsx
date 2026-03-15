@@ -8,6 +8,15 @@ import { formatDistanceToNow } from "date-fns";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
+export interface CorrectionData {
+  wrong_category?: string;
+  wrong_priority?: string;
+  wrong_card_type?: string;
+  should_not_exist?: boolean;
+  note?: string;
+  resurface_hours?: number; // for hold/not_now
+}
+
 export interface FeedCardData {
   id: string;
   card_type: string;
@@ -34,7 +43,7 @@ export interface FeedCardData {
 
 interface FeedCardProps {
   card: FeedCardData;
-  onAction: (id: string, action: "do" | "no" | "not_now") => Promise<void>;
+  onAction: (id: string, action: "do" | "no" | "not_now", correction?: CorrectionData) => Promise<void>;
   onDismiss: (id: string) => Promise<void>;
 }
 
@@ -68,6 +77,13 @@ function titleStyle(priority: string | null | undefined): string {
 export default function FeedCard({ card, onAction, onDismiss }: FeedCardProps) {
   const [expanded, setExpanded] = useState(false);
   const [acting, setActing] = useState(false);
+  const [showNoPanel, setShowNoPanel] = useState(false);
+  const [showHoldPanel, setShowHoldPanel] = useState(false);
+  const [correctionType, setCorrectionType] = useState<string | null>(null);
+  const [correctionCategory, setCorrectionCategory] = useState("");
+  const [correctionPriority, setCorrectionPriority] = useState("");
+  const [correctionNote, setCorrectionNote] = useState("");
+
   const isDecision = card.card_type === "decision";
   const isAction = card.card_type === "action";
   const isActed = card.status === "acted";
@@ -80,10 +96,17 @@ export default function FeedCard({ card, onAction, onDismiss }: FeedCardProps) {
   const subject = meta?.subject as string | undefined;
   const toEmails = meta?.to as string[] | undefined;
 
-  async function handleAction(action: "do" | "no" | "not_now") {
+  async function handleAction(action: "do" | "no" | "not_now", correction?: CorrectionData) {
     setActing(true);
     try {
-      await onAction(card.id, action);
+      await onAction(card.id, action, correction);
+      // Reset panels on success
+      setShowNoPanel(false);
+      setShowHoldPanel(false);
+      setCorrectionType(null);
+      setCorrectionCategory("");
+      setCorrectionPriority("");
+      setCorrectionNote("");
     } finally {
       setActing(false);
     }
@@ -96,6 +119,44 @@ export default function FeedCard({ card, onAction, onDismiss }: FeedCardProps) {
     } finally {
       setActing(false);
     }
+  }
+
+  function handleNoClick() {
+    setShowNoPanel(true);
+    setShowHoldPanel(false);
+  }
+
+  function handleHoldClick() {
+    setShowHoldPanel(true);
+    setShowNoPanel(false);
+  }
+
+  function handleCancelPanel() {
+    setShowNoPanel(false);
+    setShowHoldPanel(false);
+    setCorrectionType(null);
+    setCorrectionCategory("");
+    setCorrectionPriority("");
+    setCorrectionNote("");
+  }
+
+  function handleSubmitCorrection() {
+    const correction: CorrectionData = {};
+    if (correctionType === "wrong_category") {
+      correction.wrong_category = correctionCategory || undefined;
+    } else if (correctionType === "wrong_priority") {
+      correction.wrong_priority = correctionPriority || undefined;
+    } else if (correctionType === "shouldnt_exist") {
+      correction.should_not_exist = true;
+    }
+    if (correctionNote) {
+      correction.note = correctionNote;
+    }
+    handleAction("no", correction);
+  }
+
+  function handleHoldSelect(hours: number) {
+    handleAction("not_now", { resurface_hours: hours });
   }
 
   return (
@@ -168,7 +229,7 @@ export default function FeedCard({ card, onAction, onDismiss }: FeedCardProps) {
             </svg>
           </button>
           <button
-            onClick={() => handleAction("not_now")}
+            onClick={handleHoldClick}
             disabled={acting}
             className="inline-flex items-center gap-1.5 text-sm font-medium text-[#344054] hover:text-amber-700 transition-colors disabled:opacity-40"
           >
@@ -179,7 +240,7 @@ export default function FeedCard({ card, onAction, onDismiss }: FeedCardProps) {
             </svg>
           </button>
           <button
-            onClick={() => handleAction("no")}
+            onClick={handleNoClick}
             disabled={acting}
             className="inline-flex items-center gap-1.5 text-sm font-medium text-[#344054] hover:text-red-700 transition-colors disabled:opacity-40"
           >
@@ -190,6 +251,160 @@ export default function FeedCard({ card, onAction, onDismiss }: FeedCardProps) {
               <circle cx="11" cy="11" r="2" fill="#dc2626" />
             </svg>
           </button>
+        </div>
+      )}
+
+      {/* ── Hold Panel (Decision cards) ── */}
+      {showHoldPanel && (
+        <div className="px-5 pt-2 pb-3">
+          <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 space-y-2">
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Resurface in:</p>
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={() => handleHoldSelect(1)}
+                disabled={acting}
+                className="px-3 py-1.5 text-xs font-medium bg-white border border-gray-300 rounded-md hover:bg-amber-50 hover:border-amber-300 transition-colors disabled:opacity-40"
+              >
+                1 hour
+              </button>
+              <button
+                onClick={() => handleHoldSelect(4)}
+                disabled={acting}
+                className="px-3 py-1.5 text-xs font-medium bg-white border border-gray-300 rounded-md hover:bg-amber-50 hover:border-amber-300 transition-colors disabled:opacity-40"
+              >
+                4 hours
+              </button>
+              <button
+                onClick={() => handleHoldSelect(24)}
+                disabled={acting}
+                className="px-3 py-1.5 text-xs font-medium bg-white border border-gray-300 rounded-md hover:bg-amber-50 hover:border-amber-300 transition-colors disabled:opacity-40"
+              >
+                Tomorrow
+              </button>
+              <button
+                onClick={() => handleHoldSelect(168)}
+                disabled={acting}
+                className="px-3 py-1.5 text-xs font-medium bg-white border border-gray-300 rounded-md hover:bg-amber-50 hover:border-amber-300 transition-colors disabled:opacity-40"
+              >
+                Next Week
+              </button>
+            </div>
+            <button
+              onClick={handleCancelPanel}
+              className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── No / Correction Panel (Decision cards) ── */}
+      {showNoPanel && (
+        <div className="px-5 pt-2 pb-3">
+          <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 space-y-3">
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">What was wrong?</p>
+
+            {/* Quick-fix buttons */}
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={() => setCorrectionType("wrong_category")}
+                className={`px-3 py-1.5 text-xs font-medium rounded-md border transition-colors ${
+                  correctionType === "wrong_category"
+                    ? "bg-red-50 border-red-300 text-red-700"
+                    : "bg-white border-gray-300 text-gray-700 hover:bg-red-50 hover:border-red-300"
+                }`}
+              >
+                Wrong Category
+              </button>
+              <button
+                onClick={() => setCorrectionType("wrong_priority")}
+                className={`px-3 py-1.5 text-xs font-medium rounded-md border transition-colors ${
+                  correctionType === "wrong_priority"
+                    ? "bg-red-50 border-red-300 text-red-700"
+                    : "bg-white border-gray-300 text-gray-700 hover:bg-red-50 hover:border-red-300"
+                }`}
+              >
+                Wrong Priority
+              </button>
+              <button
+                onClick={() => setCorrectionType("shouldnt_exist")}
+                className={`px-3 py-1.5 text-xs font-medium rounded-md border transition-colors ${
+                  correctionType === "shouldnt_exist"
+                    ? "bg-red-50 border-red-300 text-red-700"
+                    : "bg-white border-gray-300 text-gray-700 hover:bg-red-50 hover:border-red-300"
+                }`}
+              >
+                Shouldn&apos;t Exist
+              </button>
+              <button
+                onClick={() => setCorrectionType("other")}
+                className={`px-3 py-1.5 text-xs font-medium rounded-md border transition-colors ${
+                  correctionType === "other"
+                    ? "bg-red-50 border-red-300 text-red-700"
+                    : "bg-white border-gray-300 text-gray-700 hover:bg-red-50 hover:border-red-300"
+                }`}
+              >
+                Other
+              </button>
+            </div>
+
+            {/* Wrong Category — text input */}
+            {correctionType === "wrong_category" && (
+              <input
+                type="text"
+                placeholder="What should the category be?"
+                value={correctionCategory}
+                onChange={(e) => setCorrectionCategory(e.target.value)}
+                className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-red-300"
+              />
+            )}
+
+            {/* Wrong Priority — priority buttons */}
+            {correctionType === "wrong_priority" && (
+              <div className="flex flex-wrap gap-2">
+                {(["critical", "high", "medium", "low"] as const).map((p) => (
+                  <button
+                    key={p}
+                    onClick={() => setCorrectionPriority(p)}
+                    className={`px-3 py-1.5 text-xs font-medium rounded-md border transition-colors capitalize ${
+                      correctionPriority === p
+                        ? "bg-red-50 border-red-300 text-red-700"
+                        : "bg-white border-gray-300 text-gray-700 hover:bg-gray-100"
+                    }`}
+                  >
+                    Should be {p}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Note field */}
+            <input
+              type="text"
+              placeholder="Optional note..."
+              value={correctionNote}
+              onChange={(e) => setCorrectionNote(e.target.value)}
+              className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-gray-300"
+            />
+
+            {/* Submit / Cancel */}
+            <div className="flex items-center gap-3">
+              <button
+                onClick={handleSubmitCorrection}
+                disabled={acting}
+                className="px-4 py-1.5 text-xs font-semibold bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors disabled:opacity-40"
+              >
+                Submit
+              </button>
+              <button
+                onClick={handleCancelPanel}
+                className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -225,7 +440,7 @@ export default function FeedCard({ card, onAction, onDismiss }: FeedCardProps) {
             card.ceo_action === "no" ? "text-red-500" :
             "text-amber-600"
           }`}>
-            {card.ceo_action === "do" ? "✓ Done" : card.ceo_action === "no" ? "✗ Declined" : "⏸ On Hold"}
+            {card.ceo_action === "do" ? "Done" : card.ceo_action === "no" ? "Declined" : "On Hold"}
           </span>
         </div>
       )}

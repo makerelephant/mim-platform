@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { Loader2 } from "lucide-react";
-import FeedCard, { FeedCardData } from "@/components/FeedCard";
+import FeedCard, { FeedCardData, CorrectionData } from "@/components/FeedCard";
 
 // ─── Component ──────────────────────────────────────────────────────────────
 
@@ -45,11 +45,11 @@ export default function MotionFeedPage() {
   }
 
   // ── Card actions ──
-  async function handleAction(id: string, action: "do" | "no" | "not_now") {
+  async function handleAction(id: string, action: "do" | "no" | "not_now", correction?: CorrectionData) {
     const res = await fetch("/api/feed", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id, ceo_action: action }),
+      body: JSON.stringify({ id, ceo_action: action, correction }),
     });
     const data = await res.json();
     if (data.card) {

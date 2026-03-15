@@ -13,9 +13,19 @@ import { createClient } from "@supabase/supabase-js";
  *   ?scope=personal        (default: personal)
  *
  * PATCH /api/feed
- *   Body: { id, status, ceo_action, ceo_action_note }
+ *   Body: { id, status, ceo_action, ceo_action_note, correction }
  *   Updates a card's status (e.g., mark as acted, dismissed)
+ *   correction: { wrong_category, wrong_priority, wrong_card_type, should_not_exist, note, resurface_hours }
  */
+
+interface CorrectionPayload {
+  wrong_category?: string;
+  wrong_priority?: string;
+  wrong_card_type?: string;
+  should_not_exist?: boolean;
+  note?: string;
+  resurface_hours?: number;
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -73,7 +83,13 @@ export async function GET(request: NextRequest) {
 export async function PATCH(request: NextRequest) {
   try {
     const body = await request.json();
-    const { id, status, ceo_action, ceo_action_note } = body;
+    const { id, status, ceo_action, ceo_action_note, correction } = body as {
+      id?: string;
+      status?: string;
+      ceo_action?: string;
+      ceo_action_note?: string;
+      correction?: CorrectionPayload;
+    };
 
     if (!id) {
       return NextResponse.json({ error: "Card id is required" }, { status: 400 });
@@ -96,6 +112,21 @@ export async function PATCH(request: NextRequest) {
       updates.status = "acted";
     }
     if (ceo_action_note !== undefined) updates.ceo_action_note = ceo_action_note;
+
+    // Handle correction data
+    if (correction) {
+      // Store structured correction in dedicated column + note
+      updates.ceo_correction = correction;
+      updates.ceo_action_note = JSON.stringify(correction);
+
+      // For hold with resurface, set dedicated resurface_at column
+      if (correction.resurface_hours && ceo_action === "not_now") {
+        const resurfaceAt = new Date(
+          Date.now() + correction.resurface_hours * 60 * 60 * 1000
+        ).toISOString();
+        updates.resurface_at = resurfaceAt;
+      }
+    }
 
     const { data, error } = await sb
       .schema("brain")
