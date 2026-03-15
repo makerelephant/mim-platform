@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>MiM Brain — Stack Glossary</title>
+  <style>
+
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+
+ul.task-list[class]{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+font-size: inherit;
+width: 0.8em;
+margin: 0 0.8em 0.2em -1.6em;
+vertical-align: middle;
+}
+.display.math{display: block; text-align: center; margin: 0.5rem auto;}
+</style>
+  <style type="text/css">body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; max-width: 800px; margin: 40px auto; padding: 0 20px; line-height: 1.6; color: #1a1a1a; font-size: 14px; }
+h1 { font-size: 28px; border-bottom: 2px solid #1a1a1a; padding-bottom: 8px; margin-top: 40px; }
+h2 { font-size: 22px; border-bottom: 1px solid #ddd; padding-bottom: 6px; margin-top: 32px; }
+h3 { font-size: 17px; margin-top: 24px; }
+table { border-collapse: collapse; width: 100%; margin: 16px 0; font-size: 13px; }
+th, td { border: 1px solid #ccc; padding: 8px 12px; text-align: left; }
+th { background: #f5f5f5; font-weight: 600; }
+code { background: #f5f5f5; padding: 2px 6px; border-radius: 3px; font-size: 13px; }
+pre { background: #f5f5f5; padding: 16px; border-radius: 4px; overflow-x: auto; font-size: 12px; }
+blockquote { border-left: 3px solid #ccc; margin: 16px 0; padding: 8px 16px; color: #555; }
+ul, ol { padding-left: 24px; }
+li { margin: 4px 0; }
+@media print { body { margin: 0; max-width: 100%; } }
+</style>
+</head>
+<body>
+<header id="title-block-header">
+<h1 class="title">MiM Brain — Stack Glossary</h1>
+</header>
+<h1 id="mim-brain-stack-glossary">MiM Brain — Stack Glossary</h1>
+<blockquote>
+<p><strong>Purpose:</strong> Plain-English cheat sheet for every named
+component in the MiM Brain stack. Written so anyone — product,
+marketing, investors, new engineers — can understand what each piece
+does without reading architecture docs.</p>
+<p><strong>Rule:</strong> If it doesn’t have an entry here, it doesn’t
+have a name yet. Add before you build.</p>
+<p><strong>Last updated:</strong> 2026-03-14</p>
+</blockquote>
+<hr />
+<h2 id="your-motion">Your Motion</h2>
+<p><strong>The feed.</strong> The CEO’s entire operational life in a
+single scrollable stream of interactive cards. Decisions, signals,
+tasks, intelligence, snapshots — everything flows through one surface.
+Your Motion replaces all traditional CRM pages. There are no static
+views — only the river.</p>
+<hr />
+<h2 id="your-clearing">Your Clearing</h2>
+<p><strong>The thinking space.</strong> Where the CEO steps away from
+the execution flow to think, prepare, and capture thoughts. Freeform
+notes, file ingestion, brain-assisted reflection. NOT a creation tool —
+the CEO uses whatever external tools they prefer (Keynote, Google
+Slides, Excel). The Clearing is the gate for deeper work, not a
+workshop.</p>
+<hr />
+<h2 id="engine-room">Engine Room</h2>
+<p><strong>The configuration layer.</strong> Where integrations,
+permissions, and system settings live. At its center is the Motion Map.
+Visited during setup and occasional tuning — does not compete for
+attention with Motion or Clearing.</p>
+<hr />
+<h2 id="motion-map">Motion Map</h2>
+<p><strong>The brain’s operating logic, made visible.</strong> The CEO’s
+readable view of how the brain classifies, prioritizes, and routes
+information. Shows the 11 business categories, importance tiers, and
+routing rules. This is the user-facing name for what engineers call the
+harness.</p>
+<hr />
+<h2 id="snapshotting">Snapshotting</h2>
+<p><strong>On-demand data views.</strong> When the CEO asks “show me all
+pipeline deals” or “give me a company KPI report,” the brain compiles a
+visual data card and drops it into the feed. Snapshots replace all
+static CRM pages — no permanent views, just generated-on-demand visual
+depictions of data.</p>
+<hr />
+<h2 id="cards">Cards</h2>
+<p><strong>The interactive unit of the feed.</strong> Every item in Your
+Motion is a card. Cards have four zones: header (category + entity +
+importance), body (what happened), expand trigger (reasoning + source +
+entities), and actions (what you can do). Card types include: Decision,
+Action/Spawn, Signal, Briefing, Snapshot, Intelligence, and
+Reflection.</p>
+<hr />
+<h2 id="acumen">Acumen</h2>
+<p><strong>The decision engine.</strong> Acumen is how MiM Brain thinks.
+It takes in raw data (emails, messages, documents), figures out what
+it’s looking at, decides how important it is, and recommends what to do
+about it. Acumen is what turns a general-purpose AI into a personalized
+business operator.</p>
+<p>Acumen has three parts:</p>
+<ul>
+<li><p><strong>Classifiers</strong> — The “what is this?” layer.
+Classifiers read incoming data and sort it into business categories
+(e.g., Fundraising, Legal, Marketing). They answer the question: what
+type of thing just arrived?</p></li>
+<li><p><strong>Harness</strong> — The “how much do I care and what do I
+do?” layer. The harness contains the rules, importance weights, and
+playbooks that tell the brain how to prioritize and act on classified
+data. It’s what makes the brain opinionated — it knows that a term sheet
+matters more than a newsletter.</p></li>
+<li><p><strong>Decision Log</strong> — The “was I right?” layer. Every
+decision the brain makes gets recorded with its reasoning. The CEO
+reviews and scores decisions. Over time, this data proves whether the
+brain is accurate enough to act autonomously — or whether it still needs
+supervision.</p></li>
+</ul>
+<hr />
+<h2 id="scanners">Scanners</h2>
+<p><strong>The intake layer.</strong> Scanners are automated workers
+that continuously monitor external data sources (Gmail, Slack, etc.),
+pull in new data, and feed it to Acumen for classification. Think of
+them as the brain’s eyes and ears — they watch everything so the CEO
+doesn’t have to.</p>
+<hr />
+<h2 id="mcp-server">MCP Server</h2>
+<p><strong>The tool belt.</strong> MCP (Model Context Protocol) is how
+the brain interacts with the platform’s data. It exposes 28 tools across
+9 domains — contacts, organizations, tasks, knowledge, correspondence,
+and more. When the brain needs to look something up, create a task, or
+update a record, it uses an MCP tool.</p>
+<hr />
+<h2 id="entity-dossier">Entity Dossier</h2>
+<p><strong>The memory file.</strong> When the brain encounters a person
+or organization, it pulls together everything it knows — emails, tasks,
+pipeline deals, notes, correspondence history — into a single context
+block. This is the brain’s institutional memory about a specific
+entity.</p>
+<hr />
+<h2 id="approval-queue">Approval Queue</h2>
+<p><strong>The trust gate.</strong> Before the brain acts autonomously,
+every recommendation goes through a review queue where the CEO approves,
+dismisses, or corrects it. The approval queue is how the brain earns
+trust — each approved decision feeds the Decision Log and moves the
+system closer to autonomy.</p>
+<hr />
+<h2 id="knowledge-base">Knowledge Base</h2>
+<p><strong>The long-term memory.</strong> Documents, research, ingested
+files, and accumulated insights stored with embeddings for semantic
+search. When the brain answers a question or generates a report, it
+searches the knowledge base for relevant context.</p>
+<hr />
+<h2 id="instruction-engine">Instruction Engine</h2>
+<p><strong>The standing orders.</strong> Persistent directives the CEO
+gives the brain — things like “always flag emails from this investor” or
+“include this data in every weekly report.” Instructions are loaded into
+scanner and report prompts so the brain remembers preferences across
+sessions.</p>
+<hr />
+<h2 id="department-docs">Department Docs</h2>
+<p><strong>The domain expertise.</strong> Deep reference documents that
+give the brain specialized knowledge about a business area — like a
+fundraising scoring model or a design system spec. Classifiers decide
+the category; department docs give the brain the expertise to reason
+within that category.</p>
+<hr />
+<h2 id="playbooks">Playbooks</h2>
+<p><strong>The action plans.</strong> Step-by-step instructions for what
+the brain should do once it classifies and prioritizes something.
+Playbooks are the eventual replacement for human decision-making on
+routine operations. Not yet built — currently represented as a single
+<code>default_action</code> per classifier rule.</p>
+<hr />
+<p><em>Add new entries as components are named and built.</em></p>
+</body>
+</html>

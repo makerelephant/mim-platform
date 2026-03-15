@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>MiMBrain Business Execution Platform — Onboarding Guide</title>
+  <style>
+
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+
+ul.task-list[class]{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+font-size: inherit;
+width: 0.8em;
+margin: 0 0.8em 0.2em -1.6em;
+vertical-align: middle;
+}
+.display.math{display: block; text-align: center; margin: 0.5rem auto;}
+</style>
+  <style type="text/css">body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; max-width: 800px; margin: 40px auto; padding: 0 20px; line-height: 1.6; color: #1a1a1a; font-size: 14px; }
+h1 { font-size: 28px; border-bottom: 2px solid #1a1a1a; padding-bottom: 8px; margin-top: 40px; }
+h2 { font-size: 22px; border-bottom: 1px solid #ddd; padding-bottom: 6px; margin-top: 32px; }
+h3 { font-size: 17px; margin-top: 24px; }
+table { border-collapse: collapse; width: 100%; margin: 16px 0; font-size: 13px; }
+th, td { border: 1px solid #ccc; padding: 8px 12px; text-align: left; }
+th { background: #f5f5f5; font-weight: 600; }
+code { background: #f5f5f5; padding: 2px 6px; border-radius: 3px; font-size: 13px; }
+pre { background: #f5f5f5; padding: 16px; border-radius: 4px; overflow-x: auto; font-size: 12px; }
+blockquote { border-left: 3px solid #ccc; margin: 16px 0; padding: 8px 16px; color: #555; }
+ul, ol { padding-left: 24px; }
+li { margin: 4px 0; }
+@media print { body { margin: 0; max-width: 100%; } }
+</style>
+</head>
+<body>
+<header id="title-block-header">
+<h1 class="title">MiMBrain Business Execution Platform — Onboarding
+Guide</h1>
+</header>
+<h1 id="mimbrain-business-execution-platform-onboarding-guide">MiMBrain
+Business Execution Platform — Onboarding Guide</h1>
+<blockquote>
+<p><strong>Audience:</strong> New agents, engineers, or contributors
+picking up this project for the first time.</p>
+<p><strong>Goal:</strong> Understand what MiMBrain is, what’s changed,
+and where to find everything — in under 10 minutes.</p>
+</blockquote>
+<hr />
+<h2 id="what-is-mimbrain">What is MiMBrain?</h2>
+<p>MiMBrain is an autonomous business intelligence platform built for
+Made in Motion, a youth sports technology company. It processes business
+data (emails, messages, documents), classifies it, prioritizes it, and
+recommends actions — with the goal of becoming an autonomous Chief
+Operating Officer.</p>
+<hr />
+<h2 id="start-here-claude.md">Start Here: CLAUDE.md</h2>
+<p>Read <code>CLAUDE.md</code> at the project root first. It has the
+critical context about the UI paradigm shift, terminology, and “do not”
+rules.</p>
+<h2 id="then-read-these-in-this-order">Then Read These (In This
+Order)</h2>
+<ol type="1">
+<li><strong><code>docs/product/ui-requirements.md</code></strong> —
+Governing architecture document. Defines the three surfaces (Your
+Motion, Your Clearing, Engine Room), card types, emotional design
+principles, snapshotting.</li>
+<li><strong><code>docs/product/design-brief.md</code></strong> —
+Figma-actionable specs. Card anatomy, screen layouts, visual language,
+interaction inventory.</li>
+<li><strong><code>docs/technical/architecture-mimbrain-v2.md</code></strong>
+— Backend architecture. Entity-centric design, three memory types,
+harness operating model, autonomy layer. Still the north star.</li>
+<li><strong><code>docs/operational/master-effort-list.md</code></strong>
+— All planned efforts/epics with status.</li>
+<li><strong><code>docs/product/stack-glossary.md</code></strong> —
+Plain-English definitions of every named component.</li>
+</ol>
+<hr />
+<h2 id="the-paradigm-shift-march-2026">The Paradigm Shift (March
+2026)</h2>
+<p>The platform is moving from a traditional CRM with 34 static pages to
+a <strong>feed-first architecture</strong>:</p>
+<ul>
+<li><strong>Your Motion</strong> — A scrollable feed of interactive
+cards. The CEO’s entire operational life streams here. No permanent
+pages — data views are “snapshots” generated on demand.</li>
+<li><strong>Your Clearing</strong> — A thinking/prep space. Freeform
+notes, file ingestion, brain-assisted reflection. NOT a creation
+tool.</li>
+<li><strong>Engine Room</strong> — Configuration layer. Motion Map (the
+brain’s operating logic made visible), integrations, data
+connections.</li>
+</ul>
+<p>The backend architecture (architecture-mimbrain-v2.md) is unchanged.
+Only the UI presentation layer changed.</p>
+<hr />
+<h2 id="folder-structure">Folder Structure</h2>
+<pre><code>CLAUDE.md               — Read this first (agent/contributor guide)
+src/                    — Application source code (Next.js)
+brain/
+  departments/          — Domain expertise docs (11 business departments)
+  pipelines/
+    email-classification/  — Classifier rules per category
+docs/
+  product/              — UI requirements, design brief, glossary
+  technical/            — Architecture, integrations
+  operational/          — Harness scope, effort tracking
+  strategic/            — (placeholder — CEO/investor docs)
+public/                 — Static assets (icons, images)
+supabase/               — Database migrations and functions
+sql/                    — SQL scripts (acumen decision log)</code></pre>
+<hr />
+<h2 id="the-decision-engine-acumen">The Decision Engine: Acumen</h2>
+<p>Acumen is how MiMBrain thinks. It has three parts:</p>
+<ol type="1">
+<li><strong>Classifiers</strong>
+(<code>brain/pipelines/email-classification/</code>) — Sort incoming
+data into 11 business categories</li>
+<li><strong>Harness</strong> (<code>brain/departments/</code>) — Rules,
+importance weights, and domain knowledge per category</li>
+<li><strong>Decision Log</strong> — Records every classification
+decision for CEO review and accuracy scoring. Built and operational via
+<code>/decisions</code> page.</li>
+</ol>
+<hr />
+<h2 id="current-state">Current State</h2>
+<ul>
+<li><strong>Backend:</strong> CRM data layer complete, Gmail scanner
+classifying with Acumen categories, decision logging operational, brain
+chat working</li>
+<li><strong>Frontend:</strong> Old CRM UI exists (34 pages) but is being
+replaced by feed architecture. Decision review page built.</li>
+<li><strong>Training:</strong> Acumen classifier running on live emails.
+CEO reviews classifications via <code>/decisions</code>. Accuracy not
+yet measured at scale.</li>
+</ul>
+<hr />
+<h2 id="key-decisions-already-made">Key Decisions Already Made</h2>
+<ul>
+<li><strong>Feed-first architecture</strong> — No static CRM pages.
+Everything flows through Your Motion as interactive cards.</li>
+<li><strong>Burning Man principle</strong> — Celebrate impermanence. No
+permanent pages.</li>
+<li><strong>Gate, not workshop</strong> — The platform doesn’t compete
+with creation tools (Google Slides, Excel, etc.)</li>
+<li><strong>Acumen</strong> is the name for the decision engine
+(classifiers + harness + decision log)</li>
+<li><strong>11 email categories</strong> defined: Legal,
+Customer/Partner Ops, Accounting &amp; Finance, Scheduling, Fundraising,
+Product/Engineering, UX &amp; Design, Marketing, AI, Family,
+Administration</li>
+<li><strong>Harness docs are markdown</strong> — loaded at runtime, not
+hardcoded into prompts</li>
+<li><strong>Decision logging before automation</strong> — the brain must
+prove accuracy before earning autonomy</li>
+<li><strong>SVG icons use <code>&lt;img&gt;</code> tags</strong> — not
+Next.js <code>&lt;Image&gt;</code> component (SVG compatibility
+issue)</li>
+<li><strong>Geist font</strong> applied globally via
+<code>font-sans</code> in Tailwind</li>
+</ul>
+<hr />
+<h2 id="whats-not-built-yet">What’s Not Built Yet</h2>
+<p>Check <code>docs/operational/master-effort-list.md</code> for the
+full list. Critical gaps:</p>
+<ul>
+<li><strong>Feed UI (Your Motion)</strong> — The new feed architecture
+is designed but not yet built</li>
+<li><strong>Your Clearing</strong> — Thinking space not yet built</li>
+<li><strong>Engine Room / Motion Map</strong> — Configuration layer not
+yet built</li>
+<li><strong>Snapshotting</strong> — On-demand data views not yet
+built</li>
+<li><strong>Behavioral adaptation</strong> — Brain learning from
+corrections</li>
+<li><strong>Autonomous action execution</strong> — Playbooks</li>
+<li><strong>Multi-user auth / Teams</strong></li>
+</ul>
+<hr />
+<p><em>Last updated: 2026-03-14</em></p>
+</body>
+</html>

@@ -1,0 +1,935 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>MiMBrain Platform — UI Requirements</title>
+  <style>
+
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+
+ul.task-list[class]{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+font-size: inherit;
+width: 0.8em;
+margin: 0 0.8em 0.2em -1.6em;
+vertical-align: middle;
+}
+.display.math{display: block; text-align: center; margin: 0.5rem auto;}
+</style>
+  <style type="text/css">body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; max-width: 800px; margin: 40px auto; padding: 0 20px; line-height: 1.6; color: #1a1a1a; font-size: 14px; }
+h1 { font-size: 28px; border-bottom: 2px solid #1a1a1a; padding-bottom: 8px; margin-top: 40px; }
+h2 { font-size: 22px; border-bottom: 1px solid #ddd; padding-bottom: 6px; margin-top: 32px; }
+h3 { font-size: 17px; margin-top: 24px; }
+table { border-collapse: collapse; width: 100%; margin: 16px 0; font-size: 13px; }
+th, td { border: 1px solid #ccc; padding: 8px 12px; text-align: left; }
+th { background: #f5f5f5; font-weight: 600; }
+code { background: #f5f5f5; padding: 2px 6px; border-radius: 3px; font-size: 13px; }
+pre { background: #f5f5f5; padding: 16px; border-radius: 4px; overflow-x: auto; font-size: 12px; }
+blockquote { border-left: 3px solid #ccc; margin: 16px 0; padding: 8px 16px; color: #555; }
+ul, ol { padding-left: 24px; }
+li { margin: 4px 0; }
+@media print { body { margin: 0; max-width: 100%; } }
+</style>
+</head>
+<body>
+<header id="title-block-header">
+<h1 class="title">MiMBrain Platform — UI Requirements</h1>
+</header>
+<h1 id="mimbrain-platform-ui-requirements">MiMBrain Platform — UI
+Requirements</h1>
+<blockquote>
+<p><strong>Purpose:</strong> Define the interaction architecture for
+MiMBrain — a feed-first orchestration platform built on impermanence,
+snapshotting, and the rejection of static pages.</p>
+<p><strong>Companion docs:</strong> - <code>design-brief.md</code> —
+Figma-actionable specs, component definitions, screen inventory -
+<code>architecture-mimbrain-v2.md</code> — backend intelligence stack
+(entity intelligence, harness, memory, autonomy) -
+<code>master-effort-list.md</code> — all planned efforts/epics</p>
+<p><strong>Status:</strong> Working draft. Reflects design sessions
+through 2026-03-14.</p>
+</blockquote>
+<hr />
+<h2 id="guardrails">0. Guardrails</h2>
+<p>Five beliefs that govern every decision — product, architecture, and
+hiring. See <code>CLAUDE.md</code> for the full list. The short
+version:</p>
+<ol type="1">
+<li>AI will be 1000x smarter than humans within 12 months. Build for
+that world.</li>
+<li>Nothing we build should be inherited from the era of deterministic
+software.</li>
+<li>Every hire must be 1 of 10 people to reach a billion-dollar
+company.</li>
+<li>Everyone must be in motion — us, our customers, our users.</li>
+<li>Don’t design for a deterministic architecture that will no longer
+exist.</li>
+</ol>
+<p><strong>Design implication:</strong> Every screen, component, and
+interaction must pass the test: <em>“Does this assume a static,
+human-driven, deterministic world that won’t exist in 12 months?”</em>
+If yes, rethink it.</p>
+<h3 id="company-cadence-1-10-1000">Company Cadence: 1 → 10 → 1,000</h3>
+<ol type="1">
+<li><strong>The 1</strong> — Build Your Motion for the CEO. One person,
+fully orchestrated. ← <strong>We are here.</strong></li>
+<li><strong>The 10</strong> — The team of 10 share parts of their motion
+(internal ops, execution). This is teams.</li>
+<li><strong>The 1,000</strong> — The regiment of efforts going to
+market. The product at scale.</li>
+</ol>
+<p><strong>Design implication:</strong> Everything we design right now
+is for the 1. Do not generalize for multi-tenant, do not build admin
+dashboards, do not design onboarding flows. Nail the single-user
+orchestration experience first.</p>
+<hr />
+<h2 id="platform-architecture">1. Platform Architecture</h2>
+<p>The platform has three elements. Two are where the CEO lives. One is
+where they visit.</p>
+<h3 id="your-motion">Your Motion</h3>
+<p>The execution flow. A single, scrollable, interactive feed — the
+CEO’s operational life in motion. Decisions, signals, tasks,
+intelligence, snapshots — everything flows through one surface. This is
+where life comes TO you.</p>
+<h3 id="your-clearing">Your Clearing</h3>
+<p>The thinking space. Where the CEO steps away from the flow to think,
+prepare, capture thoughts, and review. Not a creation tool — the CEO
+uses whatever tools they’re already comfortable with (Keynote, Notion,
+Google Docs). The clearing is for thought work and ingestion, not
+artifact production.</p>
+<h3 id="engine-room">Engine Room</h3>
+<p>The configuration layer. Integrations, gophers, users, permissions,
+and — at its center — the Motion Map, which is the CEO’s readable view
+of the brain’s operating logic (the harness). Visited during setup and
+occasional tuning. Does not compete for attention with Motion or
+Clearing.</p>
+<hr />
+<h2 id="foundational-principles">2. Foundational Principles</h2>
+<h3 id="a.-the-burning-man-principle-celebrate-impermanence">2a. The
+Burning Man Principle — Celebrate Impermanence</h3>
+<p>The platform rejects the 20-year SaaS instinct to save, store, and
+retrieve through permanent pages. When the brain is 1,000 times smarter
+than you, why would you ever think that what you need, it can’t get —
+and instantly?</p>
+<p>There is no “saving to search later.” There is only “expressing to
+retrieving now.”</p>
+<p>Data lives somewhere and has permanence — but that’s the brain’s
+problem and choice, not the CEO’s. No static pages. No filing cabinets.
+No permanent views. Everything is generated on demand, consumed in
+context, and either promoted to something recurring or allowed to
+dissolve back into the stream.</p>
+<h3 id="b.-the-gate-principle">2b. The Gate Principle</h3>
+<p>We are not a productivity suite. We don’t compete with the tools the
+CEO already uses to create things. We are the gate everything passes
+through on the way in and out.</p>
+<ul>
+<li><strong>Motion</strong> is the gate for operational flow —
+decisions, signals, actions flowing through</li>
+<li><strong>The Clearing</strong> is the gate for deeper work — context
+going out to inform creation, artifacts coming back in to become
+institutional memory</li>
+</ul>
+<p>The brain’s value isn’t helping you make the deck. It’s knowing, six
+months later, that the deck exists, what it contained, who saw it, and
+surfacing it when relevant.</p>
+<h3 id="c.-no-pages">2c. No Pages</h3>
+<p>There are no static pages. No <code>/orgs</code> table. No
+<code>/contacts</code> list. No <code>/pipeline</code> kanban. No
+<code>/reports</code> dashboard. These are all prompts, not
+destinations:</p>
+<ul>
+<li>“Show me my organizations” → the brain decides the best visual
+rendering</li>
+<li>“Who have I talked to most this month?” → better than a contacts
+table</li>
+<li>“Show me the fundraising pipeline” → snapshotted on demand</li>
+<li>“What do we know about the Massachusetts youth sports market?” →
+intelligence cards</li>
+</ul>
+<p>If the CEO wants any of these regularly, they tell the brain. It
+becomes scheduled. The view was never a page. It was a moment.</p>
+<p><strong>Exception:</strong> Settings pages exist because configuring
+infrastructure requires a stable interface.</p>
+<hr />
+<h2 id="your-motion-the-feed">3. Your Motion — The Feed</h2>
+<h3 id="what-motion-is">What Motion Is</h3>
+<ul>
+<li>A chronological stream of cards, newest at top</li>
+<li>The brain’s outbound: classifications, signals, briefings, action
+confirmations, snapshots</li>
+<li>The CEO’s inbound: queries, instructions, redirections</li>
+<li>The operational record: tasks created, decisions made, actions
+taken</li>
+<li>The living timeline of the CEO’s day — scroll down to see it unfold
+in reverse</li>
+</ul>
+<h3 id="what-motion-is-not">What Motion Is Not</h3>
+<ul>
+<li>An inbox (nothing demands action; everything invites it)</li>
+<li>A dashboard (no static widgets; everything flows)</li>
+<li>A chat window (responses arrive as cards, not chat bubbles)</li>
+<li>A page you navigate to (it IS the app)</li>
+</ul>
+<h3 id="core-interaction-pattern">Core Interaction Pattern</h3>
+<pre><code>Ask or Receive → Scan → Expand if interested → Act if needed → Next</code></pre>
+<p>This applies to every feature. Decisions, reports, intelligence,
+tasks, enrichment, briefings, knowledge — all card types in the same
+feed following the same pattern.</p>
+<h3 id="motion-is-generative">Motion Is Generative</h3>
+<p>Cards spawn cards. The brain says “I created a task for this” and the
+task card materializes above it — connected, contextualized,
+interactive. The CEO adjusts the task due date, and the brain responds:
+“This conflicts with your board prep — want me to shift that?” Another
+card. Another one-tap decision. The feed makes the operational graph
+visible — cause and effect, in sequence, in one place.</p>
+<h3 id="ceo-input">CEO Input</h3>
+<p>A single text input lives at the top of Motion. The CEO types
+naturally:</p>
+<ul>
+<li>“get me up to speed on youth sports in mass — I have a meeting next
+week”</li>
+<li>“give me an update on company KPIs over the last week”</li>
+<li>“show me a pipeline view of our customer efforts from prospect to
+closed”</li>
+<li>“create a task to follow up with Greg by Friday”</li>
+</ul>
+<p>The brain responds by inserting cards into Motion — discrete,
+scannable, expandable, actionable. Each one self-contained, each one
+interactive.</p>
+<h3 id="resolution-states">Resolution States</h3>
+<p>Cards arrive, get addressed, and settle. Resolved cards don’t
+disappear (that creates anxiety). They go visually muted — a quiet
+record of what happened.</p>
+<hr />
+<h2 id="snapshotting">4. Snapshotting</h2>
+<p>Snapshotting is the brain’s ability to compile visual depictions of
+data on demand — charts, pipelines, tables, graphs, timelines — in
+response to a CEO prompt. Snapshots are cards in Motion, not pages.</p>
+<h3 id="snapshot-lifecycle">Snapshot Lifecycle</h3>
+<pre><code>PROMPT → SNAPSHOT (ephemeral card) → INTERACT → maybe PROMOTE
+
+  &quot;show me the pipeline&quot;
+       ↓
+  [visual card appears in Motion]
+       ↓
+  CEO: &quot;break this out by revenue stage&quot;
+       ↓
+  [updated snapshot jumps to top of Motion]
+       ↓
+  CEO: &quot;good — send me this every Monday&quot;
+       ↓
+  [brain schedules it, confirms with action card]
+       ↓
+  snapshot settles into the stream like everything else</code></pre>
+<h3 id="snapshot-properties">Snapshot Properties</h3>
+<ul>
+<li><strong>Ephemeral by default.</strong> No URL, no page, no permanent
+home. Exists because it was needed.</li>
+<li><strong>Interactive.</strong> The CEO can ask for corrections,
+additions, different views. The card keeps jumping back to the top as
+iterations progress.</li>
+<li><strong>Promotable.</strong> The CEO can schedule regular
+creation/delivery, share it, add it to a draft report, or pin it.</li>
+<li><strong>Visual-primary.</strong> Unlike text-based cards, snapshots
+render data as the visual form that best communicates the answer —
+chart, pipeline, table, graph, timeline.</li>
+</ul>
+<h3 id="what-snapshotting-replaces">What Snapshotting Replaces</h3>
+<table>
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr>
+<th>Old Static Page</th>
+<th>New Snapshot Prompt</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>/orgs</code> — All Organizations</td>
+<td>“Show me my organizations”</td>
+</tr>
+<tr>
+<td><code>/orgs?type=Investor</code> — Investors</td>
+<td>“Show me our investor relationships”</td>
+</tr>
+<tr>
+<td><code>/contacts</code> — All Contacts</td>
+<td>“Who are my key contacts this quarter?”</td>
+</tr>
+<tr>
+<td><code>/pipeline</code> — Fundraising</td>
+<td>“Show me the fundraising pipeline”</td>
+</tr>
+<tr>
+<td><code>/intelligence</code> — Intelligence</td>
+<td>“What signals should I be aware of?”</td>
+</tr>
+<tr>
+<td><code>/activity</code> — Activity Log</td>
+<td>Scroll down in Motion</td>
+</tr>
+<tr>
+<td><code>/news-sentiment</code> — Sentiment</td>
+<td>“What’s the market sentiment on [topic]?”</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="your-clearing-1">5. Your Clearing</h2>
+<h3 id="what-the-clearing-is">What the Clearing Is</h3>
+<p>The deliberate pause from motion. The campfire in the middle of the
+campsite where things are gathered, spread out, and planned. The CEO
+steps into the clearing when they need to stop, think, and prepare —
+then steps back into motion.</p>
+<h3 id="what-the-clearing-supports">What the Clearing Supports</h3>
+<ul>
+<li><strong>Thought stream / notepad</strong> — freeform text capture
+throughout the day. Fragments, reminders, observations. The brain
+absorbs these and may reference them later in Motion cards. “Remind me
+to ask Greg about the Wellesley opportunity” → later, a card appears in
+Motion: “You wanted to ask Greg about Wellesley. Your meeting is
+Thursday.”</li>
+<li><strong>Brain-assisted prep</strong> — “Help me think through the
+board meeting” and the brain pulls together relevant context, recent
+decisions, KPIs, open items. The CEO shapes their thinking, then goes to
+their preferred tool to build the actual deliverable.</li>
+<li><strong>Ingestion</strong> — bring things back in. The finished
+deck, the signed contract, the meeting notes from Apple Notes. Drop them
+into the clearing and the brain absorbs them into institutional memory —
+linked to entities, available for future recall.</li>
+<li><strong>Planning</strong> — not project management. More like: “Here
+are the 4 things I want to accomplish this quarter.” The brain holds
+this context and references it in future cards.</li>
+</ul>
+<h3 id="what-the-clearing-is-not">What the Clearing Is Not</h3>
+<ul>
+<li>A document editor (the CEO uses Keynote, Notion, Google Docs for
+that)</li>
+<li>A project management tool (no Gantt charts, no sprint boards)</li>
+<li>A second feed (it’s a workspace, not a stream)</li>
+<li>A permanent fixture (clearing sessions exist while the work is in
+progress, then dissolve — the artifacts survive, the workspace
+doesn’t)</li>
+</ul>
+<h3 id="relationship-to-motion">Relationship to Motion</h3>
+<ul>
+<li>A card in Motion can open a clearing session (“Board meeting in 9
+days. No deck started.” → tap to enter clearing with pre-assembled
+context)</li>
+<li>A clearing session produces cards back into Motion when complete
+(“Board deck context prepared — 12 data points compiled”)</li>
+<li>The CEO can have multiple clearing sessions in progress</li>
+<li>The clearing has its own relationship with the brain — the CEO can
+ask questions from within the clearing without returning to Motion</li>
+</ul>
+<hr />
+<h2 id="emotional-design-principles">6. Emotional Design Principles</h2>
+<p>These govern every design decision. Wireframes and layouts must
+satisfy ALL of these constraints.</p>
+<h3 id="a.-decision-license-without-anxiety">6a. Decision License
+Without Anxiety</h3>
+<p>The CEO must feel confident acting quickly. Anxiety comes from
+uncertainty: “if I say yes, what happens? Did I miss something?”</p>
+<p>The card eliminates uncertainty BEFORE the CEO acts — not through
+more information (that’s clutter), but through confidence transfer. The
+brain does all the thinking before the card renders. The default posture
+is “I’ve got this, do you agree?” — not “here are 6 bullet points, you
+figure it out.”</p>
+<p><strong>How Motion delivers this:</strong> Nothing in the UI creates
+pressure. No badge counts, no “7 pending” indicators, no separate page
+where problems accumulate. The feed shows what the brain wants to show,
+in the order it thinks matters. The CEO scrolls, engages, moves on.</p>
+<h3 id="b.-calm-as-amplified-success">6b. Calm as Amplified Success</h3>
+<p>Success is not a congratulations banner. Success is the absence of
+demand. The app should feel like a well-organized desk, not a completed
+to-do list. One projects accomplishment. The other projects absence of
+burden.</p>
+<p><strong>How Motion delivers this:</strong> When all cards are
+resolved, Motion is simply calm. The CEO can still scroll, still query,
+but the default state communicates: you’re good. No stats, no activity
+counts, no implied “I was busy while you weren’t looking.”</p>
+<h3 id="c.-attachment-to-progress">6c. Attachment to Progress</h3>
+<p>Explicit metrics (“you’re 12% more efficient!”) feel performative.
+Implicit progress is powerful — the CEO notices over weeks that cards
+come less frequently, the brain’s suggestions match their instincts more
+often, they almost never need to correct.</p>
+<p><strong>How Motion delivers this:</strong> The feed naturally thins
+over time. Cards present more minimally when brain confidence is high.
+The CEO feels progress through the experience, not through a scoreboard.
+Analytical depth exists for when the CEO goes looking for it — a mirror,
+not a billboard.</p>
+<h3 id="d.-control-without-clutter">6d. Control Without Clutter</h3>
+<p>The CEO must feel they COULD override anything without the override
+apparatus being visible all the time. Like a car where you grab the
+steering wheel and it responds — not a car with a manual override switch
+on the dashboard.</p>
+<p><strong>How Motion delivers this:</strong> The CEO acts, the brain
+executes. Deeper context is available via expansion, not presented by
+default. The text input is always there — any card’s context can be
+grabbed and redirected. The brain doesn’t constrain; it presents.</p>
+<h3 id="e.-white-space-for-individuality">6e. White Space for
+Individuality</h3>
+<p>The “I want to go in a different direction” moment. The CEO stepping
+in with their own judgment — composing, not just conducting.</p>
+<p><strong>How Motion and Clearing deliver this:</strong> The text input
+invites open-ended interaction. The clearing provides space for
+unstructured thinking. The gate principle means the CEO can go create in
+any tool they want and bring it back. The platform never forces
+behavioral change on creation workflows.</p>
+<h3 id="f.-orchestration-fulfillment">6f. Orchestration Fulfillment</h3>
+<p>The cumulative feeling of using the product over time. The CEO opens
+the app, sees their world in motion, sees the brain handling the noise,
+sees important things surfaced cleanly. And they feel: “This system
+reflects my judgment. It thinks like I do because I taught it.”</p>
+<p><strong>How the platform delivers this:</strong> The brain is a
+mirror of the CEO’s decision-making, externalized and automated. The
+more accurate it gets, the more the CEO sees themselves in it. This
+isn’t a feature — it’s what happens when every other principle is
+working.</p>
+<hr />
+<h2 id="card-types">7. Card Types</h2>
+<p>All cards share a common anatomy but have type-specific content and
+actions.</p>
+<h3 id="common-card-anatomy">Common Card Anatomy</h3>
+<p>Every card has four zones, top to bottom:</p>
+<table>
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr>
+<th>Zone</th>
+<th>Content</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Header</strong></td>
+<td>Type indicator (icon + label) on left. Entity/source name in middle.
+Urgency indicator on right.</td>
+</tr>
+<tr>
+<td><strong>Body</strong></td>
+<td>Brain’s summary or recommendation. 2-3 lines in collapsed
+state.</td>
+</tr>
+<tr>
+<td><strong>Expand trigger</strong></td>
+<td>Subtle chevron or “show more” — card body is also tappable.</td>
+</tr>
+<tr>
+<td><strong>Actions</strong></td>
+<td>Row of type-specific action buttons at bottom.</td>
+</tr>
+</tbody>
+</table>
+<p>Three visual states:</p>
+<ul>
+<li><strong>Collapsed:</strong> Scannable. 2-3 lines. Enough to decide
+whether to engage.</li>
+<li><strong>Expanded:</strong> Full context — brain reasoning, source
+content, entity context, related items, provenance.</li>
+<li><strong>Resolved:</strong> Visually muted. Still visible in the
+stream as a record.</li>
+</ul>
+<h3 id="a.-decision-cards">7a. Decision Cards</h3>
+<p>The brain classified something and needs the CEO’s input. The brain
+has done all research before rendering — entity context, related
+correspondence, open items pre-loaded.</p>
+<p>Actions: - <strong>✓ Do</strong> — accept the brain’s recommendation.
+Brain executes. - <strong>✕ No</strong> — reject. Reveals structured
+correction (radio buttons + one-line input). - <strong>🕐 Not
+Now</strong> — defer. Card recedes, returns later.</p>
+<p>Visual urgency tiers: - High: visually prominent (accent color,
+larger presence) - Medium: standard - Low: starts collapsed — brain is
+confident, one-tap confirm</p>
+<h3 id="b.-action-cards-spawn-cards">7b. Action Cards (Spawn Cards)</h3>
+<p>The brain did something as a result of a decision or instruction.</p>
+<p>Examples: - “Created task: Confirm Walt accepted Jane’s edits — due
+tomorrow” - “Scheduled pipeline snapshot for every Monday 8 AM” -
+“Drafted reply to Greg — review below”</p>
+<p>Actions: Edit inline / Undo / Acknowledge</p>
+<h3 id="c.-signal-cards">7c. Signal Cards</h3>
+<p>Ambient intelligence. The brain noticed something.</p>
+<p>Examples: - “Greg hasn’t responded in 5 days” - “Revenue hit $40K
+this month — up 22%” - “3 partnership emails this week, up from 0 last
+month”</p>
+<p>Actions: Expand / Create task / Dismiss</p>
+<h3 id="d.-briefing-cards">7d. Briefing Cards</h3>
+<p>Authored by the brain. Daily synthesis, weekly summary, monthly
+review.</p>
+<p>Actions: Expand full report / Share / Schedule meeting / Ask deeper
+questions — each sub-action spawns its own card.</p>
+<h3 id="e.-snapshot-cards">7e. Snapshot Cards</h3>
+<p>Visual data compilations generated on demand. Charts, pipelines,
+tables, graphs.</p>
+<p>Actions: Iterate (“break this out by stage”) / Schedule / Share /
+Pin</p>
+<h3 id="f.-intelligence-cards-query-responses">7f. Intelligence Cards
+(Query Responses)</h3>
+<p>Generated when the CEO asks a question. Each piece of intelligence
+arrives as a separate card.</p>
+<h3 id="g.-reflection-cards">7g. Reflection Cards</h3>
+<p>The brain showing its own learning: “You’ve corrected me on
+partnership classifications 4 times this week. I’ve updated my
+rules.”</p>
+<p>Actions: Acknowledge / Review changes / Revert</p>
+<hr />
+<h2 id="navigation">8. Navigation</h2>
+<h3 id="the-sidebar-minimal">The Sidebar (Minimal)</h3>
+<p>The sidebar exists as a minimal structural element, not a navigation
+system. The CEO navigates by talking to the brain, not by clicking menu
+items.</p>
+<p>Sidebar contains: - MiMBrain logo - <strong>Your Motion</strong> —
+the feed (always home) - <strong>Your Clearing</strong> — thinking space
+- <strong>Engine Room</strong> — gear icon, opens the engine room - User
+profile + sign out</p>
+<p>That’s it. No section headers. No 24-item menu. No org types, contact
+subtypes, or pipeline variants. Those are all prompts now, not
+destinations.</p>
+<h3 id="the-engine-room">The Engine Room</h3>
+<p>The configuration layer that makes Motion and the Clearing work. The
+only part of the platform that uses traditional page-based interfaces,
+because infrastructure configuration needs stable, predictable
+surfaces.</p>
+<h4 id="the-motion-map-centerpiece">The Motion Map (Centerpiece)</h4>
+<p>The Motion Map is how the CEO sees their brain’s operating logic.
+It’s the readable, visual representation of the harness — the map of the
+system they’ve built through every correction, every instruction, every
+decision in Motion.</p>
+<p>The CEO opens the Motion Map and sees: <strong>this is how my brain
+thinks.</strong></p>
+<ul>
+<li>Categories the brain sorts into (partnership, legal, family,
+administration, etc.)</li>
+<li>Rules governing classification and importance</li>
+<li>Standing orders (“always flag FoundersEdge as medium minimum”)</li>
+<li>Learned behavioral patterns from CEO corrections</li>
+<li>Entity-level overrides and preferences</li>
+</ul>
+<p>The Motion Map is alive. Every correction the CEO makes on a decision
+card in Motion flows back here. Every “no, this is partnership not
+administration” updates the map. The CEO doesn’t need to visit it to
+make changes — changes happen naturally through Motion — but they can
+visit to review, audit, and understand the full picture of what they’ve
+taught the brain.</p>
+<p><strong>The harness</strong> is the technical implementation
+underneath the Motion Map. The markdown classifier files, the prompt
+engineering, the runtime loader. The CEO sees the Motion Map. The
+builders see the harness. Same data, different aperture.</p>
+<h4 id="supporting-infrastructure">Supporting Infrastructure</h4>
+<p>The remaining engine room pages are plumbing — visited during setup
+and occasional tuning.</p>
+<table>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr>
+<th>Page</th>
+<th>Purpose</th>
+<th>Conversational?</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Integrations</strong></td>
+<td>Connected services — Gmail, Slack, Stripe, Calendar. Status, last
+sync, errors. OAuth flows.</td>
+<td>Connect/disconnect via brain (“connect my Gmail”), but status
+dashboard needs visual</td>
+</tr>
+<tr>
+<td><strong>Gophers</strong></td>
+<td>Active automations and their status. What’s running, what it did,
+errors.</td>
+<td>Control via brain (“pause enrichment gopher”), but monitoring needs
+visual</td>
+</tr>
+<tr>
+<td><strong>Users &amp; Permissions</strong></td>
+<td>Who has access, roles, what they can see.</td>
+<td>No — traditional admin, needs stable forms</td>
+</tr>
+<tr>
+<td><strong>Account</strong></td>
+<td>Profile, billing, company info.</td>
+<td>No — standard settings page</td>
+</tr>
+</tbody>
+</table>
+<h4 id="conversational-configuration">Conversational Configuration</h4>
+<p>Many engine room changes don’t require visiting the engine room at
+all. The CEO can configure from Motion or the Clearing:</p>
+<ul>
+<li>“Connect my Gmail” → brain walks through OAuth</li>
+<li>“Scan every 15 minutes instead of 30” → brain updates, confirms with
+card</li>
+<li>“Stop enriching vendors, only enrich investors and partners” → brain
+updates rule</li>
+<li>“Add a new category called Board Relations” → brain updates the
+Motion Map</li>
+<li>“Pause the enrichment gopher until next week” → brain pauses,
+confirms</li>
+</ul>
+<p>The engine room visual pages exist for <strong>review and
+audit</strong> — seeing the full picture. Creation and modification
+happen naturally through interaction.</p>
+<hr />
+<h2 id="entity-association">9. Entity Association</h2>
+<p>Every card that references a known entity links to it. The purpose is
+preparation, not surveillance.</p>
+<p>When the brain renders a card, it already has: - Full dossier on
+referenced entities - Recent correspondence history - Open tasks and
+pending items - Relationship context (introductions, meetings, deal
+stage)</p>
+<p>This context is pre-loaded into expanded card state. Entity links
+resolve BOTH organizations and contacts. (Current gap: org resolves but
+contact does not always.)</p>
+<p>When an entity is tapped in any card, context appears inline or as a
+slide-over — NOT as a separate page navigation.</p>
+<hr />
+<h2 id="memory-intelligence-stack">10. Memory &amp; Intelligence
+Stack</h2>
+<p>The UI architecture (Motion, Clearing, Engine Room) is the
+presentation layer. Underneath it, the brain’s intelligence stack is
+defined in <code>architecture-mimbrain-v2.md</code> and remains the
+backend plan. The UI changed; the intelligence architecture did not.</p>
+<h3 id="three-types-of-memory">Three Types of Memory</h3>
+<table>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr>
+<th>Memory Type</th>
+<th>What It Is</th>
+<th>How It Surfaces in the UI</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Accumulated Knowledge</strong></td>
+<td>Raw facts in the entity graph and knowledge base. Every scan, every
+ingestion adds data.</td>
+<td>Pre-loaded into expanded card state. Entity dossiers. Intelligence
+card responses.</td>
+</tr>
+<tr>
+<td><strong>Derived Intelligence</strong></td>
+<td>Patterns and insights synthesized from aggregate observation. New
+knowledge that didn’t exist in any single input.</td>
+<td>Signal cards (“3 partnership emails this week, up from 0 last
+month”). Briefing cards. Snapshot context.</td>
+</tr>
+<tr>
+<td><strong>Behavioral Adaptation</strong></td>
+<td>Learned rules that modify how the brain operates. CEO corrections
+change future behavior.</td>
+<td>Reflection cards (“I updated my rules”). The Motion Map (visible
+rule changes). Fewer decision cards over time (the feed getting
+quieter).</td>
+</tr>
+</tbody>
+</table>
+<h3 id="backend-phases-from-architecture-v2">Backend Phases (from
+architecture v2)</h3>
+<p>These are unchanged and run in parallel with the frontend build:</p>
+<ol type="1">
+<li><strong>Entity Intelligence</strong> — provenance, KCS, enrichment
+tracking</li>
+<li><strong>Harness Documents</strong> — structured operating model
+(already started with Acumen classifiers)</li>
+<li><strong>Derived Intelligence</strong> — synthesis loop, insight
+generation</li>
+<li><strong>Behavioral Adaptation</strong> — learning from corrections,
+writing rules</li>
+<li><strong>Autonomous Enrichment</strong> — self-directed entity
+enrichment</li>
+</ol>
+<p>As each phase completes, the cards in Motion get richer and the feed
+gets quieter.</p>
+<hr />
+<h2 id="training-phase">11. Training Phase</h2>
+<p>Training is our internal calibration — not a product feature.</p>
+<h3 id="requirements">Requirements</h3>
+<ul>
+<li>Higher card volume (every classified email gets a card)</li>
+<li>Open text input on decision cards if richer context improves
+training signal</li>
+<li>Bulk operations (batch confirm, batch correct)</li>
+<li>Accuracy tracking visible for calibration</li>
+<li>Structured correction with category + importance override</li>
+</ul>
+<h3 id="approach">Approach</h3>
+<p>Don’t over-design. Whatever gets us through calibration fast is fine,
+even if rough. The steady-state card (Section 7a) is the product.
+Training cards can be utilitarian. They will be deprecated.</p>
+<hr />
+<h2 id="platform-features-mapped">12. Platform Features Mapped</h2>
+<p>Every planned feature maps to Motion as a card type or to the
+Clearing as a workspace capability. No feature requires its own
+page.</p>
+<table>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr>
+<th>Feature</th>
+<th>Expression</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Communication Intelligence</td>
+<td>Decision cards in Motion</td>
+<td>Gmail/Slack classifications</td>
+</tr>
+<tr>
+<td>Important Conversations</td>
+<td>Motion IS this</td>
+<td>The feed replaces the old component</td>
+</tr>
+<tr>
+<td>Decision Logging</td>
+<td>Decision + Reflection cards</td>
+<td>Training signal + brain learning</td>
+</tr>
+<tr>
+<td>Daily Synthesis</td>
+<td>Briefing cards</td>
+<td>Auto-generated, scheduled</td>
+</tr>
+<tr>
+<td>Approval Queue</td>
+<td>Decision cards (task subtype)</td>
+<td>Pending approvals</td>
+</tr>
+<tr>
+<td>Market Intelligence</td>
+<td>Signal cards + Snapshot cards</td>
+<td>Signals and visual data</td>
+</tr>
+<tr>
+<td>Conversation History</td>
+<td>Scroll Motion</td>
+<td>The feed IS the history</td>
+</tr>
+<tr>
+<td>Knowledge Ingestion</td>
+<td>Clearing → Action cards</td>
+<td>Ingest via clearing, confirmation in Motion</td>
+</tr>
+<tr>
+<td>Commerce Integration</td>
+<td>Signal cards</td>
+<td>Revenue, conversion events</td>
+</tr>
+<tr>
+<td>Behavioral Adaptation</td>
+<td>Reflection cards</td>
+<td>“I updated my rules”</td>
+</tr>
+<tr>
+<td>Notepad / Thought Stream</td>
+<td>Clearing</td>
+<td>Freeform capture</td>
+</tr>
+<tr>
+<td>Reports</td>
+<td>Snapshot + Briefing cards</td>
+<td>Generated on demand or scheduled</td>
+</tr>
+<tr>
+<td>Content Publishing</td>
+<td>Action cards</td>
+<td>Draft and publish from Motion</td>
+</tr>
+<tr>
+<td>Calendaring</td>
+<td>Spawn cards</td>
+<td>Events created from decisions</td>
+</tr>
+<tr>
+<td>Enrichment</td>
+<td>Action cards</td>
+<td>Brain enriches, reports in Motion</td>
+</tr>
+<tr>
+<td>CRM Data (Orgs/Contacts/Pipeline)</td>
+<td>Snapshot cards</td>
+<td>Compiled on demand, not static pages</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="next-horizon-teams">13. Next Horizon: Teams</h2>
+<p>Everything above is designed for one person — one brain, one motion,
+one clearing. The next horizon is a second user on the same brain.</p>
+<h3 id="why-teams-before-scale">Why Teams Before Scale</h3>
+<p>Brigade-level orchestration (company playbooks, automated acquisition
+pipelines, industrial motion maps) requires proving that the brain can
+serve multiple people without losing coherence. Teams is not a scaling
+feature — it’s the prerequisite that earns the right to peer around the
+scaling corner.</p>
+<h3 id="what-teams-introduces">What Teams Introduces</h3>
+<ul>
+<li><strong>Multiple users, same brain.</strong> Each person has their
+own Motion — their own feed of decisions, signals, and cards relevant to
+them. But the brain underneath is shared. It knows what everyone is
+doing.</li>
+<li><strong>Individual Motion stays individual.</strong> Your decisions
+are yours. Your thought stream in the Clearing is yours. The brain
+doesn’t broadcast your internal deliberation to the team.</li>
+<li><strong>Shared context emerges naturally.</strong> When one person
+resolves a decision that affects another person’s work, the brain
+surfaces that in the other person’s Motion. Not because someone assigned
+it — because the brain understood the connection.</li>
+<li><strong>The Motion Map becomes shared.</strong> The brain’s
+operating logic isn’t one person’s anymore. It reflects how the company
+thinks. Multiple people’s corrections and instructions shape it.</li>
+</ul>
+<h3 id="questions-teams-will-answer">Questions Teams Will Answer</h3>
+<p>These are unknowns we solve by building, not by designing
+upfront:</p>
+<ul>
+<li>When two people’s corrections conflict, who wins? (The CEO? The most
+recent? The brain asks?)</li>
+<li>What shows up in MY motion versus what shows up in the TEAM’s
+motion?</li>
+<li>Does the Clearing become a shared space, or does each person have
+their own?</li>
+<li>How does the brain decide which person should see a decision
+card?</li>
+<li>What does delegation look like in the feed? (“Brain, have Sarah
+handle the partnership follow-ups this week”)</li>
+</ul>
+<h3 id="design-implications">Design Implications</h3>
+<p>Don’t design for teams yet. Design the single-user experience so well
+that adding a second user is a natural extension, not a redesign. The
+card system, the Motion Map, the Clearing — all should be
+architecturally ready for multi-user without the UI needing to
+anticipate it.</p>
+<p>The scaling vision — company motion maps, team clearings,
+industrial-scale automation — is real but earned. First: one brain, two
+people. See what happens.</p>
+<hr />
+<h2 id="design-priority">14. Design Priority</h2>
+<table>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr>
+<th>Priority</th>
+<th>What to Design</th>
+<th>Why</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>P0</td>
+<td>Motion layout + card anatomy system</td>
+<td>This is the entire product</td>
+</tr>
+<tr>
+<td>P0</td>
+<td>Decision card (steady-state)</td>
+<td>Most common card type</td>
+</tr>
+<tr>
+<td>P0</td>
+<td>CEO input + intelligence response flow</td>
+<td>The conversational interaction</td>
+</tr>
+<tr>
+<td>P0</td>
+<td>Calm state (resolved Motion)</td>
+<td>The success state</td>
+</tr>
+<tr>
+<td>P0</td>
+<td>Snapshot card — visual data compilation</td>
+<td>Replaces all static pages</td>
+</tr>
+<tr>
+<td>P1</td>
+<td>Action/spawn cards + visual connections</td>
+<td>Generative feed behavior</td>
+</tr>
+<tr>
+<td>P1</td>
+<td>Signal cards</td>
+<td>Ambient intelligence</td>
+</tr>
+<tr>
+<td>P1</td>
+<td>Briefing/report cards with actions</td>
+<td>KPI reports, daily synthesis</td>
+</tr>
+<tr>
+<td>P1</td>
+<td>Clearing — notepad + prep + ingestion</td>
+<td>The thinking space</td>
+</tr>
+<tr>
+<td>P2</td>
+<td>Minimal sidebar</td>
+<td>Almost nothing in it</td>
+</tr>
+<tr>
+<td>P2</td>
+<td>Training-phase decision cards</td>
+<td>Internal calibration (rough is fine)</td>
+</tr>
+<tr>
+<td>P2</td>
+<td>Entity context (inline/slide-over)</td>
+<td>No separate pages</td>
+</tr>
+<tr>
+<td>P2</td>
+<td>Reflection cards</td>
+<td>Brain learning visibility</td>
+</tr>
+<tr>
+<td>P3</td>
+<td>Motion Map</td>
+<td>The brain’s operating logic, CEO-facing</td>
+</tr>
+<tr>
+<td>P3</td>
+<td>Engine Room — Integrations, Gophers</td>
+<td>Status and monitoring</td>
+</tr>
+<tr>
+<td>P4</td>
+<td>Engine Room — Users, Account</td>
+<td>Traditional admin</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<p><em>Last updated: 2026-03-14</em></p>
+</body>
+</html>

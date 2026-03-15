@@ -1,0 +1,991 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>MiMBrain — Design Brief</title>
+  <style>
+
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+
+ul.task-list[class]{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+font-size: inherit;
+width: 0.8em;
+margin: 0 0.8em 0.2em -1.6em;
+vertical-align: middle;
+}
+.display.math{display: block; text-align: center; margin: 0.5rem auto;}
+</style>
+  <style type="text/css">body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; max-width: 800px; margin: 40px auto; padding: 0 20px; line-height: 1.6; color: #1a1a1a; font-size: 14px; }
+h1 { font-size: 28px; border-bottom: 2px solid #1a1a1a; padding-bottom: 8px; margin-top: 40px; }
+h2 { font-size: 22px; border-bottom: 1px solid #ddd; padding-bottom: 6px; margin-top: 32px; }
+h3 { font-size: 17px; margin-top: 24px; }
+table { border-collapse: collapse; width: 100%; margin: 16px 0; font-size: 13px; }
+th, td { border: 1px solid #ccc; padding: 8px 12px; text-align: left; }
+th { background: #f5f5f5; font-weight: 600; }
+code { background: #f5f5f5; padding: 2px 6px; border-radius: 3px; font-size: 13px; }
+pre { background: #f5f5f5; padding: 16px; border-radius: 4px; overflow-x: auto; font-size: 12px; }
+blockquote { border-left: 3px solid #ccc; margin: 16px 0; padding: 8px 16px; color: #555; }
+ul, ol { padding-left: 24px; }
+li { margin: 4px 0; }
+@media print { body { margin: 0; max-width: 100%; } }
+</style>
+</head>
+<body>
+<header id="title-block-header">
+<h1 class="title">MiMBrain — Design Brief</h1>
+</header>
+<h1 id="mimbrain-design-brief">MiMBrain — Design Brief</h1>
+<blockquote>
+<p><strong>Purpose:</strong> Everything a designer needs to build the
+MiMBrain UI in Figma. Concrete specs, component definitions, screen
+inventory, and interaction details.</p>
+<p><strong>Companion doc:</strong> <code>ui-requirements.md</code> — the
+philosophy, principles, and architecture. This brief is the actionable
+translation.</p>
+<p><strong>Status:</strong> First draft. 2026-03-14.</p>
+</blockquote>
+<hr />
+<h2 id="platform-summary">1. Platform Summary</h2>
+<p>MiMBrain is a feed-first orchestration platform for CEOs. It has
+three surfaces:</p>
+<table>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr>
+<th>Surface</th>
+<th>Purpose</th>
+<th>Metaphor</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Your Motion</strong></td>
+<td>Execution flow — decisions, signals, tasks, intelligence</td>
+<td>The river</td>
+</tr>
+<tr>
+<td><strong>Your Clearing</strong></td>
+<td>Thinking space — notes, prep, ingestion</td>
+<td>The campfire</td>
+</tr>
+<tr>
+<td><strong>Engine Room</strong></td>
+<td>Configuration — integrations, motion map, gophers</td>
+<td>The plumbing</td>
+</tr>
+</tbody>
+</table>
+<p>There are no other pages. No CRM tables. No dashboards. No static
+views. Everything that would traditionally be a page is instead a
+<strong>snapshot</strong> — generated on demand into the feed.</p>
+<hr />
+<h2 id="screens-to-design">2. Screens to Design</h2>
+<h3 id="overview">Overview</h3>
+<table>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr>
+<th>Screen</th>
+<th>Priority</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Your Motion (the feed)</td>
+<td>P0</td>
+<td>The entire product. Multiple states needed.</td>
+</tr>
+<tr>
+<td>Card anatomy system</td>
+<td>P0</td>
+<td>Shared structure + type-specific variants</td>
+</tr>
+<tr>
+<td>CEO input bar</td>
+<td>P0</td>
+<td>Top of feed, always visible</td>
+</tr>
+<tr>
+<td>Calm state (empty Motion)</td>
+<td>P0</td>
+<td>The success state</td>
+</tr>
+<tr>
+<td>Snapshot card (visual data)</td>
+<td>P0</td>
+<td>Charts, pipelines, tables in-feed</td>
+</tr>
+<tr>
+<td>Your Clearing</td>
+<td>P1</td>
+<td>Notepad + prep + ingestion</td>
+</tr>
+<tr>
+<td>Entity context (slide-over)</td>
+<td>P2</td>
+<td>Opens from any entity link in a card</td>
+</tr>
+<tr>
+<td>Sidebar (minimal)</td>
+<td>P2</td>
+<td>4 items + user profile</td>
+</tr>
+<tr>
+<td>Engine Room: Motion Map</td>
+<td>P3</td>
+<td>The brain’s operating logic</td>
+</tr>
+<tr>
+<td>Engine Room: Integrations</td>
+<td>P3</td>
+<td>Connected services status</td>
+</tr>
+<tr>
+<td>Engine Room: Gophers</td>
+<td>P3</td>
+<td>Active automations</td>
+</tr>
+<tr>
+<td>Engine Room: Users &amp; Permissions</td>
+<td>P4</td>
+<td>Standard admin</td>
+</tr>
+<tr>
+<td>Engine Room: Account</td>
+<td>P4</td>
+<td>Standard settings</td>
+</tr>
+<tr>
+<td>Training-phase decision cards</td>
+<td>P2</td>
+<td>Internal calibration — rough is fine</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="your-motion-the-feed">3. Your Motion — The Feed</h2>
+<h3 id="layout">Layout</h3>
+<ul>
+<li>Full-width content area (no sidebar dominance — sidebar is minimal
+and can collapse)</li>
+<li>CEO input bar pinned to top</li>
+<li>Cards flow vertically, newest at top</li>
+<li>Scroll is infinite — resolved cards settle below, never
+disappear</li>
+<li>No pagination, no “load more” — continuous stream</li>
+</ul>
+<h3 id="states-to-design">States to Design</h3>
+<ol type="1">
+<li><strong>Active Motion</strong> — mixed cards in the feed. Some
+pending, some resolved. A typical day.</li>
+<li><strong>Dense Motion</strong> — many cards, training phase or busy
+day. Demonstrates visual hierarchy when volume is high.</li>
+<li><strong>Calm Motion</strong> — no pending items. The success state.
+The feed is quiet.</li>
+<li><strong>Query Response</strong> — CEO has typed a question. Multiple
+intelligence cards are populating in response.</li>
+<li><strong>Snapshot in Motion</strong> — a visual data card
+(chart/pipeline/table) sitting in the feed alongside text cards.</li>
+</ol>
+<h3 id="ceo-input-bar">CEO Input Bar</h3>
+<ul>
+<li>Position: pinned top of feed, always visible</li>
+<li>Appearance: single-line text input, expands on focus if needed</li>
+<li>Placeholder text: suggestive but not prescriptive (e.g., “Ask the
+brain anything…”)</li>
+<li>No buttons needed — Enter to submit</li>
+<li>The input should feel inviting but not demanding. It’s an open door,
+not a command prompt.</li>
+</ul>
+<hr />
+<h2 id="card-anatomy-system">4. Card Anatomy System</h2>
+<h3 id="common-structure-all-card-types">Common Structure (All Card
+Types)</h3>
+<p>Every card shares this skeleton. Type-specific content fills the
+middle.</p>
+<p><strong>Card layout — top to bottom:</strong></p>
+<table>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr>
+<th>Zone</th>
+<th>Content</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>HEADER</strong></td>
+<td>Type indicator (icon + label) on the left. Entity or source name in
+the middle. Urgency indicator on the right.</td>
+<td>Single row. Compact.</td>
+</tr>
+<tr>
+<td><strong>BODY</strong></td>
+<td>Brain’s summary or recommendation. 2-3 lines of text in collapsed
+state.</td>
+<td>This is the primary content. Should be the most readable
+element.</td>
+</tr>
+<tr>
+<td><strong>EXPAND TRIGGER</strong></td>
+<td>Small chevron or “Show more” text link below the body.</td>
+<td>Subtle. The card body itself should also be tappable to expand.</td>
+</tr>
+<tr>
+<td><strong>ACTIONS</strong></td>
+<td>Row of action buttons aligned at the bottom of the card.</td>
+<td>Type-specific. See each card type for specific buttons.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Example — Decision Card (collapsed):</strong></p>
+<blockquote>
+<p><strong>HEADER:</strong> <code>[brain icon] PARTNERSHIP</code> …
+<code>FoundersEdge</code> … <code>MED</code></p>
+<p><strong>BODY:</strong> Walt confirmed receipt of Jane’s rev-share
+edits. Recommend confirming Walt accepted changes before sending final
+to Greg Raiz.</p>
+<p><strong>EXPAND:</strong> <em>Show more v</em></p>
+<p><strong>ACTIONS:</strong> <code>[ Do ]</code> <code>[ No ]</code>
+<code>[ Not Now ]</code></p>
+</blockquote>
+<p><strong>Example — Decision Card (expanded):</strong></p>
+<blockquote>
+<p><em>…same header and body as above, plus:</em></p>
+<p><strong>REASONING:</strong> The brain classified this as
+Partnership/Medium because Walt’s “TY!” appears to be acknowledging
+Jane’s edits on the FoundersEdge revenue share terms. Greg Raiz is
+waiting for the final version.</p>
+<p><strong>KEY FACTS:</strong> - Jane sent 2 comments on the rev-share
+clause (Mar 10) - Walt has not confirmed he accepted Jane’s changes -
+Greg Raiz last contacted: Mar 6</p>
+<p><strong>SOURCE:</strong> <em>(collapsed by default — tap to
+show)</em> From: wd47west@gmail.com | Subject: Re: 2 quick things |
+Body: “TY!”</p>
+<p><strong>ENTITIES:</strong> <code>[FoundersEdge]</code>
+<code>[Greg Raiz]</code> <code>[Walt Doyle]</code> <em>(tappable
+pills)</em></p>
+<p><strong>ACTIONS:</strong> <code>[ Do ]</code> <code>[ No ]</code>
+<code>[ Not Now ]</code></p>
+</blockquote>
+<h3 id="three-visual-states">Three Visual States</h3>
+<table>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr>
+<th>State</th>
+<th>Appearance</th>
+<th>When</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Active</strong></td>
+<td>Full contrast, clear borders, actionable buttons visible</td>
+<td>Card needs attention or is newly arrived</td>
+</tr>
+<tr>
+<td><strong>Expanded</strong></td>
+<td>Card grows to show full context, reasoning, source, entity
+links</td>
+<td>CEO tapped expand</td>
+</tr>
+<tr>
+<td><strong>Resolved</strong></td>
+<td>Muted opacity, actions hidden or grayed, still readable</td>
+<td>CEO acted on it or acknowledged it</td>
+</tr>
+</tbody>
+</table>
+<h3 id="visual-urgency-tiers">Visual Urgency Tiers</h3>
+<table>
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr>
+<th>Tier</th>
+<th>Visual Treatment</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>High</strong></td>
+<td>Accent color left border (warm — amber or red). Slightly larger
+card. Brain summary is bolder.</td>
+</tr>
+<tr>
+<td><strong>Medium</strong></td>
+<td>Standard card presentation. No special treatment.</td>
+</tr>
+<tr>
+<td><strong>Low</strong></td>
+<td>Starts collapsed to a single line. Muted by default. One-tap to
+confirm without expanding.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="card-connections">Card Connections</h3>
+<p>When a card spawned from another card (e.g., a task created from a
+decision), there should be a subtle visual connection. Not a literal
+line between cards — but when the spawn card is tapped or hovered, the
+parent card gets a subtle highlight. Consider:</p>
+<ul>
+<li>A small “spawned from” reference line in the card header</li>
+<li>A shared thread indicator (subtle vertical line or dot pattern on
+the left margin)</li>
+<li>When expanded, a “Related: [parent card summary]” link</li>
+</ul>
+<hr />
+<h2 id="card-types-specific-designs">5. Card Types — Specific
+Designs</h2>
+<h3 id="a.-decision-card">5a. Decision Card</h3>
+<p>The most important card type. The brain classified something and
+needs the CEO’s input.</p>
+<p><strong>Header:</strong> Category badge (e.g., “Partnership”) +
+Entity name (e.g., “FoundersEdge”) + Urgency indicator
+(High/Med/Low)</p>
+<p><strong>Body (collapsed):</strong> Brain’s one-sentence
+recommendation. Pre-researched — includes the key context the CEO needs
+to decide. Examples:</p>
+<ul>
+<li>“Walt confirmed receipt of Jane’s rev-share edits. Recommend
+confirming Walt accepted changes before sending final to Greg
+Raiz.”</li>
+<li>“Newsletter from Chamath — no action needed. Auto-dismiss
+recommended.”</li>
+<li>“New partnership inquiry from Wellesley Academy. Matches expansion
+criteria. Recommend creating evaluation task.”</li>
+</ul>
+<p><strong>Body (expanded):</strong> Full context:</p>
+<ul>
+<li>Brain’s reasoning (2-3 sentences on why this classification and
+recommendation)</li>
+<li>Key facts the brain checked (bullet points: “Jane sent 2 comments
+Mar 10”, “Walt has not confirmed acceptance”, “Greg last contacted Mar
+6”)</li>
+<li>Source content (the actual email, collapsed by default)</li>
+<li>Entity links (tappable: FoundersEdge, Greg Raiz, Walt Doyle)</li>
+</ul>
+<p><strong>Actions — three buttons in a row:</strong></p>
+<table>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr>
+<th>Button</th>
+<th>Label</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Primary</td>
+<td><strong>Do</strong></td>
+<td>Accept the brain’s recommendation. Brain executes. Card
+resolves.</td>
+</tr>
+<tr>
+<td>Secondary</td>
+<td><strong>No</strong></td>
+<td>Reject. Reveals correction panel inline (see below).</td>
+</tr>
+<tr>
+<td>Tertiary</td>
+<td><strong>Not Now</strong></td>
+<td>Card recedes visually (drops lower, goes muted). Returns tomorrow.
+No calendar UI. Just “later.”</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Correction panel (appears inline when “No” is
+tapped):</strong></p>
+<p>The card expands to show a small correction form directly below the
+actions:</p>
+<table>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr>
+<th>Element</th>
+<th>Type</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>“Dismiss — not important”</td>
+<td>Radio option</td>
+<td>Quick dismissal</td>
+</tr>
+<tr>
+<td>“Different category”</td>
+<td>Radio option + dropdown</td>
+<td>Override the brain’s category</td>
+</tr>
+<tr>
+<td>“Different action”</td>
+<td>Radio option + single-line text input</td>
+<td>Tell the brain what should happen instead</td>
+</tr>
+<tr>
+<td>Submit button</td>
+<td>Button</td>
+<td>Confirms the correction, card resolves</td>
+</tr>
+</tbody>
+</table>
+<p>This correction panel is structured — radio buttons, not open text.
+The “different action” input is one line, not a text area. Quick,
+constrained, not a conversation.</p>
+<h3 id="b.-action-card-spawn-card">5b. Action Card (Spawn Card)</h3>
+<p>Brain did something. This is a receipt + edit surface.</p>
+<p><strong>Header:</strong> Action type icon + “Created” / “Updated” /
+“Scheduled” + timestamp</p>
+<p><strong>Body:</strong> What happened. One line.</p>
+<ul>
+<li>“Created task: Confirm Walt accepted Jane’s edits — due Mar 15”</li>
+<li>“Scheduled pipeline snapshot for every Monday 8 AM”</li>
+<li>“Drafted reply to Greg — review below”</li>
+</ul>
+<p><strong>Actions:</strong> Edit inline (change due date, assignee,
+content) / Undo / Acknowledge</p>
+<p><strong>Expanded:</strong> Shows the full item (task details, draft
+text, schedule config) editable in place.</p>
+<h3 id="c.-signal-card">5c. Signal Card</h3>
+<p>Ambient intelligence. The brain noticed something unprompted.</p>
+<p><strong>Header:</strong> Signal icon + Entity or topic +
+timestamp</p>
+<p><strong>Body:</strong> The observation. One to two lines.</p>
+<ul>
+<li>“Greg Raiz hasn’t responded in 5 days. Last email: Mar 9.”</li>
+<li>“3 partnership emails this week — up from 0 last month.”</li>
+<li>“Revenue hit $40K this month — up 22% from February.”</li>
+</ul>
+<p><strong>Actions:</strong> Expand for detail / Create task /
+Dismiss</p>
+<p><strong>Note:</strong> Signal cards should feel lighter than decision
+cards. They’re informational, not demanding. Consider slightly smaller
+card size or a distinct visual treatment that says “FYI” not “act
+now.”</p>
+<h3 id="d.-briefing-card">5d. Briefing Card</h3>
+<p>Brain-authored synthesis. Daily, weekly, or monthly.</p>
+<p><strong>Header:</strong> Briefing icon + “Daily Briefing” / “Weekly
+Summary” + date</p>
+<p><strong>Body (collapsed):</strong> Top-line summary. 2-3
+sentences.</p>
+<ul>
+<li>“This week: 14 decisions resolved, 3 new partnerships identified,
+revenue up 8%. 2 items need attention.”</li>
+</ul>
+<p><strong>Body (expanded):</strong> Full report with sections, data,
+charts. This is where snapshot-style visual content may appear inside a
+card.</p>
+<p><strong>Actions:</strong> Share with team / Schedule meeting / Ask
+deeper questions — each spawns a new card.</p>
+<h3 id="e.-snapshot-card">5e. Snapshot Card</h3>
+<p>Visual data compilation. Charts, pipelines, tables, graphs —
+generated on demand from a CEO query.</p>
+<p><strong>Header:</strong> Snapshot icon + description of what was
+compiled + timestamp</p>
+<p><strong>Body:</strong> The visual. A chart, pipeline view, table, or
+graph rendered directly in the card. This is the key differentiator —
+snapshot cards are visual-primary, not text-primary.</p>
+<p><strong>Expanded:</strong> Larger/interactive version of the visual.
+Data tables behind the chart. Filters or breakdowns.</p>
+<p><strong>Actions:</strong></p>
+<table>
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr>
+<th>Button</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Iterate</strong></td>
+<td>Opens the input bar pre-filled with the snapshot context, so the CEO
+can refine (“break this out by revenue stage”)</td>
+</tr>
+<tr>
+<td><strong>Schedule</strong></td>
+<td>Set recurring generation (“every Monday at 8 AM”)</td>
+</tr>
+<tr>
+<td><strong>Share</strong></td>
+<td>Spawns a share/draft card</td>
+</tr>
+<tr>
+<td><strong>Pin</strong></td>
+<td>Keeps this snapshot visible at the top of Motion (rare — most things
+are impermanent)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="f.-intelligence-card-query-response">5f. Intelligence Card
+(Query Response)</h3>
+<p>Generated when the CEO asks a question. Each piece of intelligence is
+its own card.</p>
+<p><strong>Header:</strong> Brain icon + topic reference + “In response
+to your query”</p>
+<p><strong>Body:</strong> One discrete fact or insight. 2-3 lines.
+Scannable.</p>
+<p><strong>Expanded:</strong> Full detail — sources, related entities,
+supporting data.</p>
+<p><strong>Design note:</strong> When the CEO asks a question, multiple
+intelligence cards arrive in sequence. They should feel like a set —
+maybe a subtle grouping indicator (shared left-border color or “1 of 4”
+indicator). But each card is independent and individually
+interactive.</p>
+<p><strong>Example — CEO types: “get me up to speed on youth sports in
+mass”</strong></p>
+<p>Four cards arrive in sequence:</p>
+<blockquote>
+<p><strong>Card 1:</strong> You have a meeting with Alex Haney Thursday
+at 11:30 AM. He runs a multi-sport academy in Wellesley.
+<code>[Alex Haney]</code> <code>[v expand]</code></p>
+</blockquote>
+<blockquote>
+<p><strong>Card 2:</strong> Massachusetts youth soccer registrations up
+14% YoY. Lacrosse flat. Hockey declining. <code>[v expand]</code></p>
+</blockquote>
+<blockquote>
+<p><strong>Card 3:</strong> You spoke with Walt about CityKids two days
+ago — community engagement play. Could be relevant to Alex’s model.
+<code>[CityKids]</code> <code>[Walt Doyle]</code>
+<code>[v expand]</code></p>
+</blockquote>
+<blockquote>
+<p><strong>Card 4:</strong> FoundersEdge has a portfolio company in
+youth fitness. Greg Raiz mentioned it in January. Potential overlap with
+Alex’s academy. <code>[FoundersEdge]</code> <code>[Greg Raiz]</code>
+<code>[v expand]</code></p>
+</blockquote>
+<p>Each card has entity pills that are tappable. Each expands
+independently for deeper detail.</p>
+<h3 id="g.-reflection-card">5g. Reflection Card</h3>
+<p>Brain showing its own learning.</p>
+<p><strong>Header:</strong> Brain icon + “Learning Update” +
+timestamp</p>
+<p><strong>Body:</strong> What the brain learned and changed.</p>
+<ul>
+<li>“You’ve corrected me on partnership classifications 4 times this
+week. I’ve updated my category boundaries. Here’s what changed.”</li>
+</ul>
+<p><strong>Actions:</strong> Acknowledge / Review rule changes /
+Revert</p>
+<p><strong>Design note:</strong> These should feel warm and transparent.
+The brain is showing vulnerability — “I was wrong, I learned.” The
+visual tone should reinforce trust.</p>
+<hr />
+<h2 id="your-clearing">6. Your Clearing</h2>
+<h3 id="layout-1">Layout</h3>
+<p>The Clearing should feel visually distinct from Motion. Motion has
+energy, flow, cards arriving. The Clearing should feel still. Spacious.
+Like you walked away from the river and sat down.</p>
+<p><strong>Core elements:</strong></p>
+<ul>
+<li>A large text area for thought stream / notepad — freeform, no
+formatting toolbar, just text</li>
+<li>A drop zone for file ingestion — drag and drop files, images,
+documents</li>
+<li>A brain input — same as Motion’s input but contextual to the
+Clearing. “Help me think through the board meeting” triggers brain
+responses that appear IN the Clearing, not in Motion</li>
+<li>Active clearing sessions — the CEO may have multiple in-progress
+sessions (board prep, quarterly planning, market research). These should
+be accessible but not cluttered.</li>
+</ul>
+<h3 id="states-to-design-1">States to Design</h3>
+<ol type="1">
+<li><strong>Empty Clearing</strong> — first visit. Inviting, open,
+spacious. Suggests what you might do here.</li>
+<li><strong>Active Clearing</strong> — notes accumulating, a few files
+dropped in, brain has responded with some context cards. The war room
+table with things spread out on it.</li>
+<li><strong>Clearing with brain context</strong> — CEO asked for help
+with board prep. Brain has laid out related data, recent decisions,
+KPIs. The CEO is reviewing before going to Keynote to build the
+deck.</li>
+</ol>
+<h3 id="design-principles">Design Principles</h3>
+<ul>
+<li><strong>Stillness.</strong> The Clearing doesn’t refresh, doesn’t
+auto-update, doesn’t push cards. It’s static until the CEO acts.</li>
+<li><strong>Space.</strong> Generous whitespace. This is not a dense
+information surface. It’s a place to think.</li>
+<li><strong>Warmth.</strong> Slightly different color temperature from
+Motion. Warmer — like firelight versus daylight.</li>
+</ul>
+<hr />
+<h2 id="sidebar">7. Sidebar</h2>
+<h3 id="layout-description">Layout Description</h3>
+<p>The sidebar is a narrow, dark column on the left. Top to bottom:</p>
+<table>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr>
+<th>Position</th>
+<th>Element</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Top</strong></td>
+<td>MiMBrain logo</td>
+<td>Brand anchor</td>
+</tr>
+<tr>
+<td><strong>Upper section</strong></td>
+<td>“Your Motion” nav item (with icon)</td>
+<td>Active state = filled indicator + highlight background</td>
+</tr>
+<tr>
+<td></td>
+<td>“Your Clearing” nav item (with icon)</td>
+<td>Inactive state = dimmed text, no background</td>
+</tr>
+<tr>
+<td><strong>Large empty space</strong></td>
+<td>Nothing</td>
+<td>Intentionally empty. This IS the calm.</td>
+</tr>
+<tr>
+<td><strong>Lower section</strong></td>
+<td>Engine Room (gear icon)</td>
+<td>Visually separated from the primary surfaces</td>
+</tr>
+<tr>
+<td><strong>Bottom</strong></td>
+<td>User avatar, name, role, log out button</td>
+<td>Same style as current design</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Key rules:</strong> - Active state clearly indicated (filled
+dot, highlight, or background change) - Collapsible — on narrow screens
+or by user preference, collapses to icons only - <strong>No badges, no
+counts, no notification indicators.</strong> This is intentional — see
+emotional design principle 6a (Decision License Without Anxiety). - The
+large empty space between the nav items and Engine Room is deliberate.
+The sidebar should feel spacious, not packed.</p>
+<hr />
+<h2 id="engine-room">8. Engine Room</h2>
+<h3 id="motion-map">Motion Map</h3>
+<p>The centerpiece of the engine room. The CEO’s view of how their brain
+thinks.</p>
+<p><strong>Layout concept:</strong> A visual representation of the
+brain’s classification logic. Not a settings form — a map. Consider:</p>
+<ul>
+<li>Category cards arranged spatially, showing the classification
+taxonomy</li>
+<li>Each category expandable to show: rules, examples, learned patterns,
+accuracy</li>
+<li>Standing orders listed separately — these are the CEO’s explicit
+instructions to the brain</li>
+<li>Entity-level overrides visible — “FoundersEdge: always medium
+minimum”</li>
+<li>Learned patterns — corrections the brain has absorbed, shown as
+behavioral rules</li>
+</ul>
+<p><strong>Key design challenge:</strong> This needs to feel like a
+living document, not a settings page. The Motion Map is the brain’s
+personality made visible. It should feel organic, not mechanical.</p>
+<p><strong>States:</strong></p>
+<ol type="1">
+<li><strong>Overview</strong> — all categories visible, accuracy
+indicators, standing orders</li>
+<li><strong>Category detail</strong> — expanded view of one category.
+Rules, examples, recent corrections, accuracy trend</li>
+<li><strong>Standing orders</strong> — list of explicit CEO
+instructions. Editable.</li>
+<li><strong>Learning history</strong> — timeline of behavioral changes.
+“Mar 12: Updated partnership boundary after 4 corrections.”</li>
+</ol>
+<h3 id="integrations">Integrations</h3>
+<p>Standard status dashboard. Connected services, last sync time, error
+states, connect/disconnect buttons.</p>
+<h3 id="gophers">Gophers</h3>
+<p>Active automations list. Each gopher shows: name, what it does, last
+run, status (running/paused/error), run history.</p>
+<h3 id="users-permissions">Users &amp; Permissions</h3>
+<p>Standard admin table. Users, roles, access levels.
+Add/remove/edit.</p>
+<h3 id="account">Account</h3>
+<p>Standard settings. Profile, company info, billing.</p>
+<hr />
+<h2 id="entity-context-slide-over">9. Entity Context (Slide-Over)</h2>
+<p>When any entity link is tapped in any card (org name, contact name),
+a slide-over panel appears from the right WITHOUT leaving the current
+view.</p>
+<p><strong>Contents:</strong></p>
+<ul>
+<li>Entity summary (name, type, key details)</li>
+<li>Relationship context (how the CEO knows them, who introduced
+them)</li>
+<li>Recent correspondence (last 5-10 interactions, with timestamps)</li>
+<li>Open tasks related to this entity</li>
+<li>KCS (Knowledge Completeness Score) — how well the brain knows this
+entity</li>
+<li>Entity-level brain rules (standing orders, importance
+overrides)</li>
+</ul>
+<p><strong>Design note:</strong> This should feel like pulling a dossier
+from a filing cabinet and glancing at it — quick, contextual,
+dismissable. Not a full page navigation.</p>
+<hr />
+<h2 id="training-phase-decision-cards">10. Training-Phase Decision
+Cards</h2>
+<p>For internal calibration only. Don’t over-design.</p>
+<p><strong>Differences from steady-state decision cards:</strong></p>
+<ul>
+<li>Higher volume — every classified email gets a card</li>
+<li>May include open text input field for richer training signal</li>
+<li>Bulk operations — “Confirm all 12 low-importance dismissals” batch
+button</li>
+<li>Accuracy counter visible — “Brain accuracy this session: 78%
+(14/18)”</li>
+<li>Structured correction more prominent — category dropdown +
+importance radio + text input always visible, not hidden behind
+“No”</li>
+</ul>
+<p><strong>Design approach:</strong> Utilitarian. Form-like. Optimized
+for speed and accuracy of training input, not for emotional experience.
+This UI will be deprecated.</p>
+<hr />
+<h2 id="visual-language-tone">11. Visual Language &amp; Tone</h2>
+<h3 id="overall-feel">Overall Feel</h3>
+<ul>
+<li><strong>Clean, not clinical.</strong> Warm enough to feel personal,
+structured enough to feel professional.</li>
+<li><strong>Spacious.</strong> Generous padding, breathing room between
+cards. The platform should never feel cramped.</li>
+<li><strong>Confident.</strong> The brain’s voice should feel
+authoritative but not arrogant. Recommendations stated clearly, not
+tentatively.</li>
+<li><strong>Calm.</strong> Even when there are many cards, the visual
+hierarchy should create calm through clear priority signals.
+High-importance cards stand out; everything else recedes.</li>
+</ul>
+<h3 id="color-direction">Color Direction</h3>
+<ul>
+<li>Primary surface: light, neutral (the feed is content, not the
+frame)</li>
+<li>Sidebar: dark (consistent with current design — provides
+anchoring)</li>
+<li>Urgency: warm accent (amber/orange for high, neutral for medium, no
+color for low)</li>
+<li>Brain voice: consider a subtle visual indicator that distinguishes
+the brain’s words from source content (light background tint, subtle
+icon, or typography shift)</li>
+<li>Clearing: slightly warmer tone than Motion — different headspace,
+different light</li>
+<li>Resolved cards: reduced opacity or desaturated — present but not
+demanding</li>
+</ul>
+<h3 id="typography">Typography</h3>
+<ul>
+<li>Card headers: medium weight, slightly smaller than body</li>
+<li>Brain recommendations: regular weight, standard size — this is the
+primary content</li>
+<li>Source content (expanded): slightly smaller, lighter color —
+supporting, not dominant</li>
+<li>Entity links: visually distinct (underline, color, or pill/chip
+style) — tappable</li>
+<li>CEO input: standard input styling, comfortable to type in</li>
+</ul>
+<h3 id="iconography">Iconography</h3>
+<ul>
+<li>Card type indicators: simple, consistent icon set. Brain icon for
+intelligence/reflection. Task icon for actions. Signal icon for ambient
+cards. Chart icon for snapshots.</li>
+<li>Urgency: color-based, not icon-based. Don’t add warning triangles or
+exclamation marks — those create anxiety.</li>
+<li>Expand/collapse: minimal chevron or similar. Not prominent — the
+card body itself should invite tapping.</li>
+</ul>
+<hr />
+<h2 id="responsive-considerations">12. Responsive Considerations</h2>
+<ul>
+<li><strong>Desktop-first.</strong> This is a CEO’s operational tool.
+Primary use is desktop/laptop.</li>
+<li><strong>Tablet:</strong> Feed works naturally in single column.
+Clearing works as full-screen. Sidebar collapses.</li>
+<li><strong>Mobile:</strong> Read-only feed is useful (scan cards on the
+go). Input and Clearing interactions are desktop-primary.</li>
+<li><strong>Sidebar collapse:</strong> On narrow viewports, sidebar
+should collapse to icon-only rail or hamburger menu.</li>
+</ul>
+<hr />
+<h2 id="interaction-inventory">13. Interaction Inventory</h2>
+<p>Every interaction the CEO can take, listed for completeness:</p>
+<table>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr>
+<th>Interaction</th>
+<th>Where</th>
+<th>What Happens</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Type a query</td>
+<td>Motion input bar</td>
+<td>Brain responds with cards in the feed</td>
+</tr>
+<tr>
+<td>Tap Do on decision card</td>
+<td>Motion</td>
+<td>Brain executes recommendation, card resolves</td>
+</tr>
+<tr>
+<td>Tap No on decision card</td>
+<td>Motion</td>
+<td>Correction panel appears inline</td>
+</tr>
+<tr>
+<td>Tap Not Now on decision card</td>
+<td>Motion</td>
+<td>Card recedes, returns later</td>
+</tr>
+<tr>
+<td>Expand a card</td>
+<td>Motion</td>
+<td>Card grows to show full context</td>
+</tr>
+<tr>
+<td>Collapse a card</td>
+<td>Motion</td>
+<td>Card returns to 2-3 line summary</td>
+</tr>
+<tr>
+<td>Tap entity link in any card</td>
+<td>Motion</td>
+<td>Entity slide-over opens from right</td>
+</tr>
+<tr>
+<td>Edit an action card inline</td>
+<td>Motion</td>
+<td>Modify task due date, assignee, content</td>
+</tr>
+<tr>
+<td>Tap Undo on action card</td>
+<td>Motion</td>
+<td>Reverses the brain’s action</td>
+</tr>
+<tr>
+<td>Iterate on a snapshot</td>
+<td>Motion</td>
+<td>Input bar pre-fills with snapshot context</td>
+</tr>
+<tr>
+<td>Schedule a snapshot</td>
+<td>Motion</td>
+<td>Brain confirms with action card</td>
+</tr>
+<tr>
+<td>Share a briefing/snapshot</td>
+<td>Motion</td>
+<td>Share draft card spawns</td>
+</tr>
+<tr>
+<td>Scroll down in Motion</td>
+<td>Motion</td>
+<td>See resolved cards, day’s history</td>
+</tr>
+<tr>
+<td>Type a note</td>
+<td>Clearing</td>
+<td>Text captured, brain absorbs</td>
+</tr>
+<tr>
+<td>Drop a file</td>
+<td>Clearing</td>
+<td>Brain ingests into institutional memory</td>
+</tr>
+<tr>
+<td>Ask brain in Clearing</td>
+<td>Clearing</td>
+<td>Brain responds within Clearing context</td>
+</tr>
+<tr>
+<td>Open Motion Map</td>
+<td>Engine Room</td>
+<td>See brain’s full operating logic</td>
+</tr>
+<tr>
+<td>Edit a standing order</td>
+<td>Engine Room</td>
+<td>Direct edit, brain acknowledges</td>
+</tr>
+<tr>
+<td>Switch between Motion/Clearing</td>
+<td>Sidebar</td>
+<td>View changes, context preserved</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="what-not-to-design">14. What NOT to Design</h2>
+<ul>
+<li>No org/contacts/pipeline pages (these are snapshots now)</li>
+<li>No reports page (briefing and snapshot cards in Motion)</li>
+<li>No intelligence page (query responses in Motion)</li>
+<li>No activity log page (Motion IS the activity log)</li>
+<li>No knowledge page (ingestion happens in Clearing, recall happens via
+brain query)</li>
+<li>No sentiment page (signal cards in Motion)</li>
+<li>No notification system (Motion IS the notification surface)</li>
+<li>No search page (the input bar IS search)</li>
+<li>No onboarding wizard (future consideration — not for v1)</li>
+</ul>
+<hr />
+<p><em>Last updated: 2026-03-14</em></p>
+</body>
+</html>

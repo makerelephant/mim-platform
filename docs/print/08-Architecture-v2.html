@@ -1,0 +1,1183 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>MiM Brain — Architecture v2</title>
+  <style>
+
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+
+ul.task-list[class]{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+font-size: inherit;
+width: 0.8em;
+margin: 0 0.8em 0.2em -1.6em;
+vertical-align: middle;
+}
+.display.math{display: block; text-align: center; margin: 0.5rem auto;}
+
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+{ counter-reset: source-line 0; }
+pre.numberSource code > span
+{ position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+{ content: counter(source-line);
+position: relative; left: -1em; text-align: right; vertical-align: baseline;
+border: none; display: inline-block;
+-webkit-touch-callout: none; -webkit-user-select: none;
+-khtml-user-select: none; -moz-user-select: none;
+-ms-user-select: none; user-select: none;
+padding: 0 4px; width: 4em;
+color: #aaaaaa;
+}
+pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa; padding-left: 4px; }
+div.sourceCode
+{ }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+code span.al { color: #ff0000; font-weight: bold; } 
+code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.at { color: #7d9029; } 
+code span.bn { color: #40a070; } 
+code span.bu { color: #008000; } 
+code span.cf { color: #007020; font-weight: bold; } 
+code span.ch { color: #4070a0; } 
+code span.cn { color: #880000; } 
+code span.co { color: #60a0b0; font-style: italic; } 
+code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.do { color: #ba2121; font-style: italic; } 
+code span.dt { color: #902000; } 
+code span.dv { color: #40a070; } 
+code span.er { color: #ff0000; font-weight: bold; } 
+code span.ex { } 
+code span.fl { color: #40a070; } 
+code span.fu { color: #06287e; } 
+code span.im { color: #008000; font-weight: bold; } 
+code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.kw { color: #007020; font-weight: bold; } 
+code span.op { color: #666666; } 
+code span.ot { color: #007020; } 
+code span.pp { color: #bc7a00; } 
+code span.sc { color: #4070a0; } 
+code span.ss { color: #bb6688; } 
+code span.st { color: #4070a0; } 
+code span.va { color: #19177c; } 
+code span.vs { color: #4070a0; } 
+code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } 
+</style>
+  <style type="text/css">body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; max-width: 800px; margin: 40px auto; padding: 0 20px; line-height: 1.6; color: #1a1a1a; font-size: 14px; }
+h1 { font-size: 28px; border-bottom: 2px solid #1a1a1a; padding-bottom: 8px; margin-top: 40px; }
+h2 { font-size: 22px; border-bottom: 1px solid #ddd; padding-bottom: 6px; margin-top: 32px; }
+h3 { font-size: 17px; margin-top: 24px; }
+table { border-collapse: collapse; width: 100%; margin: 16px 0; font-size: 13px; }
+th, td { border: 1px solid #ccc; padding: 8px 12px; text-align: left; }
+th { background: #f5f5f5; font-weight: 600; }
+code { background: #f5f5f5; padding: 2px 6px; border-radius: 3px; font-size: 13px; }
+pre { background: #f5f5f5; padding: 16px; border-radius: 4px; overflow-x: auto; font-size: 12px; }
+blockquote { border-left: 3px solid #ccc; margin: 16px 0; padding: 8px 16px; color: #555; }
+ul, ol { padding-left: 24px; }
+li { margin: 4px 0; }
+@media print { body { margin: 0; max-width: 100%; } }
+</style>
+</head>
+<body>
+<header id="title-block-header">
+<h1 class="title">MiM Brain — Architecture v2</h1>
+</header>
+<h1 id="mim-brain-architecture-v2">MiM Brain — Architecture v2</h1>
+<blockquote>
+<p><strong>Status:</strong> Active north star document
+<strong>Author:</strong> Mark Slater / Claude <strong>Date:</strong>
+March 11, 2026 <strong>Supersedes:</strong>
+<code>docs/spec-brain-intelligence-layer.md</code> (March 10, 2026)
+<strong>Purpose:</strong> Define the complete architecture for MiM Brain
+as an autonomous, learning business intelligence system.</p>
+</blockquote>
+<hr />
+<h2 id="the-conviction">0. The Conviction</h2>
+<p>Within 12 months, AI will be 1,000 times smarter than any human.
+Entire layers of business operations will cease to require human
+management. Organizations that still depend on humans for operational
+tasks will be at a structural disadvantage.</p>
+<p>MiM Brain is the instantiation of this conviction: an autonomous
+business intelligence system that becomes the de facto Chief Operating
+Officer of Made in Motion. It processes every type of business data,
+learns from every interaction, and compounds its intelligence over
+time.</p>
+<p><strong>Success criteria:</strong> MiM Brain performs operational
+tasks 1,000x better than a human — not because it’s “smarter” in the
+general sense, but because it has perfect recall, tireless attention,
+and compounding institutional knowledge that no employee could
+replicate.</p>
+<hr />
+<h2 id="what-exists-today-honest-assessment">1. What Exists Today —
+Honest Assessment</h2>
+<h3 id="what-weve-built">1.1 What We’ve Built</h3>
+<p>The current system is a <strong>communication processing pipeline
+with query capability</strong>:</p>
+<table>
+<colgroup>
+<col style="width: 25%" />
+<col style="width: 46%" />
+<col style="width: 28%" />
+</colgroup>
+<thead>
+<tr>
+<th>Layer</th>
+<th>What It Does</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Scanners</strong></td>
+<td>Gmail + Slack ingestion, pre-filtering, entity resolution, Claude
+classification, task creation</td>
+<td>Production</td>
+</tr>
+<tr>
+<td><strong>Taxonomy</strong></td>
+<td>14 categories loaded from DB, injected into classifier prompts,
+priority enforcement</td>
+<td>Production</td>
+</tr>
+<tr>
+<td><strong>Approval Queue</strong></td>
+<td>CEO review flow — pending_review → approve/dismiss, draft
+replies</td>
+<td>Built (orphaned from UI)</td>
+</tr>
+<tr>
+<td><strong>Feedback Engine</strong></td>
+<td>Tracks CEO signals (starred, completed, ignored), computes
+usefulness scores per entity</td>
+<td>Production</td>
+</tr>
+<tr>
+<td><strong>Entity Dossier</strong></td>
+<td>10 parallel queries across 4 schemas, ~400 token context block per
+entity</td>
+<td>Production</td>
+</tr>
+<tr>
+<td><strong>Document Ingestion</strong></td>
+<td>Upload → extract text → chunk → Claude classify → entity resolve →
+store</td>
+<td>Production</td>
+</tr>
+<tr>
+<td><strong>Report Generator</strong></td>
+<td>Pre-scan → 8 data streams → Claude synthesis → PDF export, with
+instruction injection</td>
+<td>Production</td>
+</tr>
+<tr>
+<td><strong>MCP Server</strong></td>
+<td>28 tools across 9 domains, stdio transport, ask_brain synthesis</td>
+<td>Built, untested in production</td>
+</tr>
+<tr>
+<td><strong>Instruction Engine</strong></td>
+<td>Standing orders, report inclusions, entity watches — loaded into
+scanner + report prompts</td>
+<td>Built</td>
+</tr>
+<tr>
+<td><strong>RAG Foundation</strong></td>
+<td>Embeddings lib, vector search RPCs, backfill script</td>
+<td>Built, DB tables may not exist yet</td>
+</tr>
+</tbody>
+</table>
+<h3 id="whats-missing">1.2 What’s Missing</h3>
+<p>The system <strong>stores and retrieves</strong> but does not
+<strong>learn, adapt, or act autonomously</strong>:</p>
+<ul>
+<li><strong>No entity intelligence model.</strong> Organizations and
+contacts are flat CRM records. No confidence scoring, no provenance
+tracking, no enrichment gap awareness. The system doesn’t know what it
+doesn’t know.</li>
+<li><strong>No derived intelligence.</strong> After processing 10,000
+emails, the system has no accumulated insights beyond raw classification
+logs. It doesn’t extract patterns, trends, or predictions.</li>
+<li><strong>No behavioral adaptation.</strong> The classifier uses the
+same prompt template and taxonomy on its first email and its
+ten-thousandth. CEO corrections don’t change future behavior. The system
+doesn’t improve with use.</li>
+<li><strong>No autonomous action.</strong> Every scanner runs on a
+trigger (API call or cron). The system never decides on its own that an
+entity needs enrichment, a follow-up is overdue, or a pattern deserves
+attention.</li>
+<li><strong>No asset processing.</strong> Images (logos), videos, and
+non-text media cannot be ingested, understood, or mapped to
+entities.</li>
+<li><strong>No harness.</strong> The brain’s operating model (how it
+processes data, what it prioritizes, how it resolves conflicts) lives in
+hardcoded prompt templates, not in structured documents the system can
+read and reason against.</li>
+</ul>
+<h3 id="the-gap">1.3 The Gap</h3>
+<p>The current architecture is a <strong>tooling layer</strong>
+(scanners, classifiers, MCP tools) sitting on top of a <strong>storage
+layer</strong> (Supabase tables). What’s missing between them is the
+<strong>knowledge layer</strong> (entity intelligence, derived insights,
+behavioral memory) and the <strong>autonomy layer</strong>
+(self-directed enrichment, proactive intelligence, compounding
+learning).</p>
+<pre><code>TARGET ARCHITECTURE:
+
+  ┌─────────────────────────────────────────────┐
+  │             AUTONOMY LAYER                   │
+  │  Self-directed enrichment, proactive alerts, │
+  │  scheduled synthesis, reflection loops       │
+  │  Orchestration: decides what to do next      │
+  └──────────────────┬──────────────────────────┘
+                     │
+  ┌──────────────────▼──────────────────────────┐
+  │             KNOWLEDGE LAYER                  │
+  │  Entity graph with confidence + provenance   │
+  │  Derived insights, pattern library           │
+  │  Behavioral memory, decision history         │
+  │  Knowledge Completeness Scores               │
+  └──────────────────┬──────────────────────────┘
+                     │
+  ┌──────────────────▼──────────────────────────┐
+  │             TOOLING LAYER (exists)           │
+  │  Scanners, classifiers, MCP server,          │
+  │  report generator, instruction engine        │
+  └──────────────────┬──────────────────────────┘
+                     │
+  ┌──────────────────▼──────────────────────────┐
+  │             STORAGE LAYER (exists)           │
+  │  Supabase multi-schema, pgvector,            │
+  │  S3/R2 asset storage, knowledge_base         │
+  └─────────────────────────────────────────────┘</code></pre>
+<hr />
+<h2 id="data-ontology-entity-centric-architecture">2. Data Ontology —
+Entity-Centric Architecture</h2>
+<h3 id="core-principle">2.1 Core Principle</h3>
+<p>Every piece of data MiM Brain ingests maps to or creates an
+<strong>entity node</strong>. The brain is not organized around
+documents or communications — it’s organized around the entities those
+things refer to. The entity graph is the brain’s world model.</p>
+<h3 id="entity-types">2.2 Entity Types</h3>
+<pre><code>Organization    Club, League, School, Team, Investor, Partner, Vendor, Customer
+Person          Coach, Parent, Player, Admin, Contact, Founder, Investor Contact
+Product         Item, Design, Drop, Order, Collection
+Asset           Logo, Photo, Document, Video, Spreadsheet
+Event           Season, Tournament, Purchase, Interaction, Meeting
+Signal          Web scrape, social post, registration, news article, market data</code></pre>
+<p><strong>Current state:</strong> Only Organization and Person (as
+Contact) exist as first-class entities. Products, Assets, Events, and
+Signals are either untracked or stored as flat records without
+entity-level intelligence.</p>
+<h3 id="entity-intelligence-model">2.3 Entity Intelligence Model</h3>
+<p>Every entity carries its own <strong>epistemic state</strong> — what
+the system knows, how confident it is, where it learned it, and what it
+still needs to find out.</p>
+<pre><code>ENTITY INTELLIGENCE PROFILE:
+
+  Identity
+    canonical_name, aliases[], type, sub_types[]
+    verified: bool
+    confidence_score: 0.0 - 1.0 (aggregate)
+
+  Attributes
+    [field_name]:
+      value: &lt;the data&gt;
+      confidence: 0.0 - 1.0
+      source: &lt;provenance reference&gt;
+      source_trust: high | medium | low
+      last_updated: timestamp
+      last_verified: timestamp
+
+  Enrichment State
+    knowledge_completeness_score: 0.0 - 1.0
+    enrichment_gaps[]: fields we don&#39;t have data for
+    scanner_queue[]: pending enrichment jobs
+    last_enriched_at: timestamp
+    enrichment_priority: high | medium | low | none
+
+  Relationships
+    parent_org, child_orgs[], contacts[], products[]
+    relationship_type, relationship_confidence
+
+  Commercial Intelligence
+    mim_relationship_stage: cold | warm | customer | champion
+    estimated_value, lifetime_value
+    product_history[], drop_history[]
+    engagement_signals[]
+
+  Behavioral Memory
+    usefulness_score (from feedback engine)
+    ceo_interaction_count
+    last_ceo_interaction
+    common_tags[], typical_priority
+    pattern_notes[] (derived by synthesis agents)</code></pre>
+<p><strong>Knowledge Completeness Score (KCS):</strong></p>
+<pre><code>KCS = Sum(field_weight * field_populated * field_confidence) / Sum(field_weight)
+
+Example:
+  Before logo batch ingestion:  avg org KCS = 0.23
+  After enrichment pipeline:    avg org KCS = 0.61
+  Delta = 0.38 → measurable intelligence gain</code></pre>
+<h3 id="provenance-tracking">2.4 Provenance Tracking</h3>
+<p>Every fact the brain stores traces back to its origin:</p>
+<pre><code>PROVENANCE RECORD:
+  source_type: scanner | upload | enrichment | derived | manual | correction
+  source_id: reference to the specific event/document/scan
+  source_trust: high (CEO input) | medium (verified scanner) | low (unverified web scrape)
+  captured_at: timestamp
+  supersedes: previous_provenance_id (if updated)</code></pre>
+<p>This is what makes MiM Brain better than a fine-tuned model — you can
+audit it, correct it, and explain why it believes what it believes.</p>
+<hr />
+<h2 id="the-three-types-of-memory">3. The Three Types of Memory</h2>
+<h3 id="accumulated-knowledge-storage">3.1 Accumulated Knowledge
+(Storage)</h3>
+<p><strong>What it is:</strong> Raw facts stored in the entity graph and
+knowledge base. More data = more to retrieve.</p>
+<p><strong>Where it lives:</strong> <code>knowledge_base</code>,
+<code>brain.correspondence</code>, <code>brain.tasks</code>, entity
+attribute tables.</p>
+<p><strong>Current state:</strong> Partially implemented. Documents and
+emails are stored. Entity records exist but without confidence,
+provenance, or completeness tracking.</p>
+<p><strong>How it gets smarter:</strong> Every ingestion event adds
+facts. But this alone is a filing cabinet, not intelligence.</p>
+<h3 id="derived-intelligence-synthesis">3.2 Derived Intelligence
+(Synthesis)</h3>
+<p><strong>What it is:</strong> New knowledge that didn’t exist in any
+single input — patterns, correlations, predictions, and insights
+generated by analyzing data in aggregate.</p>
+<p><strong>Examples:</strong> - “Clubs affiliated with AYSO in the
+Southwest have 3x higher conversion rates” - “Entities discovered
+through Instagram have higher engagement but lower purchasing volume” -
+“When the CEO ignores newsletter-type tasks 80%+ of the time, stop
+creating them” - “Partnership deal velocity correlates with coach
+involvement in the design process”</p>
+<p><strong>Where it lives:</strong> A dedicated
+<code>brain.derived_insights</code> store, embedded for RAG retrieval,
+tagged with entity references and taxonomy categories so they surface in
+relevant future contexts.</p>
+<p><strong>Current state:</strong> Does not exist. No synthesis process
+runs. No derived insight storage.</p>
+<p><strong>How it works:</strong></p>
+<pre><code>SYNTHESIS LOOP (runs on schedule + after significant batches):
+
+  1. OBSERVE
+     Read recent activity, classifications, CEO actions, enrichment results
+
+  2. EXTRACT
+     Identify patterns across entities, time periods, categories
+     Compare expected vs actual outcomes (e.g., CEO approval rate by category)
+
+  3. WRITE
+     Author new derived insight entries:
+       - Pattern description (natural language)
+       - Supporting evidence (entity IDs, activity IDs)
+       - Confidence level
+       - Applicable scope (which entity types, categories, contexts)
+       - Expiry/review date
+
+  4. EMBED
+     Vector-embed the insight so it surfaces in future RAG queries
+
+  5. INTEGRATE
+     Tag relevant entities with the insight reference
+     Update behavioral memory if the insight implies a process change</code></pre>
+<h3 id="behavioral-adaptation-learning">3.3 Behavioral Adaptation
+(Learning)</h3>
+<p><strong>What it is:</strong> The system changes how it operates based
+on what it has learned. Not just “more data” — fundamentally different
+behavior on future inputs.</p>
+<p><strong>Examples:</strong> - Scanner accuracy for partnership emails
+is 95% but for investor emails only 70% → system adds richer context for
+investor classification, lowers confidence threshold, routes more to CEO
+review - CEO consistently upgrades priority on emails from .edu domains
+→ system writes a standing order to auto-elevate .edu priority -
+Enrichment via web scraping works well for Texas clubs but fails for
+Minnesota → system adjusts scanner strategy by region</p>
+<p><strong>Where it lives:</strong> <code>brain.behavioral_rules</code>
+— a structured store of learned rules that get injected into prompts,
+scanner configs, and enrichment strategies.</p>
+<p><strong>Current state:</strong> The feedback engine is an embryo of
+this — it tracks CEO signals and computes usefulness scores. But scores
+don’t modify behavior. The instruction engine accepts human-authored
+rules but the system never authors its own.</p>
+<p><strong>How it works:</strong></p>
+<pre><code>ADAPTATION LOOP:
+
+  1. MEASURE
+     Track outcomes: classification accuracy, CEO override rate,
+     enrichment success rate, scanner yield per entity type
+
+  2. DIAGNOSE
+     Identify systematic patterns in failures/corrections
+     Compare performance across categories, entity types, sources
+
+  3. PROPOSE
+     Generate candidate behavioral rules:
+       &quot;Elevate priority for emails from domains matching existing investors&quot;
+       &quot;Skip enrichment via social scanner for entities with KCS &gt; 0.8&quot;
+       &quot;Add regional context to classifier prompt for Midwest entities&quot;
+
+  4. VALIDATE
+     High-confidence rules (based on large sample + clear pattern) → auto-apply
+     Lower-confidence rules → surface to CEO for approval
+     All rules include rollback conditions
+
+  5. APPLY
+     Write rule to brain.behavioral_rules
+     Rule gets loaded into relevant prompts/configs on next execution
+     Track rule&#39;s impact on subsequent outcomes</code></pre>
+<h3 id="the-compounding-effect">3.4 The Compounding Effect</h3>
+<p>Each memory layer feeds the next:</p>
+<p><strong>Month 1:</strong> Brain processes 2,000 emails. Raw
+classification. CEO corrects ~30%. System writes 15 behavioral rules.
+KCS across entities: 0.15 avg.</p>
+<p><strong>Month 3:</strong> 15 rules in every scanner prompt. CEO
+corrections drop to ~10%. 40+ derived entity patterns. Report generator
+includes insights CEO didn’t request. KCS: 0.35 avg.</p>
+<p><strong>Month 6:</strong> System predicts which new orgs are
+high-value before human interaction. Scanner queues self-prioritize.
+Brain proactively flags churn risk. KCS: 0.55 avg.</p>
+<p><strong>Month 12:</strong> Brain knows the business better than any
+single employee. Perfect recall across every interaction, every
+correction, every pattern. Applies all context to every decision. KCS:
+0.75+ avg.</p>
+<p><strong>Without these layers, every interaction is a cold start with
+a bigger database. With them, every interaction benefits from every
+previous interaction.</strong></p>
+<hr />
+<h2 id="the-harness-brain-operating-model">4. The Harness — Brain
+Operating Model</h2>
+<h3 id="what-it-is">4.1 What It Is</h3>
+<p>The harness is a set of structured documents that define how MiM
+Brain operates. These are <strong>behavioral contracts</strong> — both
+humans and the AI runtime read them. The AI uses these docs to reason
+about edge cases, resolve conflicts, and make decisions.</p>
+<h3 id="structure">4.2 Structure</h3>
+<pre><code>/brain/
+  ontology/
+    entities.md              # canonical entity types and relationships
+    org-schema.md            # Organization entity full spec
+    contact-schema.md        # Person/Contact entity full spec
+    product-schema.md        # Product entity full spec
+    asset-schema.md          # Asset entity full spec
+    relationships.md         # how entities connect to each other
+
+  pipelines/
+    logo-ingestion.md        # what happens when a logo arrives
+    document-ingestion.md    # what happens when a document arrives
+    email-processing.md      # how emails get classified and routed
+    org-enrichment.md        # scanner activation logic and sequence
+    knowledge-merge.md       # how conflicting data gets resolved
+
+  scanners/
+    web-scanner.md           # how to find/validate org website
+    social-scanner.md        # Instagram/FB discovery rules
+    registry-scanner.md      # SportsEngine/TeamSnap lookup
+    news-scanner.md          # RSS/news monitoring rules
+
+  memory/
+    confidence-model.md      # how certainty scores are calculated
+    provenance-rules.md      # source trust hierarchy
+    gap-detection.md         # what triggers &quot;we need to know more&quot;
+    synthesis-rules.md       # how derived insights are generated
+    adaptation-rules.md      # how behavioral rules are proposed and applied
+
+  departments/
+    fundraising.md           # how the brain handles fundraising operations
+    partnerships.md          # partnership pipeline logic
+    commerce.md              # product/drop/order operations
+    community.md             # community org management</code></pre>
+<h3 id="how-its-used-at-runtime">4.3 How It’s Used at Runtime</h3>
+<p>When the scanner processes an email, it doesn’t just use a hardcoded
+prompt template. It loads the relevant harness documents:</p>
+<pre><code>1. Load email-processing.md → general classification rules
+2. Load department/{matched_category}.md → category-specific rules
+3. Load confidence-model.md → how to set confidence on extracted facts
+4. Load provenance-rules.md → how to weight this source
+5. Load any applicable behavioral_rules → learned adaptations
+6. Load standing orders → CEO instructions
+7. Build prompt from all of the above + entity dossier + taxonomy</code></pre>
+<h3 id="living-documents">4.4 Living Documents</h3>
+<p>The harness starts as human-authored. Over time, the brain
+co-maintains it:</p>
+<ul>
+<li>Synthesis agents can <strong>propose amendments</strong> to harness
+documents based on observed patterns</li>
+<li>CEO reviews and approves significant changes</li>
+<li>Minor optimizations (threshold adjustments, keyword additions) can
+auto-apply</li>
+<li>Every harness change is versioned and traceable</li>
+</ul>
+<hr />
+<h2 id="autonomy-self-directed-operations">5. Autonomy — Self-Directed
+Operations</h2>
+<h3 id="current-state">5.1 Current State</h3>
+<p>Everything triggers on external events: an API call starts a scanner,
+a CEO query triggers ask_brain, a cron job generates a report. The brain
+never decides to act on its own.</p>
+<h3 id="target-state">5.2 Target State</h3>
+<p>The brain has an <strong>autonomy loop</strong> that runs
+continuously:</p>
+<pre><code>AUTONOMY LOOP:
+
+  1. CHECK QUEUE
+     Are there pending enrichment jobs? Scanner tasks? Scheduled instructions?
+
+  2. CHECK ALERTS
+     Any entities with sudden activity changes? Overdue follow-ups?
+     Any behavioral rules triggered? Any KCS drops?
+
+  3. CHECK SYNTHESIS
+     Is it time for a synthesis cycle? (daily, or after N new events)
+     Are there enough new data points to derive new insights?
+
+  4. PRIORITIZE
+     Rank all pending work by: CEO instruction priority &gt; enrichment gaps
+     on high-value entities &gt; scheduled tasks &gt; background enrichment
+
+  5. EXECUTE
+     Run highest-priority action using available tools
+     Log results, update entity intelligence profiles
+
+  6. REFLECT
+     Did the action produce expected results?
+     Update confidence scores, enrichment state
+     If pattern detected → feed into adaptation loop</code></pre>
+<h3 id="enrichment-pipeline-example">5.3 Enrichment Pipeline
+Example</h3>
+<p>When a new entity enters the system (e.g., a logo is uploaded and OCR
+extracts “FC Dallas U12 Blue”):</p>
+<pre><code>1. IDENTIFY
+   OCR → &quot;FC Dallas U12 Blue&quot;
+   Entity resolution: no exact match
+   Create Organization stub: confidence=0.3, KCS=0.05
+   Queue: web_enrichment, social_enrichment, registry_enrichment
+
+2. ENRICH (autonomous, queue-driven)
+   Web scanner: &quot;[FC Dallas U12 Blue] soccer Texas&quot;
+     → found website → confidence bumps to 0.5
+     → extracted: location, age group, parent org &quot;FC Dallas&quot;
+     → KCS: 0.25
+
+   Registry scanner: SportsEngine lookup
+     → found registration page → roster size ~85
+     → KCS: 0.40
+
+   Social scanner: Instagram pattern search
+     → found @fcdallasu12blue → 340 followers
+     → KCS: 0.50
+
+3. CONNECT
+   Resolve parent org: FC Dallas → existing entity, confidence=0.9
+   Create relationship: FC Dallas U12 Blue → child_of → FC Dallas
+   Inherit some attributes from parent (region, league affiliation)
+   KCS: 0.60
+
+4. ASSESS
+   Commercial potential: medium (roster size 85, active social)
+   Similar entities in system: 47 other FC Dallas age-group teams
+   Derived insight: &quot;FC Dallas has 47 age-group sub-teams —
+     bulk deal opportunity at club level&quot;</code></pre>
+<hr />
+<h2 id="model-strategy">6. Model Strategy</h2>
+<h3 id="current-approach">6.1 Current Approach</h3>
+<p>Claude (Anthropic API) powers all reasoning: classification,
+synthesis, report generation, ask_brain. This is correct for the current
+stage — highest quality, lowest infrastructure overhead.</p>
+<h3 id="abstraction-requirement">6.2 Abstraction Requirement</h3>
+<p>Every place the code calls a model must go through a clean
+interface:</p>
+<div class="sourceCode" id="cb12"><pre class="sourceCode typescript"><code class="sourceCode typescript"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="kw">interface</span> ReasoningEngine {</span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">classify</span>(input<span class="op">:</span> ClassificationInput)<span class="op">:</span> <span class="bu">Promise</span><span class="op">&lt;</span>ClassificationResult<span class="op">&gt;;</span></span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">synthesize</span>(context<span class="op">:</span> SynthesisContext)<span class="op">:</span> <span class="bu">Promise</span><span class="op">&lt;</span><span class="dt">string</span><span class="op">&gt;;</span></span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">extract</span>(input<span class="op">:</span> ExtractionInput)<span class="op">:</span> <span class="bu">Promise</span><span class="op">&lt;</span>ExtractionResult<span class="op">&gt;;</span></span>
+<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">embed</span>(text<span class="op">:</span> <span class="dt">string</span>)<span class="op">:</span> <span class="bu">Promise</span><span class="op">&lt;</span><span class="dt">number</span>[]<span class="op">&gt;;</span></span>
+<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div>
+<p>Configuration determines which model serves which task:</p>
+<div class="sourceCode" id="cb13"><pre class="sourceCode yaml"><code class="sourceCode yaml"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="fu">reasoning</span><span class="kw">:</span></span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">classification</span><span class="kw">:</span><span class="at"> claude</span><span class="co">          # could be local later</span></span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">synthesis</span><span class="kw">:</span><span class="at"> claude</span><span class="co">               # CEO-facing, keep frontier</span></span>
+<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">extraction</span><span class="kw">:</span><span class="at"> claude</span><span class="co">              # could be local later</span></span>
+<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">embedding</span><span class="kw">:</span><span class="at"> openai</span><span class="co">               # could be local later</span></span>
+<span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a><span class="at">  </span><span class="fu">reflection</span><span class="kw">:</span><span class="at"> claude</span><span class="co">              # internal, could be local later</span></span></code></pre></div>
+<h3 id="future-optionality">6.3 Future Optionality</h3>
+<p>When volume, cost, or resilience demands it, high-volume structured
+tasks (classification, entity extraction, taxonomy assignment,
+confidence scoring) move to a local model (Qwen 2.5 72B, Llama 3.1 70B).
+CEO-facing synthesis stays on frontier API. No architectural changes
+required — just configuration.</p>
+<hr />
+<h2 id="schema-evolution-plan">7. Schema Evolution Plan</h2>
+<h3 id="current-schema-what-exists-in-supabase">7.1 Current Schema (what
+exists in Supabase)</h3>
+<pre><code>core.organizations          — id, name, notes (flat CRM record)
+core.contacts               — id, first_name, last_name, email, role
+core.org_types              — org_id, type, status
+core.relationships          — contact_id, org_id, relationship_type
+crm.pipeline                — org_id, status, pipeline_type
+intel.partner_profile       — org_id, partner_status
+brain.tasks                 — scanner-created tasks with classification data
+brain.correspondence        — email/Slack message records
+brain.activity              — operation log
+brain.instructions          — CEO standing orders and directives
+brain.agent_runs            — scanner execution logs
+public.knowledge_base       — uploaded documents with chunks
+public.entity_feedback      — CEO signal aggregation per entity
+public.inference_taxonomy   — classification categories
+public.classification_log   — every classifier call with full context
+public.reports              — generated reports</code></pre>
+<h3 id="target-schema-additions">7.2 Target Schema Additions</h3>
+<p>The following additions transform the CRM-with-scanners into an
+entity-centric intelligence system:</p>
+<p><strong>Entity Intelligence (extends existing tables):</strong></p>
+<div class="sourceCode" id="cb15"><pre class="sourceCode sql"><code class="sourceCode sql"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="co">-- Entity confidence and completeness tracking</span></span>
+<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a><span class="co">-- Added to core.organizations and core.contacts</span></span>
+<span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a><span class="kw">ALTER</span> <span class="kw">TABLE</span> core.organizations <span class="kw">ADD</span> <span class="kw">COLUMN</span></span>
+<span id="cb15-4"><a href="#cb15-4" aria-hidden="true" tabindex="-1"></a>  confidence_score <span class="dt">FLOAT</span> <span class="kw">DEFAULT</span> <span class="dv">0</span>,</span>
+<span id="cb15-5"><a href="#cb15-5" aria-hidden="true" tabindex="-1"></a>  knowledge_completeness_score <span class="dt">FLOAT</span> <span class="kw">DEFAULT</span> <span class="dv">0</span>,</span>
+<span id="cb15-6"><a href="#cb15-6" aria-hidden="true" tabindex="-1"></a>  enrichment_priority TEXT <span class="kw">DEFAULT</span> <span class="st">&#39;none&#39;</span>,</span>
+<span id="cb15-7"><a href="#cb15-7" aria-hidden="true" tabindex="-1"></a>  last_enriched_at TIMESTAMPTZ,</span>
+<span id="cb15-8"><a href="#cb15-8" aria-hidden="true" tabindex="-1"></a>  enrichment_gaps TEXT[] <span class="kw">DEFAULT</span> <span class="st">&#39;{}&#39;</span>,</span>
+<span id="cb15-9"><a href="#cb15-9" aria-hidden="true" tabindex="-1"></a>  created_source TEXT,                    <span class="co">-- how this entity entered the system</span></span>
+<span id="cb15-10"><a href="#cb15-10" aria-hidden="true" tabindex="-1"></a>  verified <span class="dt">BOOLEAN</span> <span class="kw">DEFAULT</span> <span class="kw">false</span>;</span>
+<span id="cb15-11"><a href="#cb15-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-12"><a href="#cb15-12" aria-hidden="true" tabindex="-1"></a><span class="co">-- Field-level provenance (new table)</span></span>
+<span id="cb15-13"><a href="#cb15-13" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">TABLE</span> brain.entity_provenance (</span>
+<span id="cb15-14"><a href="#cb15-14" aria-hidden="true" tabindex="-1"></a>  <span class="kw">id</span> UUID <span class="kw">PRIMARY</span> <span class="kw">KEY</span> <span class="kw">DEFAULT</span> gen_random_uuid(),</span>
+<span id="cb15-15"><a href="#cb15-15" aria-hidden="true" tabindex="-1"></a>  entity_type TEXT <span class="kw">NOT</span> <span class="kw">NULL</span>,              <span class="co">-- &#39;organizations&#39;, &#39;contacts&#39;</span></span>
+<span id="cb15-16"><a href="#cb15-16" aria-hidden="true" tabindex="-1"></a>  entity_id UUID <span class="kw">NOT</span> <span class="kw">NULL</span>,</span>
+<span id="cb15-17"><a href="#cb15-17" aria-hidden="true" tabindex="-1"></a>  field_name TEXT <span class="kw">NOT</span> <span class="kw">NULL</span>,               <span class="co">-- which field this provenance covers</span></span>
+<span id="cb15-18"><a href="#cb15-18" aria-hidden="true" tabindex="-1"></a>  field_value TEXT,                       <span class="co">-- the value at time of recording</span></span>
+<span id="cb15-19"><a href="#cb15-19" aria-hidden="true" tabindex="-1"></a>  source_type TEXT <span class="kw">NOT</span> <span class="kw">NULL</span>,              <span class="co">-- scanner, upload, enrichment, derived, manual, correction</span></span>
+<span id="cb15-20"><a href="#cb15-20" aria-hidden="true" tabindex="-1"></a>  source_ref TEXT,                        <span class="co">-- reference to specific event/document</span></span>
+<span id="cb15-21"><a href="#cb15-21" aria-hidden="true" tabindex="-1"></a>  source_trust TEXT <span class="kw">DEFAULT</span> <span class="st">&#39;medium&#39;</span>,     <span class="co">-- high, medium, low</span></span>
+<span id="cb15-22"><a href="#cb15-22" aria-hidden="true" tabindex="-1"></a>  confidence <span class="dt">FLOAT</span> <span class="kw">DEFAULT</span> <span class="fl">0.5</span>,</span>
+<span id="cb15-23"><a href="#cb15-23" aria-hidden="true" tabindex="-1"></a>  captured_at TIMESTAMPTZ <span class="kw">DEFAULT</span> now(),</span>
+<span id="cb15-24"><a href="#cb15-24" aria-hidden="true" tabindex="-1"></a>  supersedes UUID <span class="kw">REFERENCES</span> brain.entity_provenance(<span class="kw">id</span>)</span>
+<span id="cb15-25"><a href="#cb15-25" aria-hidden="true" tabindex="-1"></a>);</span></code></pre></div>
+<p><strong>Derived Intelligence:</strong></p>
+<div class="sourceCode" id="cb16"><pre class="sourceCode sql"><code class="sourceCode sql"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a><span class="co">-- Insights generated by synthesis agents</span></span>
+<span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">TABLE</span> brain.derived_insights (</span>
+<span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a>  <span class="kw">id</span> UUID <span class="kw">PRIMARY</span> <span class="kw">KEY</span> <span class="kw">DEFAULT</span> gen_random_uuid(),</span>
+<span id="cb16-4"><a href="#cb16-4" aria-hidden="true" tabindex="-1"></a>  insight_type TEXT <span class="kw">NOT</span> <span class="kw">NULL</span>,             <span class="co">-- pattern, correlation, prediction, recommendation</span></span>
+<span id="cb16-5"><a href="#cb16-5" aria-hidden="true" tabindex="-1"></a>  description TEXT <span class="kw">NOT</span> <span class="kw">NULL</span>,              <span class="co">-- natural language insight</span></span>
+<span id="cb16-6"><a href="#cb16-6" aria-hidden="true" tabindex="-1"></a>  evidence JSONB <span class="kw">NOT</span> <span class="kw">NULL</span>,                <span class="co">-- entity_ids, activity_ids, data points</span></span>
+<span id="cb16-7"><a href="#cb16-7" aria-hidden="true" tabindex="-1"></a>  confidence <span class="dt">FLOAT</span> <span class="kw">DEFAULT</span> <span class="fl">0.5</span>,</span>
+<span id="cb16-8"><a href="#cb16-8" aria-hidden="true" tabindex="-1"></a>  <span class="kw">scope</span> JSONB,                            <span class="co">-- which entity types/categories this applies to</span></span>
+<span id="cb16-9"><a href="#cb16-9" aria-hidden="true" tabindex="-1"></a>  entity_ids UUID[],                      <span class="co">-- entities this insight references</span></span>
+<span id="cb16-10"><a href="#cb16-10" aria-hidden="true" tabindex="-1"></a>  taxonomy_categories TEXT[],</span>
+<span id="cb16-11"><a href="#cb16-11" aria-hidden="true" tabindex="-1"></a>  embedding vector(<span class="dv">1536</span>),                 <span class="co">-- for RAG retrieval</span></span>
+<span id="cb16-12"><a href="#cb16-12" aria-hidden="true" tabindex="-1"></a>  status TEXT <span class="kw">DEFAULT</span> <span class="st">&#39;active&#39;</span>,           <span class="co">-- active, superseded, expired, rejected</span></span>
+<span id="cb16-13"><a href="#cb16-13" aria-hidden="true" tabindex="-1"></a>  expires_at TIMESTAMPTZ,</span>
+<span id="cb16-14"><a href="#cb16-14" aria-hidden="true" tabindex="-1"></a>  review_needed <span class="dt">BOOLEAN</span> <span class="kw">DEFAULT</span> <span class="kw">false</span>,    <span class="co">-- flag for CEO review</span></span>
+<span id="cb16-15"><a href="#cb16-15" aria-hidden="true" tabindex="-1"></a>  created_at TIMESTAMPTZ <span class="kw">DEFAULT</span> now(),</span>
+<span id="cb16-16"><a href="#cb16-16" aria-hidden="true" tabindex="-1"></a>  created_by TEXT <span class="kw">DEFAULT</span> <span class="st">&#39;synthesis_agent&#39;</span></span>
+<span id="cb16-17"><a href="#cb16-17" aria-hidden="true" tabindex="-1"></a>);</span></code></pre></div>
+<p><strong>Behavioral Memory:</strong></p>
+<div class="sourceCode" id="cb17"><pre class="sourceCode sql"><code class="sourceCode sql"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="co">-- Learned rules that modify system behavior</span></span>
+<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">TABLE</span> brain.behavioral_rules (</span>
+<span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a>  <span class="kw">id</span> UUID <span class="kw">PRIMARY</span> <span class="kw">KEY</span> <span class="kw">DEFAULT</span> gen_random_uuid(),</span>
+<span id="cb17-4"><a href="#cb17-4" aria-hidden="true" tabindex="-1"></a>  rule_type TEXT <span class="kw">NOT</span> <span class="kw">NULL</span>,                <span class="co">-- classification, enrichment, priority, routing</span></span>
+<span id="cb17-5"><a href="#cb17-5" aria-hidden="true" tabindex="-1"></a>  description TEXT <span class="kw">NOT</span> <span class="kw">NULL</span>,              <span class="co">-- natural language rule</span></span>
+<span id="cb17-6"><a href="#cb17-6" aria-hidden="true" tabindex="-1"></a>  condition JSONB <span class="kw">NOT</span> <span class="kw">NULL</span>,               <span class="co">-- when this rule applies</span></span>
+<span id="cb17-7"><a href="#cb17-7" aria-hidden="true" tabindex="-1"></a>  action JSONB <span class="kw">NOT</span> <span class="kw">NULL</span>,                  <span class="co">-- what the rule does</span></span>
+<span id="cb17-8"><a href="#cb17-8" aria-hidden="true" tabindex="-1"></a>  confidence <span class="dt">FLOAT</span> <span class="kw">DEFAULT</span> <span class="fl">0.5</span>,</span>
+<span id="cb17-9"><a href="#cb17-9" aria-hidden="true" tabindex="-1"></a>  evidence_insight_ids UUID[],            <span class="co">-- derived insights that led to this rule</span></span>
+<span id="cb17-10"><a href="#cb17-10" aria-hidden="true" tabindex="-1"></a>  sample_size <span class="dt">INTEGER</span>,                    <span class="co">-- how many observations support this</span></span>
+<span id="cb17-11"><a href="#cb17-11" aria-hidden="true" tabindex="-1"></a>  auto_applied <span class="dt">BOOLEAN</span> <span class="kw">DEFAULT</span> <span class="kw">false</span>,     <span class="co">-- was this auto-applied or CEO-approved</span></span>
+<span id="cb17-12"><a href="#cb17-12" aria-hidden="true" tabindex="-1"></a>  status TEXT <span class="kw">DEFAULT</span> <span class="st">&#39;proposed&#39;</span>,         <span class="co">-- proposed, active, suspended, retired</span></span>
+<span id="cb17-13"><a href="#cb17-13" aria-hidden="true" tabindex="-1"></a>  impact_metrics JSONB,                   <span class="co">-- tracked impact since activation</span></span>
+<span id="cb17-14"><a href="#cb17-14" aria-hidden="true" tabindex="-1"></a>  created_at TIMESTAMPTZ <span class="kw">DEFAULT</span> now(),</span>
+<span id="cb17-15"><a href="#cb17-15" aria-hidden="true" tabindex="-1"></a>  activated_at TIMESTAMPTZ,</span>
+<span id="cb17-16"><a href="#cb17-16" aria-hidden="true" tabindex="-1"></a>  retired_at TIMESTAMPTZ</span>
+<span id="cb17-17"><a href="#cb17-17" aria-hidden="true" tabindex="-1"></a>);</span>
+<span id="cb17-18"><a href="#cb17-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-19"><a href="#cb17-19" aria-hidden="true" tabindex="-1"></a><span class="co">-- Decision history — what the brain decided, why, and what happened</span></span>
+<span id="cb17-20"><a href="#cb17-20" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">TABLE</span> brain.decision_log (</span>
+<span id="cb17-21"><a href="#cb17-21" aria-hidden="true" tabindex="-1"></a>  <span class="kw">id</span> UUID <span class="kw">PRIMARY</span> <span class="kw">KEY</span> <span class="kw">DEFAULT</span> gen_random_uuid(),</span>
+<span id="cb17-22"><a href="#cb17-22" aria-hidden="true" tabindex="-1"></a>  decision_type TEXT <span class="kw">NOT</span> <span class="kw">NULL</span>,            <span class="co">-- classification, enrichment, alert, recommendation</span></span>
+<span id="cb17-23"><a href="#cb17-23" aria-hidden="true" tabindex="-1"></a>  entity_id UUID,</span>
+<span id="cb17-24"><a href="#cb17-24" aria-hidden="true" tabindex="-1"></a>  entity_type TEXT,</span>
+<span id="cb17-25"><a href="#cb17-25" aria-hidden="true" tabindex="-1"></a>  input_summary TEXT,                     <span class="co">-- what the brain was looking at</span></span>
+<span id="cb17-26"><a href="#cb17-26" aria-hidden="true" tabindex="-1"></a>  decision TEXT <span class="kw">NOT</span> <span class="kw">NULL</span>,                 <span class="co">-- what it decided</span></span>
+<span id="cb17-27"><a href="#cb17-27" aria-hidden="true" tabindex="-1"></a>  reasoning TEXT,                         <span class="co">-- why (from Claude response)</span></span>
+<span id="cb17-28"><a href="#cb17-28" aria-hidden="true" tabindex="-1"></a>  rules_applied UUID[],                   <span class="co">-- behavioral_rules that influenced this</span></span>
+<span id="cb17-29"><a href="#cb17-29" aria-hidden="true" tabindex="-1"></a>  outcome TEXT,                           <span class="co">-- what actually happened (updated later)</span></span>
+<span id="cb17-30"><a href="#cb17-30" aria-hidden="true" tabindex="-1"></a>  ceo_override <span class="dt">BOOLEAN</span> <span class="kw">DEFAULT</span> <span class="kw">false</span>,     <span class="co">-- did CEO change the decision</span></span>
+<span id="cb17-31"><a href="#cb17-31" aria-hidden="true" tabindex="-1"></a>  ceo_correction TEXT,                    <span class="co">-- what CEO changed it to</span></span>
+<span id="cb17-32"><a href="#cb17-32" aria-hidden="true" tabindex="-1"></a>  created_at TIMESTAMPTZ <span class="kw">DEFAULT</span> now(),</span>
+<span id="cb17-33"><a href="#cb17-33" aria-hidden="true" tabindex="-1"></a>  outcome_recorded_at TIMESTAMPTZ</span>
+<span id="cb17-34"><a href="#cb17-34" aria-hidden="true" tabindex="-1"></a>);</span></code></pre></div>
+<p><strong>Enrichment Queue:</strong></p>
+<div class="sourceCode" id="cb18"><pre class="sourceCode sql"><code class="sourceCode sql"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a><span class="co">-- Autonomous enrichment job queue</span></span>
+<span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">TABLE</span> brain.enrichment_queue (</span>
+<span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a>  <span class="kw">id</span> UUID <span class="kw">PRIMARY</span> <span class="kw">KEY</span> <span class="kw">DEFAULT</span> gen_random_uuid(),</span>
+<span id="cb18-4"><a href="#cb18-4" aria-hidden="true" tabindex="-1"></a>  entity_type TEXT <span class="kw">NOT</span> <span class="kw">NULL</span>,</span>
+<span id="cb18-5"><a href="#cb18-5" aria-hidden="true" tabindex="-1"></a>  entity_id UUID <span class="kw">NOT</span> <span class="kw">NULL</span>,</span>
+<span id="cb18-6"><a href="#cb18-6" aria-hidden="true" tabindex="-1"></a>  scanner_type TEXT <span class="kw">NOT</span> <span class="kw">NULL</span>,             <span class="co">-- web, social, registry, news</span></span>
+<span id="cb18-7"><a href="#cb18-7" aria-hidden="true" tabindex="-1"></a>  priority TEXT <span class="kw">DEFAULT</span> <span class="st">&#39;medium&#39;</span>,</span>
+<span id="cb18-8"><a href="#cb18-8" aria-hidden="true" tabindex="-1"></a>  status TEXT <span class="kw">DEFAULT</span> <span class="st">&#39;pending&#39;</span>,          <span class="co">-- pending, running, completed, failed</span></span>
+<span id="cb18-9"><a href="#cb18-9" aria-hidden="true" tabindex="-1"></a>  attempt_count <span class="dt">INTEGER</span> <span class="kw">DEFAULT</span> <span class="dv">0</span>,</span>
+<span id="cb18-10"><a href="#cb18-10" aria-hidden="true" tabindex="-1"></a>  max_attempts <span class="dt">INTEGER</span> <span class="kw">DEFAULT</span> <span class="dv">3</span>,</span>
+<span id="cb18-11"><a href="#cb18-11" aria-hidden="true" tabindex="-1"></a>  result JSONB,</span>
+<span id="cb18-12"><a href="#cb18-12" aria-hidden="true" tabindex="-1"></a>  fields_updated TEXT[],                  <span class="co">-- which entity fields got new data</span></span>
+<span id="cb18-13"><a href="#cb18-13" aria-hidden="true" tabindex="-1"></a>  kcs_before <span class="dt">FLOAT</span>,</span>
+<span id="cb18-14"><a href="#cb18-14" aria-hidden="true" tabindex="-1"></a>  kcs_after <span class="dt">FLOAT</span>,</span>
+<span id="cb18-15"><a href="#cb18-15" aria-hidden="true" tabindex="-1"></a>  created_at TIMESTAMPTZ <span class="kw">DEFAULT</span> now(),</span>
+<span id="cb18-16"><a href="#cb18-16" aria-hidden="true" tabindex="-1"></a>  started_at TIMESTAMPTZ,</span>
+<span id="cb18-17"><a href="#cb18-17" aria-hidden="true" tabindex="-1"></a>  completed_at TIMESTAMPTZ</span>
+<span id="cb18-18"><a href="#cb18-18" aria-hidden="true" tabindex="-1"></a>);</span></code></pre></div>
+<p><strong>Vector Storage (from previous spec, may already exist in
+Supabase):</strong></p>
+<div class="sourceCode" id="cb19"><pre class="sourceCode sql"><code class="sourceCode sql"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a><span class="co">-- Knowledge chunks with vector embeddings</span></span>
+<span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">TABLE</span> brain.knowledge_chunks (</span>
+<span id="cb19-3"><a href="#cb19-3" aria-hidden="true" tabindex="-1"></a>  <span class="kw">id</span> UUID <span class="kw">PRIMARY</span> <span class="kw">KEY</span> <span class="kw">DEFAULT</span> gen_random_uuid(),</span>
+<span id="cb19-4"><a href="#cb19-4" aria-hidden="true" tabindex="-1"></a>  kb_id UUID <span class="kw">REFERENCES</span> knowledge_base(<span class="kw">id</span>) <span class="kw">ON</span> <span class="kw">DELETE</span> <span class="kw">CASCADE</span>,</span>
+<span id="cb19-5"><a href="#cb19-5" aria-hidden="true" tabindex="-1"></a>  chunk_index <span class="dt">INTEGER</span> <span class="kw">NOT</span> <span class="kw">NULL</span>,</span>
+<span id="cb19-6"><a href="#cb19-6" aria-hidden="true" tabindex="-1"></a>  content TEXT <span class="kw">NOT</span> <span class="kw">NULL</span>,</span>
+<span id="cb19-7"><a href="#cb19-7" aria-hidden="true" tabindex="-1"></a>  token_count <span class="dt">INTEGER</span>,</span>
+<span id="cb19-8"><a href="#cb19-8" aria-hidden="true" tabindex="-1"></a>  embedding vector(<span class="dv">1536</span>),</span>
+<span id="cb19-9"><a href="#cb19-9" aria-hidden="true" tabindex="-1"></a>  metadata JSONB,</span>
+<span id="cb19-10"><a href="#cb19-10" aria-hidden="true" tabindex="-1"></a>  created_at TIMESTAMPTZ <span class="kw">DEFAULT</span> now()</span>
+<span id="cb19-11"><a href="#cb19-11" aria-hidden="true" tabindex="-1"></a>);</span>
+<span id="cb19-12"><a href="#cb19-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-13"><a href="#cb19-13" aria-hidden="true" tabindex="-1"></a><span class="co">-- Correspondence chunks with vector embeddings</span></span>
+<span id="cb19-14"><a href="#cb19-14" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">TABLE</span> brain.correspondence_chunks (</span>
+<span id="cb19-15"><a href="#cb19-15" aria-hidden="true" tabindex="-1"></a>  <span class="kw">id</span> UUID <span class="kw">PRIMARY</span> <span class="kw">KEY</span> <span class="kw">DEFAULT</span> gen_random_uuid(),</span>
+<span id="cb19-16"><a href="#cb19-16" aria-hidden="true" tabindex="-1"></a>  correspondence_id UUID <span class="kw">NOT</span> <span class="kw">NULL</span>,</span>
+<span id="cb19-17"><a href="#cb19-17" aria-hidden="true" tabindex="-1"></a>  chunk_index <span class="dt">INTEGER</span> <span class="kw">NOT</span> <span class="kw">NULL</span>,</span>
+<span id="cb19-18"><a href="#cb19-18" aria-hidden="true" tabindex="-1"></a>  content TEXT <span class="kw">NOT</span> <span class="kw">NULL</span>,</span>
+<span id="cb19-19"><a href="#cb19-19" aria-hidden="true" tabindex="-1"></a>  token_count <span class="dt">INTEGER</span>,</span>
+<span id="cb19-20"><a href="#cb19-20" aria-hidden="true" tabindex="-1"></a>  embedding vector(<span class="dv">1536</span>),</span>
+<span id="cb19-21"><a href="#cb19-21" aria-hidden="true" tabindex="-1"></a>  created_at TIMESTAMPTZ <span class="kw">DEFAULT</span> now()</span>
+<span id="cb19-22"><a href="#cb19-22" aria-hidden="true" tabindex="-1"></a>);</span>
+<span id="cb19-23"><a href="#cb19-23" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-24"><a href="#cb19-24" aria-hidden="true" tabindex="-1"></a><span class="co">-- Vector search RPC functions</span></span>
+<span id="cb19-25"><a href="#cb19-25" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">OR</span> <span class="kw">REPLACE</span> <span class="kw">FUNCTION</span> brain.search_knowledge(</span>
+<span id="cb19-26"><a href="#cb19-26" aria-hidden="true" tabindex="-1"></a>  query_embedding vector(<span class="dv">1536</span>),</span>
+<span id="cb19-27"><a href="#cb19-27" aria-hidden="true" tabindex="-1"></a>  match_count <span class="dt">INT</span> <span class="kw">DEFAULT</span> <span class="dv">10</span>,</span>
+<span id="cb19-28"><a href="#cb19-28" aria-hidden="true" tabindex="-1"></a>  match_threshold <span class="dt">FLOAT</span> <span class="kw">DEFAULT</span> <span class="fl">0.4</span></span>
+<span id="cb19-29"><a href="#cb19-29" aria-hidden="true" tabindex="-1"></a>) RETURNS <span class="kw">TABLE</span> (<span class="op">..</span>.);</span>
+<span id="cb19-30"><a href="#cb19-30" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-31"><a href="#cb19-31" aria-hidden="true" tabindex="-1"></a><span class="kw">CREATE</span> <span class="kw">OR</span> <span class="kw">REPLACE</span> <span class="kw">FUNCTION</span> brain.search_correspondence(</span>
+<span id="cb19-32"><a href="#cb19-32" aria-hidden="true" tabindex="-1"></a>  query_embedding vector(<span class="dv">1536</span>),</span>
+<span id="cb19-33"><a href="#cb19-33" aria-hidden="true" tabindex="-1"></a>  match_count <span class="dt">INT</span> <span class="kw">DEFAULT</span> <span class="dv">10</span>,</span>
+<span id="cb19-34"><a href="#cb19-34" aria-hidden="true" tabindex="-1"></a>  match_threshold <span class="dt">FLOAT</span> <span class="kw">DEFAULT</span> <span class="fl">0.4</span></span>
+<span id="cb19-35"><a href="#cb19-35" aria-hidden="true" tabindex="-1"></a>) RETURNS <span class="kw">TABLE</span> (<span class="op">..</span>.);</span></code></pre></div>
+<hr />
+<h2 id="implementation-phases">8. Implementation Phases</h2>
+<h3 id="phase-0-foundation-current-complete">Phase 0: Foundation
+(Current — Complete)</h3>
+<p>What’s built: scanners, classifiers, taxonomy, entity dossier,
+feedback engine, instruction engine, MCP server, RAG foundation, report
+generator.</p>
+<p><strong>This phase is done.</strong> Everything below is new
+work.</p>
+<h3 id="phase-1-entity-intelligence">Phase 1: Entity Intelligence</h3>
+<p><strong>Goal:</strong> Entities become self-aware knowledge nodes
+with confidence, provenance, and completeness tracking.</p>
+<ul>
+<li>Add confidence, KCS, enrichment columns to
+<code>core.organizations</code> and <code>core.contacts</code></li>
+<li>Create <code>brain.entity_provenance</code> table</li>
+<li>Create <code>brain.enrichment_queue</code> table</li>
+<li>Modify scanners to write provenance records when they create/update
+entities</li>
+<li>Implement KCS calculation function</li>
+<li>Build dashboard widget showing aggregate KCS trends</li>
+</ul>
+<p><strong>Outcome:</strong> You can see how much the brain knows about
+each entity, and the system tracks where every fact came from.</p>
+<h3 id="phase-2-harness-documents">Phase 2: Harness Documents</h3>
+<p><strong>Goal:</strong> The brain’s operating model is defined in
+structured documents that the AI runtime reads.</p>
+<ul>
+<li>Author the <code>/brain/</code> harness document tree (ontology,
+pipelines, scanners, memory, departments)</li>
+<li>Modify scanner prompts to load relevant harness docs instead of
+hardcoded templates</li>
+<li>Modify ask_brain to include relevant harness context for
+reasoning</li>
+<li>Version harness documents in git</li>
+</ul>
+<p><strong>Outcome:</strong> The brain’s behavior is defined by readable
+documents, not buried in code. Changing how the brain handles
+partnership emails means editing
+<code>brain/departments/partnerships.md</code>, not rewriting scanner
+code.</p>
+<h3 id="phase-3-derived-intelligence">Phase 3: Derived Intelligence</h3>
+<p><strong>Goal:</strong> The brain generates new knowledge from
+aggregate observation.</p>
+<ul>
+<li>Create <code>brain.derived_insights</code> table with vector
+embedding column</li>
+<li>Build synthesis agent (runs daily + after significant batches)</li>
+<li>Synthesis agent reads recent activity, classifications, CEO signals,
+enrichment results</li>
+<li>Synthesis agent writes derived insight entries, embeds them for
+RAG</li>
+<li>Insights surface in ask_brain queries and entity dossiers</li>
+</ul>
+<p><strong>Outcome:</strong> After processing enough data, the brain
+starts telling you things you didn’t know to ask about.</p>
+<h3 id="phase-4-behavioral-adaptation">Phase 4: Behavioral
+Adaptation</h3>
+<p><strong>Goal:</strong> The system changes how it operates based on
+learned patterns.</p>
+<ul>
+<li>Create <code>brain.behavioral_rules</code> and
+<code>brain.decision_log</code> tables</li>
+<li>Build adaptation agent (runs weekly + on significant CEO override
+patterns)</li>
+<li>Adaptation agent analyzes decision_log for systematic patterns in
+corrections</li>
+<li>Proposes behavioral rules (high-confidence: auto-apply;
+low-confidence: CEO review)</li>
+<li>Rules get loaded into scanner prompts, classifier configs,
+enrichment strategies</li>
+<li>Track rule impact metrics</li>
+</ul>
+<p><strong>Outcome:</strong> CEO corrections decrease over time because
+the brain learned from the first few.</p>
+<h3 id="phase-5-autonomous-enrichment">Phase 5: Autonomous
+Enrichment</h3>
+<p><strong>Goal:</strong> The system decides on its own that entities
+need enrichment and executes.</p>
+<ul>
+<li>Build enrichment orchestrator (processes queue, runs scanners,
+updates entities)</li>
+<li>Web scanner, social scanner, registry scanner implementations</li>
+<li>Queue prioritization logic (CEO instruction &gt; high-value entities
+&gt; background)</li>
+<li>KCS tracking before/after enrichment to prove value</li>
+</ul>
+<p><strong>Outcome:</strong> New entities automatically get enriched
+without human intervention. The logo pipeline from the ontology
+conversation becomes possible.</p>
+<h3 id="phase-6-chat-interface">Phase 6: Chat Interface</h3>
+<p><strong>Goal:</strong> CEO converses with the brain through the
+dashboard.</p>
+<ul>
+<li>Build chat UI on the My Brain dashboard page</li>
+<li>Wire to MCP server’s ask_brain (enhanced with all new context
+layers)</li>
+<li>Chat context includes: derived insights, behavioral rules, entity
+intelligence, harness docs</li>
+<li>CEO can issue instructions conversationally (“watch Adidas for the
+next 30 days”)</li>
+</ul>
+<p><strong>Outcome:</strong> The brain becomes conversational. The CEO
+interacts with it like a chief of staff.</p>
+<hr />
+<h2 id="what-the-brain-looks-like-at-maturity">9. What the Brain Looks
+Like at Maturity</h2>
+<p>At full implementation, a single CEO query like “What should I know
+about our Texas partnerships?” triggers:</p>
+<ol type="1">
+<li><strong>Entity resolution:</strong> Identifies all organizations
+with type=Partner in Texas region</li>
+<li><strong>RAG search:</strong> Finds relevant knowledge base docs and
+correspondence</li>
+<li><strong>Derived insights:</strong> Surfaces patterns like “Texas
+partners have 2x conversion when coach is involved in design”</li>
+<li><strong>Behavioral context:</strong> Notes that the CEO has
+historically been most interested in deal velocity for this segment</li>
+<li><strong>Entity intelligence:</strong> Shows KCS scores — “We know
+80% about FC Dallas but only 30% about Houston Dynamo Youth”</li>
+<li><strong>Active instructions:</strong> Checks if any standing orders
+relate to Texas partnerships</li>
+<li><strong>Enrichment state:</strong> Notes “Houston Dynamo Youth has 3
+pending enrichment jobs in queue”</li>
+<li><strong>Synthesis:</strong> Claude weaves all of this into an
+executive briefing with recommended actions</li>
+</ol>
+<p>None of this requires the CEO to know what data exists or where it
+lives. The brain knows what it knows, knows what it doesn’t know, and is
+actively working to fill the gaps.</p>
+<hr />
+<h2 id="design-constraint-person-feed-compatibility">10. Design
+Constraint: Person Feed Compatibility</h2>
+<h3 id="the-insight">The Insight</h3>
+<p>MiMBrain already builds structured intelligence profiles for every
+entity it encounters — identity, capabilities, relationships, activity,
+reputation. It does this internally by scraping, classifying, and
+inferring from signals.</p>
+<p>In an AI-native world, entities will publish this information
+themselves as machine-readable feeds — structured streams of identity +
+intent + activity + capabilities that AI agents subscribe to. Think of
+it as RSS for people and organizations, but structured for AI
+reasoning.</p>
+<p>The internal entity intelligence model we’re building and the
+external person feed protocol are <strong>the same data
+structure</strong>. One is inferred privately. The other is published
+openly. They must be compatible.</p>
+<h3 id="what-this-means-for-schema-design">What This Means for Schema
+Design</h3>
+<p>Every entity intelligence table and field must pass this test:</p>
+<blockquote>
+<p><em>“Could this field be populated either by our scanner inferring
+it, OR by the entity publishing it directly in a structured
+feed?”</em></p>
+</blockquote>
+<p>If yes, the schema is correct. If a field can only exist through
+internal inference and has no external equivalent, question whether it
+belongs in the entity model or in a separate internal-only table.</p>
+<h3 id="the-10-layers-of-a-person-feed">The 10 Layers of a Person
+Feed</h3>
+<p>For reference, a complete AI-native person feed contains:</p>
+<table>
+<colgroup>
+<col style="width: 17%" />
+<col style="width: 33%" />
+<col style="width: 48%" />
+</colgroup>
+<thead>
+<tr>
+<th>Layer</th>
+<th>Description</th>
+<th>Internal Equivalent</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Identity</td>
+<td>Name, roles, verified accounts, location</td>
+<td>Entity core fields</td>
+</tr>
+<tr>
+<td>Capabilities</td>
+<td>Skills, tools, expertise, industries</td>
+<td>Not yet modeled — future</td>
+</tr>
+<tr>
+<td>Intent</td>
+<td>What they’re seeking, available for</td>
+<td>Not yet modeled — future</td>
+</tr>
+<tr>
+<td>Activity</td>
+<td>Projects, events, launches, commits</td>
+<td><code>brain.correspondence</code>, <code>brain.tasks</code>,
+<code>brain.activity</code></td>
+</tr>
+<tr>
+<td>Knowledge</td>
+<td>Topics of interest, current questions</td>
+<td><code>brain.derived_insights</code> (about them)</td>
+</tr>
+<tr>
+<td>Relationships</td>
+<td>Collaborators, communities, affiliations</td>
+<td><code>core.relationships</code>, <code>core.org_types</code></td>
+</tr>
+<tr>
+<td>Availability</td>
+<td>Contact methods, response window, open-to</td>
+<td>Not yet modeled — future</td>
+</tr>
+<tr>
+<td>Reputation</td>
+<td>Endorsements, outcomes, citations</td>
+<td><code>entity_feedback.usefulness_score</code> (internal only)</td>
+</tr>
+<tr>
+<td>Personal</td>
+<td>Values, work style, hobbies</td>
+<td>Not yet modeled — future</td>
+</tr>
+<tr>
+<td>Status</td>
+<td>Currently working on, location, availability</td>
+<td>Not yet modeled — future</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Layers 1, 4, 6 map to existing schema.</strong> Layers 2, 3,
+7, 8, 9, 10 are future extensions. The schema should not prevent adding
+them.</p>
+<h3 id="how-this-evolves-with-the-cadence">How This Evolves With the
+Cadence</h3>
+<p><strong>The 1:</strong> MiMBrain builds entity profiles internally
+for everyone the CEO interacts with. Scanners infer. The CEO’s own
+Motion feed is his person feed (rendered as UI, not JSON).</p>
+<p><strong>The 10:</strong> Team members each have their own Motion
+(private feed). They publish selected signals into the shared brain. The
+CEO’s brain subscribes to what’s published. Visibility isn’t controlled
+by permissions tables — it’s controlled by what each person chooses to
+emit. The person feed IS the access control model. No RBAC, no admin
+dashboards, no visibility matrices. The wall between private and shared
+is architectural: publish/subscribe, not permit/deny.</p>
+<table>
+<colgroup>
+<col style="width: 15%" />
+<col style="width: 27%" />
+<col style="width: 32%" />
+<col style="width: 24%" />
+</colgroup>
+<thead>
+<tr>
+<th>Feed Layer</th>
+<th>Private (your Motion)</th>
+<th>Published (shared brain)</th>
+<th>Upward (CEO sees)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Activity</td>
+<td>All tasks, emails, work</td>
+<td>Project milestones, blockers</td>
+<td>Decisions needed, outcomes</td>
+</tr>
+<tr>
+<td>Intent</td>
+<td>Personal goals</td>
+<td>Team-relevant asks</td>
+<td>Resource requests, strategic flags</td>
+</tr>
+<tr>
+<td>Status</td>
+<td>Everything</td>
+<td>Current focus, availability</td>
+<td>Escalation-worthy signals only</td>
+</tr>
+<tr>
+<td>Knowledge</td>
+<td>Notes, thinking</td>
+<td>Shared learnings</td>
+<td>Derived insights affecting company</td>
+</tr>
+</tbody>
+</table>
+<p><strong>The 1,000:</strong> External protocol. Entities publish
+feeds. Scanners become subscribers. Enrichment flips from pull (scrape)
+to push (subscribe). The CEO’s person feed becomes publishable —
+attached to email footers, discoverable at a well-known endpoint.</p>
+<h3 id="near-term-implication-email-context-block">Near-Term
+Implication: Email Context Block</h3>
+<p>When MiMBrain sends or drafts email on behalf of the CEO, it could
+attach a machine-readable context block (in headers or footer) that any
+AI reading the email can parse. This is a small build with high leverage
+— not a protocol, just a practical step.</p>
+<h3 id="rule">Rule</h3>
+<p><strong>Do not build the protocol. Do not build the external
+publishing layer. But design every entity intelligence table so the data
+could be serialized as a person feed without restructuring.</strong></p>
+<hr />
+<h2 id="open-decisions">11. Open Decisions</h2>
+<p>These decisions should be made before implementation begins:</p>
+<ol type="1">
+<li><p><strong>Schema evolution approach:</strong> Extend existing
+tables vs. create a parallel entity intelligence layer? Extending is
+faster. Parallel is cleaner but requires migration mapping.</p></li>
+<li><p><strong>Harness authoring:</strong> Who writes the initial
+harness documents? CEO drafts the business logic, engineering translates
+to structured format? Or engineering proposes and CEO reviews?</p></li>
+<li><p><strong>Enrichment scanner priority:</strong> Which external data
+sources matter most? Web scraping, social media, sports registries,
+news? This determines which scanners to build first.</p></li>
+<li><p><strong>Synthesis cadence:</strong> Daily synthesis cycles? After
+every N events? Both? This affects compute cost and how quickly the
+brain compounds.</p></li>
+<li><p><strong>Behavioral rule approval:</strong> What confidence
+threshold for auto-applying learned rules? Conservative (CEO approves
+everything) vs. aggressive (auto-apply high-confidence rules)?</p></li>
+<li><p><strong>Asset processing priority:</strong> Logo/image ingestion
+requires CLIP + OCR infrastructure. Is this Phase 5 priority or
+later?</p></li>
+</ol>
+<hr />
+<h2 id="success-metrics">12. Success Metrics</h2>
+<p>The brain is succeeding when:</p>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Month 1</th>
+<th>Month 6</th>
+<th>Month 12</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Average entity KCS</td>
+<td>0.15</td>
+<td>0.55</td>
+<td>0.75+</td>
+</tr>
+<tr>
+<td>CEO override rate on classifications</td>
+<td>30%</td>
+<td>10%</td>
+<td>&lt;5%</td>
+</tr>
+<tr>
+<td>Derived insights generated (cumulative)</td>
+<td>0</td>
+<td>200+</td>
+<td>1,000+</td>
+</tr>
+<tr>
+<td>Active behavioral rules</td>
+<td>0</td>
+<td>25+</td>
+<td>100+</td>
+</tr>
+<tr>
+<td>Entities with KCS &gt; 0.7</td>
+<td>&lt;50</td>
+<td>500+</td>
+<td>5,000+</td>
+</tr>
+<tr>
+<td>Autonomous enrichment jobs/week</td>
+<td>0</td>
+<td>100+</td>
+<td>1,000+</td>
+</tr>
+<tr>
+<td>Time to enrich new entity to KCS 0.5</td>
+<td>Manual</td>
+<td>&lt;24h</td>
+<td>&lt;1h</td>
+</tr>
+<tr>
+<td>Ask_brain queries with derived insight context</td>
+<td>0%</td>
+<td>40%+</td>
+<td>80%+</td>
+</tr>
+</tbody>
+</table>
+<p>The ultimate metric: <strong>Can MiM Brain write the weekly report
+with zero CEO corrections?</strong> When the answer is consistently yes,
+the brain is operating as a COO.</p>
+</body>
+</html>

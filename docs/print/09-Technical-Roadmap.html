@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>MiMBrain — Technical Roadmap</title>
+  <style>
+
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+
+ul.task-list[class]{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+font-size: inherit;
+width: 0.8em;
+margin: 0 0.8em 0.2em -1.6em;
+vertical-align: middle;
+}
+.display.math{display: block; text-align: center; margin: 0.5rem auto;}
+</style>
+  <style type="text/css">body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; max-width: 800px; margin: 40px auto; padding: 0 20px; line-height: 1.6; color: #1a1a1a; font-size: 14px; }
+h1 { font-size: 28px; border-bottom: 2px solid #1a1a1a; padding-bottom: 8px; margin-top: 40px; }
+h2 { font-size: 22px; border-bottom: 1px solid #ddd; padding-bottom: 6px; margin-top: 32px; }
+h3 { font-size: 17px; margin-top: 24px; }
+table { border-collapse: collapse; width: 100%; margin: 16px 0; font-size: 13px; }
+th, td { border: 1px solid #ccc; padding: 8px 12px; text-align: left; }
+th { background: #f5f5f5; font-weight: 600; }
+code { background: #f5f5f5; padding: 2px 6px; border-radius: 3px; font-size: 13px; }
+pre { background: #f5f5f5; padding: 16px; border-radius: 4px; overflow-x: auto; font-size: 12px; }
+blockquote { border-left: 3px solid #ccc; margin: 16px 0; padding: 8px 16px; color: #555; }
+ul, ol { padding-left: 24px; }
+li { margin: 4px 0; }
+@media print { body { margin: 0; max-width: 100%; } }
+</style>
+</head>
+<body>
+<header id="title-block-header">
+<h1 class="title">MiMBrain — Technical Roadmap</h1>
+</header>
+<h1 id="mimbrain-technical-roadmap">MiMBrain — Technical Roadmap</h1>
+<blockquote>
+<p><strong>Purpose:</strong> Actionable build plan. Two parallel tracks:
+frontend (build the feed) and backend (continue architecture v2 phases).
+Neither blocks the other — but backend work feeds the feed.</p>
+<p><strong>Companion docs:</strong> -
+<code>docs/product/ui-requirements.md</code> — what we’re building
+(interaction architecture) - <code>docs/product/design-brief.md</code> —
+what it looks like (Figma specs) -
+<code>docs/technical/architecture-mimbrain-v2.md</code> — backend north
+star - <code>docs/operational/master-effort-list.md</code> — all
+efforts</p>
+<p><strong>Last updated:</strong> 2026-03-14</p>
+</blockquote>
+<hr />
+<h2 id="honest-inventory-what-exists">Honest Inventory: What Exists</h2>
+<h3 id="fully-operational">Fully Operational</h3>
+<table>
+<colgroup>
+<col style="width: 34%" />
+<col style="width: 30%" />
+<col style="width: 34%" />
+</colgroup>
+<thead>
+<tr>
+<th>Module</th>
+<th>Files</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Gmail scanner</td>
+<td><code>gmail-scanner.ts</code> (1404 lines)</td>
+<td>Classifying live email with Acumen</td>
+</tr>
+<tr>
+<td>Slack scanner</td>
+<td><code>slack-scanner.ts</code> (923 lines)</td>
+<td>Classifying live messages</td>
+</tr>
+<tr>
+<td>Sheets scanner</td>
+<td><code>sheets-scanner.ts</code> (333 lines)</td>
+<td>Reading Google Sheets</td>
+</tr>
+<tr>
+<td>News scanner</td>
+<td><code>news-scanner.ts</code> (537 lines)</td>
+<td>Entity news monitoring</td>
+</tr>
+<tr>
+<td>Pre-filter</td>
+<td><code>scanner-prefilter.ts</code> (261 lines)</td>
+<td>Skips newsletters/noreply before Claude</td>
+</tr>
+<tr>
+<td>Harness loader</td>
+<td><code>harness-loader.ts</code> (148 lines)</td>
+<td>Reads 11 department MDs at runtime</td>
+</tr>
+<tr>
+<td>Taxonomy loader</td>
+<td><code>taxonomy-loader.ts</code> (502 lines)</td>
+<td>11 categories from DB + hardcoded fallback</td>
+</tr>
+<tr>
+<td>Entity dossier</td>
+<td><code>entity-dossier.ts</code> (435 lines)</td>
+<td>~400-token context per entity for classifier</td>
+</tr>
+<tr>
+<td>Feedback engine</td>
+<td><code>feedback-engine.ts</code> (225 lines)</td>
+<td>Usefulness scoring from task signals</td>
+</tr>
+<tr>
+<td>Instruction engine</td>
+<td><code>instruction-loader.ts</code> (116 lines)</td>
+<td>Standing orders + report inclusions</td>
+</tr>
+<tr>
+<td>Entity resolution</td>
+<td><code>db-scanner.ts</code> (160 lines)</td>
+<td>Email direct + domain fallback</td>
+</tr>
+<tr>
+<td>Knowledge ingestion</td>
+<td><code>document-processor.ts</code> (275 lines)</td>
+<td>PDF/DOCX/PPTX/CSV → chunks → classify → store</td>
+</tr>
+<tr>
+<td>Brain chat</td>
+<td><code>/api/brain/ask</code></td>
+<td>Entity resolution → dossiers → knowledge search → Claude
+synthesis</td>
+</tr>
+<tr>
+<td>Weekly report</td>
+<td><code>weekly-report-generator.ts</code> (535 lines)</td>
+<td>7/30-day data → Claude summary</td>
+</tr>
+<tr>
+<td>Decision review</td>
+<td><code>/api/decisions</code> +
+<code>/api/decisions/review</code></td>
+<td>CEO marks correct/incorrect/partial</td>
+</tr>
+<tr>
+<td>Data layer</td>
+<td><code>db.ts</code> (417 lines)</td>
+<td>Queries across all 5 schemas</td>
+</tr>
+<tr>
+<td>MCP server</td>
+<td><code>mcp-server/</code> (28 tools)</td>
+<td>Built, not deployed to host</td>
+</tr>
+</tbody>
+</table>
+<h3 id="exists-but-incomplete">Exists But Incomplete</h3>
+<table>
+<colgroup>
+<col style="width: 21%" />
+<col style="width: 35%" />
+<col style="width: 43%" />
+</colgroup>
+<thead>
+<tr>
+<th>Module</th>
+<th>What’s There</th>
+<th>What’s Missing</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Entity intelligence</td>
+<td><code>entity-intelligence.ts</code> — KCS calculator, provenance
+writer, batch recompute</td>
+<td>Only scanners call it. Not all entity update paths write
+provenance.</td>
+</tr>
+<tr>
+<td>Entity provenance table</td>
+<td><code>brain.entity_provenance</code> — SQL migration written
+(<code>step-14</code>)</td>
+<td><strong>Migration may not have been executed in Supabase.</strong>
+Need to verify.</td>
+</tr>
+<tr>
+<td>Enrichment queue table</td>
+<td><code>brain.enrichment_queue</code> — SQL migration written
+(<code>step-14</code>)</td>
+<td>No orchestrator. Table may not exist in DB yet.</td>
+</tr>
+<tr>
+<td>KCS columns</td>
+<td><code>ALTER TABLE core.organizations/contacts</code> — in
+<code>step-14</code></td>
+<td>May not have been applied. Need to verify.</td>
+</tr>
+<tr>
+<td>Harness docs</td>
+<td>11 department MDs + 11 pipeline MDs (email-classification)</td>
+<td>Missing: ontology docs, scanner strategy docs, memory docs,
+non-email pipeline docs</td>
+</tr>
+</tbody>
+</table>
+<h3 id="does-not-exist">Does Not Exist</h3>
+<table>
+<colgroup>
+<col style="width: 26%" />
+<col style="width: 50%" />
+<col style="width: 23%" />
+</colgroup>
+<thead>
+<tr>
+<th>Module</th>
+<th>Arch v2 Phase</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>brain.feed_cards</code> table</td>
+<td>—</td>
+<td>Needed for Motion feed (F1)</td>
+</tr>
+<tr>
+<td><code>brain.derived_insights</code> table</td>
+<td>Phase 3</td>
+<td>No table, no synthesis agent</td>
+</tr>
+<tr>
+<td><code>brain.behavioral_rules</code> table</td>
+<td>Phase 4</td>
+<td>No table, no adaptation agent</td>
+</tr>
+<tr>
+<td><code>brain.decision_log</code> table</td>
+<td>Phase 4</td>
+<td>classification_log captures some but isn’t the same</td>
+</tr>
+<tr>
+<td>Daily synthesis loop</td>
+<td>Phase 3</td>
+<td>No agent, no cron</td>
+</tr>
+<tr>
+<td>Enrichment orchestrator</td>
+<td>Phase 5</td>
+<td>Queue table exists, no processor</td>
+</tr>
+<tr>
+<td>Web/social/registry scanners</td>
+<td>Phase 5</td>
+<td>Only news scanner exists for external enrichment</td>
+</tr>
+<tr>
+<td>Model abstraction layer</td>
+<td>Phase 6</td>
+<td>Direct Anthropic calls everywhere</td>
+</tr>
+<tr>
+<td>Feed card generation</td>
+<td>—</td>
+<td>Scanners create tasks, not feed cards</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="backend-work-order">Backend Work Order</h2>
+<h3 id="b0-verify-foundation-start-here">B0: Verify Foundation ← START
+HERE</h3>
+<p><strong>Goal:</strong> Confirm the entity intelligence migration has
+been applied. If not, apply it. This is prerequisite to everything.</p>
+<ul class="task-list">
+<li><label><input type="checkbox"></input>Query Supabase:
+<code>SELECT column_name FROM information_schema.columns WHERE table_schema=&#39;core&#39; AND table_name=&#39;organizations&#39;</code>
+— check for <code>confidence_score</code>,
+<code>knowledge_completeness_score</code>,
+<code>enrichment_priority</code>,
+<code>enrichment_gaps</code></label></li>
+<li><label><input type="checkbox"></input>Query Supabase: check
+<code>brain.entity_provenance</code> table exists</label></li>
+<li><label><input type="checkbox"></input>Query Supabase: check
+<code>brain.enrichment_queue</code> table exists</label></li>
+<li><label><input type="checkbox"></input>If missing → run
+<code>step-14-entity-intelligence.sql</code> via Supabase SQL
+editor</label></li>
+<li><label><input type="checkbox"></input>Verify KCS recompute works
+end-to-end: trigger a scanner run, confirm KCS values update on the
+resolved entity</label></li>
+<li><label><input type="checkbox"></input>Check classification_log has acumen
+fields populated (acumen_category, importance_level, acumen_reasoning,
+ceo_review_status)</label></li>
+</ul>
+<p><strong>Files:</strong>
+<code>sql/migration/step-14-entity-intelligence.sql</code>,
+<code>src/lib/entity-intelligence.ts</code></p>
+<h3 id="b1-feed-cards-table-scanner-integration">B1: Feed Cards Table +
+Scanner Integration</h3>
+<p><strong>Goal:</strong> Create the <code>brain.feed_cards</code> table
+and make scanners write cards into it. This is where the backend meets
+the frontend — no feed without cards.</p>
+<ul class="task-list">
+<li><p><label><input type="checkbox"></input>Design
+<code>brain.feed_cards</code> schema:</label></p>
+<pre><code>id, card_type (decision/signal/action/briefing/snapshot/intelligence/reflection),
+category, importance, title, body, reasoning, source_ref, source_type,
+entity_ids (UUID[]), status (active/acted/dismissed/expired),
+action_taken (do/no/not_now), action_taken_at,
+ceo_response TEXT, metadata JSONB,
+created_at, expires_at</code></pre></li>
+<li><p><label><input type="checkbox"></input>Write + execute SQL
+migration</label></p></li>
+<li><p><label><input type="checkbox"></input>Modify Gmail scanner: after
+classification, write a feed card (Decision type for items needing CEO
+input, Signal for informational)</label></p></li>
+<li><p><label><input type="checkbox"></input>Modify Slack scanner:
+same</label></p></li>
+<li><p><label><input type="checkbox"></input>Create
+<code>/api/feed/route.ts</code> — GET cards (paginated, filtered by
+status), POST card action (do/no/not_now + optional
+ceo_response)</label></p></li>
+<li><p><label><input type="checkbox"></input>Card action handler: when CEO
+acts on a Decision card, write to classification_log correction fields
+(bridges to existing training flow)</label></p></li>
+</ul>
+<p><strong>Key insight:</strong> The feed card IS the decision review
+UI. The current <code>/decisions</code> page becomes redundant once
+Motion exists. But the classification_log training data flow must be
+preserved.</p>
+<p><strong>Files to create:</strong> <code>sql/feed-cards.sql</code>,
+<code>src/app/api/feed/route.ts</code> <strong>Files to modify:</strong>
+<code>src/lib/gmail-scanner.ts</code>,
+<code>src/lib/slack-scanner.ts</code></p>
+<h3 id="b2-classifier-training-at-scale">B2: Classifier Training at
+Scale</h3>
+<p><strong>Goal:</strong> Increase volume through the classifier and
+measure accuracy per category. The brain can’t learn if it doesn’t have
+enough reps.</p>
+<ul class="task-list">
+<li><label><input type="checkbox"></input>Increase Gmail scanner scan window
+(currently scans last N hours — widen or increase
+frequency)</label></li>
+<li><label><input type="checkbox"></input>Query classification_log for
+per-category accuracy:
+<code>SELECT acumen_category, COUNT(*), SUM(CASE WHEN ceo_review_status=&#39;correct&#39; THEN 1 ELSE 0 END) as correct FROM classification_log WHERE ceo_review_status IS NOT NULL GROUP BY acumen_category</code></label></li>
+<li><label><input type="checkbox"></input>Build accuracy computation function
+in <code>src/lib/</code> — returns per-category accuracy rate, total
+reviewed, confidence score</label></li>
+<li><label><input type="checkbox"></input>Define confidence threshold per
+category (e.g., &gt;90% accuracy on 20+ reviews =
+“confident”)</label></li>
+<li><label><input type="checkbox"></input>Surface accuracy stats in feed
+(Briefing card: “Your classifier accuracy this week”)</label></li>
+<li><label><input type="checkbox"></input>Category-level autonomy gating: when
+a category hits confidence threshold, brain can auto-act without CEO
+review</label></li>
+</ul>
+<p><strong>Depends on:</strong> B1 (feed cards to surface accuracy
+briefings)</p>
+<p><strong>Files to create:</strong>
+<code>src/lib/classifier-accuracy.ts</code> <strong>Files to
+modify:</strong> <code>src/lib/gmail-scanner.ts</code> (scan frequency),
+<code>src/app/api/feed/route.ts</code> (accuracy briefing cards)</p>
+<h3 id="b3-daily-synthesis-loop">B3: Daily Synthesis Loop</h3>
+<p><strong>Goal:</strong> An automated agent reads all recent activity,
+cross-references signals, writes derived insights, and produces a CEO
+briefing card.</p>
+<ul class="task-list">
+<li><p><label><input type="checkbox"></input>Create
+<code>brain.derived_insights</code> table (SQL migration):</label></p>
+<pre><code>id, insight_type (pattern/correlation/prediction/recommendation),
+description TEXT, evidence JSONB, confidence FLOAT,
+scope JSONB, entity_ids UUID[], taxonomy_categories TEXT[],
+embedding vector(1536), status (active/superseded/expired/rejected),
+expires_at, review_needed BOOLEAN, created_at, created_by</code></pre></li>
+<li><p><label><input type="checkbox"></input>Build synthesis agent
+(<code>src/lib/synthesis-agent.ts</code>):</label></p>
+<ol type="1">
+<li>Read last 24h of classification_log, tasks, correspondence,
+entity_feedback</li>
+<li>Feed to Claude with instruction: “identify patterns, anomalies,
+trends across today’s activity”</li>
+<li>Write derived insight records</li>
+<li>Produce CEO briefing card (summary of day + insights) → insert into
+feed_cards</li>
+</ol></li>
+<li><p><label><input type="checkbox"></input>Create API route
+<code>/api/agents/daily-synthesis/route.ts</code> (triggered by Vercel
+cron)</label></p></li>
+<li><p><label><input type="checkbox"></input>Wire derived insights into
+ask_brain context (when CEO asks a question, include relevant
+insights)</label></p></li>
+</ul>
+<p><strong>Depends on:</strong> B1 (feed cards for briefing output)</p>
+<p><strong>Files to create:</strong>
+<code>src/lib/synthesis-agent.ts</code>,
+<code>src/app/api/agents/daily-synthesis/route.ts</code>,
+<code>sql/derived-insights.sql</code> <strong>Files to modify:</strong>
+<code>src/app/api/brain/ask/route.ts</code> (include insights in
+context)</p>
+<h3 id="b4-behavioral-adaptation">B4: Behavioral Adaptation</h3>
+<p><strong>Goal:</strong> The system learns from CEO corrections and
+changes its own behavior. This is where the brain stops being a tool and
+starts being a COO.</p>
+<ul class="task-list">
+<li><p><label><input type="checkbox"></input>Create
+<code>brain.behavioral_rules</code> table (SQL migration):</label></p>
+<pre><code>id, rule_type (classification/enrichment/priority/routing),
+description TEXT, condition JSONB, action JSONB,
+confidence FLOAT, evidence_insight_ids UUID[],
+sample_size INT, auto_applied BOOLEAN,
+status (proposed/active/suspended/retired),
+impact_metrics JSONB, created_at, activated_at, retired_at</code></pre></li>
+<li><p><label><input type="checkbox"></input>Create
+<code>brain.decision_log</code> table:</label></p>
+<pre><code>id, decision_type, entity_id, entity_type,
+input_summary, decision, reasoning, rules_applied UUID[],
+outcome, ceo_override BOOLEAN, ceo_correction,
+created_at, outcome_recorded_at</code></pre></li>
+<li><p><label><input type="checkbox"></input>Build adaptation agent
+(<code>src/lib/adaptation-agent.ts</code>):</label></p>
+<ol type="1">
+<li>Analyze classification_log for systematic CEO correction
+patterns</li>
+<li>Propose behavioral rules (e.g., “emails from .edu domains should be
+elevated to high priority”)</li>
+<li>High-confidence rules (large sample + clear pattern) →
+auto-apply</li>
+<li>Lower-confidence rules → surface as Decision card for CEO
+approval</li>
+</ol></li>
+<li><p><label><input type="checkbox"></input>Modify harness-loader to inject
+active behavioral_rules into scanner prompts</label></p></li>
+<li><p><label><input type="checkbox"></input>Track rule impact: after rule
+activation, measure whether CEO override rate drops for that
+category</label></p></li>
+</ul>
+<p><strong>Depends on:</strong> B2 (enough training data to detect
+patterns), B3 (synthesis insights feed adaptation)</p>
+<p><strong>Files to create:</strong>
+<code>src/lib/adaptation-agent.ts</code>,
+<code>src/app/api/agents/adaptation/route.ts</code>,
+<code>sql/behavioral-rules.sql</code> <strong>Files to modify:</strong>
+<code>src/lib/harness-loader.ts</code> (load behavioral rules),
+<code>src/lib/gmail-scanner.ts</code> (apply rules)</p>
+<h3 id="b5-knowledge-ingestion-pipeline-enhancement">B5: Knowledge
+Ingestion Pipeline Enhancement</h3>
+<p><strong>Goal:</strong> Accept any asset type, extract, classify,
+embed, map to entities. The ingest path for Your Clearing.</p>
+<ul class="task-list">
+<li><label><input type="checkbox"></input>Extend document-processor.ts: add
+image OCR (logos, screenshots), audio transcription stubs</label></li>
+<li><label><input type="checkbox"></input>Add embedding generation to
+ingestion flow (currently chunks but doesn’t embed)</label></li>
+<li><label><input type="checkbox"></input>Create vector search RPC functions
+in Supabase (may already exist — verify)</label></li>
+<li><label><input type="checkbox"></input>Wire ingestion to entity resolution:
+when a doc mentions an org/contact, link it</label></li>
+<li><label><input type="checkbox"></input>Surface ingestion results as feed
+cards (Intelligence type: “I processed your document and
+found…”)</label></li>
+</ul>
+<p><strong>Depends on:</strong> B1 (feed cards for ingestion
+feedback)</p>
+<p><strong>Files to modify:</strong>
+<code>src/lib/document-processor.ts</code>,
+<code>src/app/api/brain/ingest/route.ts</code></p>
+<hr />
+<h2 id="track-1-frontend-build-the-feed">Track 1: Frontend — Build the
+Feed</h2>
+<p>(Blocked on design — proceeds when Figma specs are ready)</p>
+<h3 id="f1-card-system-foundation">F1: Card System Foundation</h3>
+<ul class="task-list">
+<li><label><input type="checkbox"></input>Build <code>&lt;FeedCard&gt;</code>
+component with four zones: header, body, expand trigger,
+actions</label></li>
+<li><label><input type="checkbox"></input>Build
+<code>&lt;FeedContainer&gt;</code> — scrollable feed with infinite
+scroll / pagination</label></li>
+<li><label><input type="checkbox"></input>Build 3 card variants: Decision,
+Signal, Briefing (minimum viable set)</label></li>
+<li><label><input type="checkbox"></input>Wire card actions to
+<code>/api/feed</code> endpoint</label></li>
+<li><label><input type="checkbox"></input>Replace root route with Motion
+feed</label></li>
+<li><label><input type="checkbox"></input>Reduce sidebar to 3 items (Motion,
+Clearing, Engine Room)</label></li>
+</ul>
+<h3 id="f2-snapshotting">F2: Snapshotting</h3>
+<ul class="task-list">
+<li><label><input type="checkbox"></input><code>&lt;SnapshotCard&gt;</code>
+component — renders structured data (tables, charts, KPIs)</label></li>
+<li><label><input type="checkbox"></input><code>/api/feed/snapshot</code>
+endpoint — brain generates visual data on demand</label></li>
+<li><label><input type="checkbox"></input>Support types: entity list, pipeline
+view, KPI summary, timeline</label></li>
+</ul>
+<h3 id="f3-your-clearing">F3: Your Clearing</h3>
+<ul class="task-list">
+<li><label><input type="checkbox"></input><code>src/app/clearing/page.tsx</code> — freeform
+notes, file drop, brain chat in reflective context</label></li>
+</ul>
+<h3 id="f4-engine-room-motion-map">F4: Engine Room + Motion Map</h3>
+<ul class="task-list">
+<li><label><input type="checkbox"></input><code>src/app/engine/page.tsx</code>
+— Motion Map renders harness logic, integration management</label></li>
+</ul>
+<h3 id="f5-page-retirement">F5: Page Retirement</h3>
+<ul class="task-list">
+<li><label><input type="checkbox"></input>Verify snapshotting covers all old
+page data, then remove dormant pages</label></li>
+</ul>
+<hr />
+<h2 id="dependency-map">Dependency Map</h2>
+<pre><code>BACKEND (can start now):
+
+  B0 (Verify Foundation)
+   │
+   ▼
+  B1 (Feed Cards + Scanner Integration) ──────────────────┐
+   │                                                       │
+   ├──► B2 (Training at Scale)                             │
+   │         │                                             │
+   │         ▼                                             │
+   ├──► B3 (Daily Synthesis) ──► B4 (Behavioral Adaptation)│
+   │                                                       │
+   └──► B5 (Knowledge Ingestion)                           │
+                                                           │
+FRONTEND (blocked on design):                              │
+                                                           │
+  F1 (Feed UI) ◄───────────────────────────────────────────┘
+   │
+   ├──► F2 (Snapshots) ──► F5 (Page Retirement)
+   ├──► F3 (Clearing)
+   └──► F4 (Engine Room)</code></pre>
+<p><strong>B0 is the starting point. B1 is the critical backend
+deliverable — it creates the data the feed consumes.</strong></p>
+<p>B2 and B3 can run in parallel after B1. B4 requires enough training
+data from B2 and insights from B3.</p>
+<p>F1 is blocked on design but the backend (B1) can be fully ready
+before design is done.</p>
+<hr />
+<h2 id="what-stays-as-is">What Stays As-Is</h2>
+<ul>
+<li>All existing API routes (they serve the brain, not the old UI)</li>
+<li>All lib files (scanners, loaders, intelligence modules) — modified,
+not replaced</li>
+<li>All brain/ harness docs (11 department + 11 pipeline MDs)</li>
+<li>Database schema (additive changes only — new tables, no drops)</li>
+<li>Supabase infrastructure</li>
+<li>MCP server (28 tools, deploy when ready)</li>
+<li>All 35 existing pages (dormant, not deleted — may cannibalize
+components)</li>
+</ul>
+<hr />
+<p><em>Last updated: 2026-03-14</em></p>
+</body>
+</html>

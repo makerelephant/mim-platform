@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).</title>
+  <style>
+
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+
+ul.task-list[class]{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+font-size: inherit;
+width: 0.8em;
+margin: 0 0.8em 0.2em -1.6em;
+vertical-align: middle;
+}
+.display.math{display: block; text-align: center; margin: 0.5rem auto;}
+
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+{ counter-reset: source-line 0; }
+pre.numberSource code > span
+{ position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+{ content: counter(source-line);
+position: relative; left: -1em; text-align: right; vertical-align: baseline;
+border: none; display: inline-block;
+-webkit-touch-callout: none; -webkit-user-select: none;
+-khtml-user-select: none; -moz-user-select: none;
+-ms-user-select: none; user-select: none;
+padding: 0 4px; width: 4em;
+color: #aaaaaa;
+}
+pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa; padding-left: 4px; }
+div.sourceCode
+{ }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+code span.al { color: #ff0000; font-weight: bold; } 
+code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.at { color: #7d9029; } 
+code span.bn { color: #40a070; } 
+code span.bu { color: #008000; } 
+code span.cf { color: #007020; font-weight: bold; } 
+code span.ch { color: #4070a0; } 
+code span.cn { color: #880000; } 
+code span.co { color: #60a0b0; font-style: italic; } 
+code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.do { color: #ba2121; font-style: italic; } 
+code span.dt { color: #902000; } 
+code span.dv { color: #40a070; } 
+code span.er { color: #ff0000; font-weight: bold; } 
+code span.ex { } 
+code span.fl { color: #40a070; } 
+code span.fu { color: #06287e; } 
+code span.im { color: #008000; font-weight: bold; } 
+code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.kw { color: #007020; font-weight: bold; } 
+code span.op { color: #666666; } 
+code span.ot { color: #007020; } 
+code span.pp { color: #bc7a00; } 
+code span.sc { color: #4070a0; } 
+code span.ss { color: #bb6688; } 
+code span.st { color: #4070a0; } 
+code span.va { color: #19177c; } 
+code span.vs { color: #4070a0; } 
+code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } 
+</style>
+  <style type="text/css">body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; max-width: 800px; margin: 40px auto; padding: 0 20px; line-height: 1.6; color: #1a1a1a; font-size: 14px; }
+h1 { font-size: 28px; border-bottom: 2px solid #1a1a1a; padding-bottom: 8px; margin-top: 40px; }
+h2 { font-size: 22px; border-bottom: 1px solid #ddd; padding-bottom: 6px; margin-top: 32px; }
+h3 { font-size: 17px; margin-top: 24px; }
+table { border-collapse: collapse; width: 100%; margin: 16px 0; font-size: 13px; }
+th, td { border: 1px solid #ccc; padding: 8px 12px; text-align: left; }
+th { background: #f5f5f5; font-weight: 600; }
+code { background: #f5f5f5; padding: 2px 6px; border-radius: 3px; font-size: 13px; }
+pre { background: #f5f5f5; padding: 16px; border-radius: 4px; overflow-x: auto; font-size: 12px; }
+blockquote { border-left: 3px solid #ccc; margin: 16px 0; padding: 8px 16px; color: #555; }
+ul, ol { padding-left: 24px; }
+li { margin: 4px 0; }
+@media print { body { margin: 0; max-width: 100%; } }
+</style>
+</head>
+<body>
+<header id="title-block-header">
+<h1 class="title">This is a [Next.js](https://nextjs.org) project
+bootstrapped with
+[`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).</h1>
+</header>
+<p>This is a <a href="https://nextjs.org">Next.js</a> project
+bootstrapped with <a href="https://nextjs.org/docs/app/api-reference/cli/create-next-app"><code>create-next-app</code></a>.</p>
+<h2 id="build-notes">Build Notes</h2>
+<h3 id="mar-12-2026---my-brain-ui-redesign-figma-implementation">Mar 12,
+2026 - My Brain UI Redesign (Figma Implementation)</h3>
+<p>Implemented two Figma designs for the My Brain dashboard page
+(<code>src/app/page.tsx</code>):</p>
+<p><strong>Design #1 - My Brain UI Master (Figma node 57-2118)</strong>
+- Full-width white header with “My Brain” title (4xl), welcome subtitle,
+and blue pill badge showing last visit time - 5 KPI metric cards
+(Revenue, Items Sold, AOV, Links Created, Convert to Buy) with custom
+PNG icons from Figma - Chat prompt panel (left): white card with inner
+grey area, MiMBrain logo, “How can i help?” heading, rounded input with
+blue border, calendar/paperclip/mic/send icons, “Launch a Gopher” and
+“Schedule a Meeting” action buttons - Important Conversations panel
+(right): scrollable feed with Update button, filter pills (Slack/Gmail),
+conversation cards with status icons, source badges, priority dots,
+suggested action boxes with Add To Tasks/MiM Brain buttons and thumbs
+up/down</p>
+<p><strong>Design #2 - Chat Detail View (Figma node 44-1874)</strong> -
+White card container wrapping entire chat experience - Top bar with
+“Back” pill button and “Share this Conversation” link - Prior
+Conversations sidebar (287px, cream #f3f2ed background) with
+conversation list - Chat thread area with user messages in light
+purple/grey boxes (#f1eff3) and brain text responses - Bottom input bar
+with blue border, “Launch a Gopher” (blue) and “Add To Knowledge”
+(purple) action buttons, paperclip/mic/send icons</p>
+<p><strong>New icon assets</strong>: <code>revenue.png</code>,
+<code>items-sold.png</code>, <code>aov.png</code>,
+<code>links-created.png</code>, <code>convert-to-buy.png</code>,
+<code>brain-icon-small.png</code>, <code>mimbrain-logo.png</code> in
+<code>/public/icons/</code></p>
+<h2 id="getting-started">Getting Started</h2>
+<p>First, run the development server:</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode bash"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ex">npm</span> run dev</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="co"># or</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="ex">yarn</span> dev</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="co"># or</span></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="ex">pnpm</span> dev</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="co"># or</span></span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="ex">bun</span> dev</span></code></pre></div>
+<p>Open <a href="http://localhost:3000">http://localhost:3000</a> with
+your browser to see the result.</p>
+<p>You can start editing the page by modifying
+<code>app/page.tsx</code>. The page auto-updates as you edit the
+file.</p>
+<p>This project uses <a href="https://nextjs.org/docs/app/building-your-application/optimizing/fonts"><code>next/font</code></a>
+to automatically optimize and load <a href="https://vercel.com/font">Geist</a>, a new font family for
+Vercel.</p>
+<h2 id="learn-more">Learn More</h2>
+<p>To learn more about Next.js, take a look at the following
+resources:</p>
+<ul>
+<li><a href="https://nextjs.org/docs">Next.js Documentation</a> - learn
+about Next.js features and API.</li>
+<li><a href="https://nextjs.org/learn">Learn Next.js</a> - an
+interactive Next.js tutorial.</li>
+</ul>
+<p>You can check out <a href="https://github.com/vercel/next.js">the
+Next.js GitHub repository</a> - your feedback and contributions are
+welcome!</p>
+<h2 id="deploy-on-vercel">Deploy on Vercel</h2>
+<p>The easiest way to deploy your Next.js app is to use the <a href="https://vercel.com/new?utm_medium=default-template&amp;filter=next.js&amp;utm_source=create-next-app&amp;utm_campaign=create-next-app-readme">Vercel
+Platform</a> from the creators of Next.js.</p>
+<p>Check out our <a href="https://nextjs.org/docs/app/building-your-application/deploying">Next.js
+deployment documentation</a> for more details.</p>
+</body>
+</html>

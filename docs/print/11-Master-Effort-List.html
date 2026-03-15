@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>MiM Platform — Master Effort List</title>
+  <style>
+
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+
+ul.task-list[class]{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+font-size: inherit;
+width: 0.8em;
+margin: 0 0.8em 0.2em -1.6em;
+vertical-align: middle;
+}
+.display.math{display: block; text-align: center; margin: 0.5rem auto;}
+</style>
+  <style type="text/css">body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; max-width: 800px; margin: 40px auto; padding: 0 20px; line-height: 1.6; color: #1a1a1a; font-size: 14px; }
+h1 { font-size: 28px; border-bottom: 2px solid #1a1a1a; padding-bottom: 8px; margin-top: 40px; }
+h2 { font-size: 22px; border-bottom: 1px solid #ddd; padding-bottom: 6px; margin-top: 32px; }
+h3 { font-size: 17px; margin-top: 24px; }
+table { border-collapse: collapse; width: 100%; margin: 16px 0; font-size: 13px; }
+th, td { border: 1px solid #ccc; padding: 8px 12px; text-align: left; }
+th { background: #f5f5f5; font-weight: 600; }
+code { background: #f5f5f5; padding: 2px 6px; border-radius: 3px; font-size: 13px; }
+pre { background: #f5f5f5; padding: 16px; border-radius: 4px; overflow-x: auto; font-size: 12px; }
+blockquote { border-left: 3px solid #ccc; margin: 16px 0; padding: 8px 16px; color: #555; }
+ul, ol { padding-left: 24px; }
+li { margin: 4px 0; }
+@media print { body { margin: 0; max-width: 100%; } }
+</style>
+</head>
+<body>
+<header id="title-block-header">
+<h1 class="title">MiM Platform — Master Effort List</h1>
+</header>
+<h1 id="mim-platform-master-effort-list">MiM Platform — Master Effort
+List</h1>
+<blockquote>
+<p>Living document. Captures all major efforts/epics at summary level.
+Add new items as they emerge — unpack in separate sessions.</p>
+<p><strong>UI paradigm shift (March 2026):</strong> All static CRM pages
+are being replaced by a feed-first architecture (Your Motion + Your
+Clearing + Engine Room). Efforts below reflect this. See
+<code>docs/product/ui-requirements.md</code> for the governing
+architecture document.</p>
+</blockquote>
+<hr />
+<h2 id="currently-built-in-progress">Currently Built / In Progress</h2>
+<ol type="1">
+<li><p><strong>Core Data Layer</strong> — Contacts, organizations,
+pipeline, tasks, support issues, activity log. CRUD complete, entity
+linking, multi-schema DB architecture. Operational. <em>(The old static
+CRM UI exists but is being deprecated — data layer
+remains.)</em></p></li>
+<li><p><strong>Communication Intelligence Pipeline</strong> — Gmail
+scanner classifies inbound messages using Acumen categories, resolves
+entities, creates tasks, logs correspondence. Classifier now uses 11
+business categories with importance levels and reasoning.
+Operational.</p></li>
+<li><p><strong>Brain Chat Interface</strong> — Chat-first interface with
+ask_brain API endpoint (entity resolution → dossiers → knowledge search
+→ Claude synthesis). Working. <em>(Will become a core interaction mode
+within Your Motion and Your Clearing.)</em></p></li>
+<li><p><strong>Decision Logging &amp; CEO Review</strong> — Acumen
+classifier writes category, importance, and reasoning to
+<code>brain.classification_log</code>. CEO reviews via
+<code>/decisions</code> page (correct/incorrect/partial). Operational
+but low volume.</p></li>
+<li><p><strong>Data Ontology Migration</strong> — Multi-schema
+architecture (core/crm/intel/platform/brain), DB hardening, RLS,
+indexes, TypeScript types, route consolidation. Complete.</p></li>
+<li><p><strong>MCP Server</strong> — 28 tools across 9 domains
+(knowledge, instructions, intelligence, tasks, contacts, organizations,
+pipeline, correspondence, system). Built, not yet deployed to a
+host.</p></li>
+<li><p><strong>Acumen Classifier System</strong> — 11 email categories
+with harness rules, department docs, harness loader, classification
+pipeline. Complete and classifying live email.</p></li>
+</ol>
+<hr />
+<h2 id="near-term-efforts">Near-Term Efforts</h2>
+<ol start="8" type="1">
+<li><p><strong>Your Motion — Feed Architecture</strong> — Replace all
+static CRM pages with a single scrollable feed of interactive cards.
+Card types: Decision, Action/Spawn, Signal, Briefing, Snapshot,
+Intelligence, Reflection. This is the primary frontend build. See
+<code>docs/product/ui-requirements.md</code> and
+<code>docs/product/design-brief.md</code>.</p></li>
+<li><p><strong>Snapshotting Engine</strong> — On-demand data views
+compiled by the brain into the feed. Replaces static pages for orgs,
+contacts, pipeline, KPIs. The brain generates visual data cards in
+response to user prompts.</p></li>
+<li><p><strong>Your Clearing</strong> — Thinking/prep space. Freeform
+notes, file ingestion, brain-assisted reflection. The gate for deeper
+work — not a creation tool.</p></li>
+<li><p><strong>Engine Room + Motion Map</strong> — Configuration layer
+with the Motion Map at center (CEO’s readable view of the harness).
+Integrations, data connections, permissions.</p></li>
+<li><p><strong>Classifier Training at Scale</strong> — Run scanner on
+higher email volume, accumulate CEO review data, compute per-category
+accuracy scores. Prove classifier before expanding autonomy. See
+<code>docs/operational/training-plan.md</code>.</p></li>
+<li><p><strong>Daily Synthesis Loop</strong> — Automated agent that
+reads recent activity, cross-references signals, writes derived
+insights, produces CEO briefing cards in the feed. The compounding
+mechanism.</p></li>
+<li><p><strong>Parallel Entity Intelligence Layer</strong> — New
+brain-schema tables for entity provenance, derived insights, enrichment
+queue. The knowledge layer that makes entities smarter over
+time.</p></li>
+</ol>
+<hr />
+<h2 id="medium-term-efforts">Medium-Term Efforts</h2>
+<ol start="15" type="1">
+<li><p><strong>Market Intelligence Scanners</strong> — External data
+internalization: competitive intelligence, content concepts,
+M&amp;A/strategic, customer/partner acquisition, consumer insights.
+Start with one, prove the pipeline.</p></li>
+<li><p><strong>Conversation Persistence &amp; History</strong> — Brain
+chat responses persisted to DB so prior conversations are fully
+reloadable. Thread continuity across sessions.</p></li>
+<li><p><strong>Knowledge Ingestion Pipeline</strong> — Accept any asset
+type (docs, CSVs, PDFs, images), extract content, classify, embed, map
+to entities. The “training data” ingest path. Key input channel for Your
+Clearing.</p></li>
+<li><p><strong>Commerce Integration</strong> — Connect Printify/Drop
+data to platform. Real KPI values (revenue, items sold, AOV,
+conversion). Product creation event capture with design detail
+logging.</p></li>
+<li><p><strong>Behavioral Adaptation Engine</strong> — System learns
+from CEO corrections and pattern data. Writes/updates its own behavioral
+rules. Confidence thresholds gate which rules auto-execute vs require
+approval.</p></li>
+<li><p><strong>The MiMGina Notepad</strong> — Mobile-first (iPhone) note
+capture. Minimal formatting, image/file attachment, voice dictation.
+Submits to MiM Brain with confidentiality rank, harness/category
+assignment, due date. First consumer of the MiMGina input door.</p></li>
+<li><p><strong>Teams</strong> — Add a second user acting independently
+on the same brain. Prerequisite to any scaling. Not multi-tenant —
+shared brain, separate views.</p></li>
+<li><p><strong>Automated Report Generation</strong> — Monthly investor
+updates, internal company updates, other recurring reports — generated
+by the brain from accumulated intelligence and delivered
+automatically.</p></li>
+<li><p><strong>Long-Form Content &amp; Research Publishing</strong> —
+Brain-generated research papers, weekly industry newsletters, daily
+content bites. Customer-facing platform where orgs see relevant content
+and KPI insights.</p></li>
+</ol>
+<hr />
+<h2 id="longer-term-efforts">Longer-Term Efforts</h2>
+<ol start="24" type="1">
+<li><p><strong>Harness Operating Model</strong> — Structured MD
+behavioral contracts defining departments, processes, decision trees,
+scanner logic. Needs its own discovery/scoping session.</p></li>
+<li><p><strong>Autonomous Enrichment</strong> — Self-directed scanner
+activation where the brain identifies entities with low knowledge
+completeness and triggers enrichment without being asked.</p></li>
+<li><p><strong>Asset/OCR Performance Intelligence</strong> — Closed-loop
+system: capture product creation design decisions → correlate with
+performance data → derive actionable product insights.</p></li>
+<li><p><strong>Model Abstraction Layer</strong> — Abstract the LLM
+interface so Claude can be swapped for local models on high-volume
+structured tasks. Configuration not code changes.</p></li>
+<li><p><strong>Multi-User / Auth</strong> — Full login system,
+role-based access, team member permissions.</p></li>
+<li><p><strong>Calendaring Tools</strong> — TBD, to be
+unpacked.</p></li>
+<li><p><strong>Game Event &amp; Scheduling Tools</strong> — TBD, to be
+unpacked.</p></li>
+<li><p><strong>Team Chatting Tools</strong> — TBD, to be
+unpacked.</p></li>
+</ol>
+<hr />
+<p><em>Last updated: 2026-03-14</em></p>
+</body>
+</html>

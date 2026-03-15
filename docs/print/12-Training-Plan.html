@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>MiMBrain — Acumen Training Plan</title>
+  <style>
+
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+
+ul.task-list[class]{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+font-size: inherit;
+width: 0.8em;
+margin: 0 0.8em 0.2em -1.6em;
+vertical-align: middle;
+}
+.display.math{display: block; text-align: center; margin: 0.5rem auto;}
+</style>
+  <style type="text/css">body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; max-width: 800px; margin: 40px auto; padding: 0 20px; line-height: 1.6; color: #1a1a1a; font-size: 14px; }
+h1 { font-size: 28px; border-bottom: 2px solid #1a1a1a; padding-bottom: 8px; margin-top: 40px; }
+h2 { font-size: 22px; border-bottom: 1px solid #ddd; padding-bottom: 6px; margin-top: 32px; }
+h3 { font-size: 17px; margin-top: 24px; }
+table { border-collapse: collapse; width: 100%; margin: 16px 0; font-size: 13px; }
+th, td { border: 1px solid #ccc; padding: 8px 12px; text-align: left; }
+th { background: #f5f5f5; font-weight: 600; }
+code { background: #f5f5f5; padding: 2px 6px; border-radius: 3px; font-size: 13px; }
+pre { background: #f5f5f5; padding: 16px; border-radius: 4px; overflow-x: auto; font-size: 12px; }
+blockquote { border-left: 3px solid #ccc; margin: 16px 0; padding: 8px 16px; color: #555; }
+ul, ol { padding-left: 24px; }
+li { margin: 4px 0; }
+@media print { body { margin: 0; max-width: 100%; } }
+</style>
+</head>
+<body>
+<header id="title-block-header">
+<h1 class="title">MiMBrain — Acumen Training Plan</h1>
+</header>
+<h1 id="mimbrain-acumen-training-plan">MiMBrain — Acumen Training
+Plan</h1>
+<blockquote>
+<p><strong>Purpose:</strong> Define how we train the brain’s classifier
+to earn autonomy. Training is internal calibration, not a product
+feature. Design for speed, not beauty.</p>
+<p><strong>Companion docs:</strong> -
+<code>docs/technical/architecture-mimbrain-v2.md</code> — autonomy layer
+design - <code>docs/operational/harness-scope-email-categories.md</code>
+— the 11 categories being trained -
+<code>docs/product/ui-requirements.md</code> — Section 11 (Training
+Phase)</p>
+<p><strong>Last updated:</strong> 2026-03-14</p>
+</blockquote>
+<hr />
+<h2 id="what-were-training">What We’re Training</h2>
+<p>The Acumen classifier reads incoming emails and assigns: 1.
+<strong>Category</strong> — one of 11 business categories (Legal,
+Customer/Partner Ops, Accounting &amp; Finance, Scheduling, Fundraising,
+Product/Engineering, UX &amp; Design, Marketing, AI, Family,
+Administration) 2. <strong>Importance level</strong> — high, medium, or
+low 3. <strong>Reasoning</strong> — why the brain chose this category
+and importance</p>
+<p>The CEO reviews each classification and marks it correct, incorrect,
+or partial. If incorrect, the CEO provides the correct category and/or
+importance.</p>
+<hr />
+<h2 id="current-state">Current State</h2>
+<ul>
+<li>Gmail scanner operational, classifying with Acumen categories</li>
+<li><code>brain.classification_log</code> captures category, importance,
+reasoning per email</li>
+<li><code>/decisions</code> page allows CEO review
+(correct/incorrect/partial)</li>
+<li><code>/api/decisions/review</code> endpoint updates review data</li>
+<li>Volume: low (ad hoc scanner runs, ~5-10 emails per run)</li>
+</ul>
+<hr />
+<h2 id="training-phases">Training Phases</h2>
+<h3 id="phase-1-volume-ramp-current-200-reviewed-decisions">Phase 1:
+Volume Ramp (Current → 200 reviewed decisions)</h3>
+<p><strong>Goal:</strong> Get enough data to measure per-category
+accuracy.</p>
+<p><strong>Actions:</strong> - Run Gmail scanner daily (manual trigger
+or scheduled) - CEO reviews all pending classifications via
+<code>/decisions</code> page - Target: 200 reviewed decisions across all
+11 categories</p>
+<p><strong>Metrics to track:</strong> - Total decisions reviewed -
+Per-category accuracy (correct / total per category) -
+Per-importance-level accuracy - Common misclassification patterns
+(category A mistaken for category B)</p>
+<p><strong>UI needs:</strong> The existing <code>/decisions</code> page
+is sufficient. Add a stats section showing per-category accuracy
+counts.</p>
+<h3 id="phase-2-harness-refinement-200-500-reviewed-decisions">Phase 2:
+Harness Refinement (200 → 500 reviewed decisions)</h3>
+<p><strong>Goal:</strong> Fix systematic errors by updating harness
+rules.</p>
+<p><strong>Actions:</strong> - Identify categories with &lt;80% accuracy
+- Review misclassified examples to find pattern - Update classifier
+rules in <code>brain/pipelines/email-classification/</code> to address
+confusion - Re-run scanner on previously misclassified emails to verify
+improvement - Update department docs in <code>brain/departments/</code>
+if domain knowledge is missing</p>
+<p><strong>Metrics to track:</strong> - Per-category accuracy trend
+(should improve after harness edits) - Confusion matrix (which
+categories get confused for which) - Importance accuracy separately from
+category accuracy</p>
+<h3 id="phase-3-confidence-gating-500-reviewed-decisions">Phase 3:
+Confidence Gating (500+ reviewed decisions)</h3>
+<p><strong>Goal:</strong> Earn partial autonomy on high-accuracy
+categories.</p>
+<p><strong>Actions:</strong> - Compute confidence score per category:
+rolling accuracy over last 50 decisions - Set autonomy threshold (e.g.,
+90% accuracy over 50 decisions) - Categories above threshold: brain can
+auto-execute low-risk actions (create tasks, log correspondence) -
+Categories below threshold: continue requiring CEO review - Decision log
+records whether each action was auto-executed or CEO-approved</p>
+<p><strong>Graduation criteria per category:</strong> - ≥90% accuracy
+over last 50 reviewed decisions - ≥85% importance-level accuracy - Zero
+“incorrect” reviews in last 10 decisions</p>
+<h3 id="phase-4-behavioral-adaptation-ongoing">Phase 4: Behavioral
+Adaptation (Ongoing)</h3>
+<p><strong>Goal:</strong> Brain learns from corrections
+automatically.</p>
+<p><strong>Actions:</strong> - System identifies repeated correction
+patterns (e.g., CEO always changes Marketing → Product/Engineering for
+emails about landing pages) - Brain proposes harness rule updates to CEO
+- CEO approves or rejects proposed changes - Approved changes written to
+harness files automatically</p>
+<hr />
+<h2 id="training-ui-requirements">Training UI Requirements</h2>
+<p>Training is temporary — it exists to calibrate the brain, then
+largely disappears. Design for speed.</p>
+<h3 id="during-training-phase-1-2">During Training (Phase 1-2)</h3>
+<p>The existing <code>/decisions</code> page handles this. Enhancements
+needed:</p>
+<ul>
+<li><strong>Stats bar</strong> at top: total reviewed, overall accuracy
+%, per-category breakdown</li>
+<li><strong>Speed</strong> is critical: one-tap correct, two-tap
+incorrect (tap incorrect → dropdown for correct category)</li>
+<li><strong>Batch mode</strong>: show 5-10 cards at once, keyboard
+shortcuts for rapid review (Y = correct, N = incorrect, S = skip)</li>
+<li><strong>Filter</strong>: show only unreviewed, or filter by
+category</li>
+</ul>
+<h3 id="during-steady-state-phase-3">During Steady State (Phase 3+)</h3>
+<ul>
+<li>Training UI largely deprecated — only surfaces when brain encounters
+low-confidence or novel patterns</li>
+<li>Occasional review requests appear as Decision cards in the feed (“I
+classified this as Marketing/Medium — does that seem right?”)</li>
+<li>Monthly accuracy report card in the feed as a Briefing card</li>
+</ul>
+<hr />
+<h2 id="data-requirements">Data Requirements</h2>
+<table>
+<colgroup>
+<col style="width: 20%" />
+<col style="width: 38%" />
+<col style="width: 41%" />
+</colgroup>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Where it lives</th>
+<th>How to compute</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Category accuracy</td>
+<td><code>brain.classification_log</code></td>
+<td><code>COUNT(ceo_review_status = &#39;correct&#39;) / COUNT(ceo_review_status != &#39;pending&#39;)</code>
+per <code>acumen_category</code></td>
+</tr>
+<tr>
+<td>Importance accuracy</td>
+<td><code>brain.classification_log</code></td>
+<td>Same but for <code>importance_level</code> vs
+<code>ceo_correct_importance</code></td>
+</tr>
+<tr>
+<td>Confusion pairs</td>
+<td><code>brain.classification_log</code></td>
+<td><code>GROUP BY (acumen_category, ceo_correct_category) WHERE ceo_review_status = &#39;incorrect&#39;</code></td>
+</tr>
+<tr>
+<td>Rolling confidence</td>
+<td><code>brain.classification_log</code></td>
+<td>Last 50 reviewed per category, ordered by
+<code>ceo_reviewed_at</code></td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="success-criteria">Success Criteria</h2>
+<p>Training is “done” when: - All 11 categories have ≥50 reviewed
+decisions - Overall accuracy ≥85% - At least 3 categories have graduated
+to autonomous execution - CEO reports that review volume has
+meaningfully decreased</p>
+<p>Training is never truly finished — but it transitions from active
+calibration to passive monitoring.</p>
+<hr />
+<p><em>Last updated: 2026-03-14</em></p>
+</body>
+</html>
