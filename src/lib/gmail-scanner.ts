@@ -1308,7 +1308,7 @@ export async function runGmailScanner(
             from_email: fromEmail,
             to: toEmails,
             subject: details.subject,
-            date: emailDate?.toISOString() || null,
+            date: emailDate || null,
             direction,
             sentiment: result.sentiment,
             tags: result.tags,
