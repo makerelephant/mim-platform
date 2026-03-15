@@ -4,29 +4,9 @@
 
 MiMBrain is an autonomous business intelligence platform for Made in Motion, a youth sports technology company. It processes business data (emails, messages, documents), classifies it, prioritizes it, and recommends actions — with the goal of becoming an autonomous Chief Operating Officer.
 
-## Guardrails — Non-Negotiable Beliefs
-
-These five beliefs govern every product, hiring, and architecture decision. They are not aspirational — they are operational constraints.
-
-1. **AI will be 1000x smarter than humans within 12 months.** Build for that world, not this one.
-2. **Probabilistic products like ours will be reimagined on AI stacks in their entirety.** Nothing we build should be inherited from the era of deterministic software.
-3. **Every hire must be 1 of 10 people total to get us to a billion-dollar company.** No filler. No "nice to have" roles.
-4. **Everyone must be in motion.** Us. Our customers. Our users. Everyone.
-5. **Don't design for a deterministic architecture that will no longer exist.** If it assumes static schemas, fixed workflows, or human-in-the-loop by default — rethink it.
-
-## Company Cadence: 1 → 10 → 1,000
-
-The entire company moves in three phases. Every feature, every hire, every sprint maps to one of these:
-
-1. **The 1** — Build Your Motion for the CEO. One person, fully orchestrated. This is what we're doing now.
-2. **The 10** — The team of 10 share parts of their motion that underpin the internal operations and execution of the company. This is teams.
-3. **The 1,000** — The regiment of efforts that go out into the market. The product at scale.
-
-We do not skip phases. We do not build for the 1,000 before the 1 is in motion.
-
 ## Critical Context: UI Paradigm Shift (March 2026)
 
-The platform is undergoing a radical UI redesign. **All 34 static CRM-style pages are being replaced** with a feed-first architecture. The root route (`/`) becomes the Motion feed. Existing pages are kept as dormant routes (not deleted) — we may cannibalize components later. Do not build new static pages.
+The platform is undergoing a radical UI redesign. **All 34 static CRM-style pages are being replaced** with a feed-first architecture. Do not build or maintain static pages.
 
 ### Three Surfaces
 
@@ -57,19 +37,6 @@ The platform is undergoing a radical UI redesign. **All 34 static CRM-style page
 - **AI:** Claude API for classification, synthesis, chat
 - **MCP Server:** 28 tools across 9 domains (built, not yet deployed to host)
 
-## How to Run
-
-```bash
-npm install
-npm run dev   # http://localhost:3000
-```
-
-Requires `.env.local` with:
-```
-NEXT_PUBLIC_SUPABASE_URL=...
-NEXT_PUBLIC_SUPABASE_ANON_KEY=...
-```
-
 ## Terminology
 
 | Term | Meaning |
@@ -91,9 +58,8 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=...
 
 ## Do Not
 
-- Build new static CRM pages or add sidebar navigation items (old pages are dormant, not deleted)
+- Build static CRM pages or add sidebar navigation items
 - Build creation tools inside Your Clearing (it's a gate, not a workshop)
-- Build any UI that writes directly to the database — all data mutation flows through the single ingestion endpoint; the brain is the only actor
 - Add notification badges or counts
 - Use `<Image>` for SVGs — use `<img>` tags
 - Change the backend architecture (architecture-mimbrain-v2.md is the north star)
