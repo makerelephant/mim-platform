@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import Anthropic from "@anthropic-ai/sdk";
+import { embedText } from "@/lib/embeddings";
 
 export const maxDuration = 120;
 
@@ -52,6 +53,58 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // ── 2b. Vector search (RAG) ──
+    const vectorKbTitles = new Set<string>();
+    const vectorCorrSubjects = new Set<string>();
+    try {
+      const questionEmbedding = await embedText(question);
+      if (questionEmbedding) {
+        // Search knowledge chunks via RPC
+        const [{ data: kbVectorResults }, { data: corrVectorResults }] = await Promise.all([
+          sb.schema("brain").rpc("search_knowledge", {
+            query_embedding: JSON.stringify(questionEmbedding),
+            match_threshold: 0.7,
+            match_count: 8,
+          }),
+          sb.schema("brain").rpc("search_correspondence", {
+            query_embedding: JSON.stringify(questionEmbedding),
+            match_threshold: 0.7,
+            match_count: 8,
+          }),
+        ]);
+
+        if (kbVectorResults && kbVectorResults.length > 0) {
+          contextParts.push("## Knowledge Base (Vector Search)\n");
+          for (const r of kbVectorResults) {
+            const title = r.metadata?.title || r.title || "Untitled";
+            vectorKbTitles.add(title);
+            const similarity = r.similarity ? ` (${(r.similarity * 100).toFixed(0)}% match)` : "";
+            contextParts.push(`**${title}**${similarity}`);
+            contextParts.push(r.content?.slice(0, 400) || "");
+            contextParts.push("");
+          }
+          sourceNotes.push(`${kbVectorResults.length} vector knowledge matches`);
+        }
+
+        if (corrVectorResults && corrVectorResults.length > 0) {
+          contextParts.push("## Correspondence (Vector Search)\n");
+          for (const r of corrVectorResults) {
+            const subject = r.subject || r.metadata?.subject || "No subject";
+            vectorCorrSubjects.add(subject);
+            const similarity = r.similarity ? ` (${(r.similarity * 100).toFixed(0)}% match)` : "";
+            const dir = r.direction === "outbound" ? "SENT" : "RECEIVED";
+            const date = r.sent_at ? new Date(r.sent_at).toLocaleDateString() : "";
+            contextParts.push(`- [${r.channel || "email"}/${dir}] "${subject}" (${date})${similarity}`);
+            if (r.content) contextParts.push(`  ${r.content.slice(0, 200)}`);
+          }
+          contextParts.push("");
+          sourceNotes.push(`${corrVectorResults.length} vector correspondence matches`);
+        }
+      }
+    } catch (vecErr) {
+      console.warn("Vector search failed (falling back to keyword):", vecErr);
+    }
+
     // ── 3. Knowledge keyword search ──
     const words = question.split(/\s+/).filter((w: string) => w.length > 3).slice(0, 5);
     if (words.length > 0) {
@@ -63,13 +116,17 @@ export async function POST(request: NextRequest) {
         .limit(5);
 
       if (kbResults && kbResults.length > 0) {
-        contextParts.push("## Knowledge Base\n");
-        for (const kb of kbResults) {
-          contextParts.push(`**${kb.title}** [${kb.source_type}]`);
-          if (kb.summary) contextParts.push(kb.summary.slice(0, 300));
-          contextParts.push("");
+        // Deduplicate: skip results already found via vector search
+        const filtered = kbResults.filter((kb: any) => !vectorKbTitles.has(kb.title));
+        if (filtered.length > 0) {
+          contextParts.push("## Knowledge Base (Keyword)\n");
+          for (const kb of filtered) {
+            contextParts.push(`**${kb.title}** [${kb.source_type}]`);
+            if (kb.summary) contextParts.push(kb.summary.slice(0, 300));
+            contextParts.push("");
+          }
+          sourceNotes.push(`${filtered.length} keyword knowledge docs`);
         }
-        sourceNotes.push(`${kbResults.length} knowledge docs`);
       }
     }
 
@@ -84,15 +141,19 @@ export async function POST(request: NextRequest) {
         .limit(8);
 
       if (corr && corr.length > 0) {
-        contextParts.push("## Recent Correspondence\n");
-        for (const c of corr) {
-          const dir = c.direction === "outbound" ? "SENT" : "RECEIVED";
-          const date = c.sent_at ? new Date(c.sent_at).toLocaleDateString() : "";
-          contextParts.push(`- [${c.channel}/${dir}] "${c.subject}" (${date})`);
-          if (c.summary) contextParts.push(`  ${c.summary.slice(0, 200)}`);
+        // Deduplicate: skip results already found via vector search
+        const filteredCorr = corr.filter((c: any) => !vectorCorrSubjects.has(c.subject));
+        if (filteredCorr.length > 0) {
+          contextParts.push("## Recent Correspondence (Keyword)\n");
+          for (const c of filteredCorr) {
+            const dir = c.direction === "outbound" ? "SENT" : "RECEIVED";
+            const date = c.sent_at ? new Date(c.sent_at).toLocaleDateString() : "";
+            contextParts.push(`- [${c.channel}/${dir}] "${c.subject}" (${date})`);
+            if (c.summary) contextParts.push(`  ${c.summary.slice(0, 200)}`);
+          }
+          contextParts.push("");
+          sourceNotes.push(`${filteredCorr.length} keyword correspondence matches`);
         }
-        contextParts.push("");
-        sourceNotes.push(`${corr.length} correspondence matches`);
       }
     }
 

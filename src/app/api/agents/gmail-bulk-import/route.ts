@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { runGmailScanner } from "@/lib/gmail-scanner";
 
-export const maxDuration = 300; // 5 minutes max on Vercel Pro
+export const maxDuration = 120; // Vercel serverless limit
 
 /**
  * POST /api/agents/gmail-bulk-import
