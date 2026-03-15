@@ -6,15 +6,15 @@
 
 ---
 
-## Currently Built / In Progress
+## Complete / Operational
 
 1. **Core Data Layer** — Contacts, organizations, pipeline, tasks, support issues, activity log. CRUD complete, entity linking, multi-schema DB architecture. Operational. *(The old static CRM UI exists but is being deprecated — data layer remains.)*
 
-2. **Communication Intelligence Pipeline** — Gmail scanner classifies inbound messages using Acumen categories, resolves entities, creates tasks, logs correspondence. Classifier now uses 11 business categories with importance levels and reasoning. Operational.
+2. **Communication Intelligence Pipeline** — Gmail scanner classifies inbound messages using Acumen categories, resolves entities, creates tasks, logs correspondence, and emits feed cards with full email metadata (from, to, subject). Classifier uses 11 business categories with importance levels and reasoning. Contact quality gate prevents junk creation. Operational.
 
-3. **Brain Chat Interface** — Chat-first interface with ask_brain API endpoint (entity resolution → dossiers → knowledge search → Claude synthesis). Working. *(Will become a core interaction mode within Your Motion and Your Clearing.)*
+3. **Brain Chat Interface** — Chat-first interface with ask_brain API endpoint (entity resolution → dossiers → knowledge search → Claude synthesis). Working. Used by Your Clearing for brain-assisted prep.
 
-4. **Decision Logging & CEO Review** — Acumen classifier writes category, importance, and reasoning to `brain.classification_log`. CEO reviews via `/decisions` page (correct/incorrect/partial). Operational but low volume.
+4. **Decision Logging & CEO Review** — Acumen classifier writes category, importance, and reasoning to `brain.classification_log`. CEO now reviews via feed card actions (Do/Hold/No) in Your Motion instead of the legacy `/decisions` page. Operational.
 
 5. **Data Ontology Migration** — Multi-schema architecture (core/crm/intel/platform/brain), DB hardening, RLS, indexes, TypeScript types, route consolidation. Complete.
 
@@ -22,66 +22,74 @@
 
 7. **Acumen Classifier System** — 11 email categories with harness rules, department docs, harness loader, classification pipeline. Complete and classifying live email.
 
+8. **Your Motion — Feed Architecture** — ✅ COMPLETE. Single scrollable feed of interactive cards at root route. Card types: Decision, Action, Signal, Briefing, Snapshot, Intelligence, Reflection. Cards show email context (from/to/subject), priority-based title styling (high=black, medium=slate-500, low=slate-400), Do/Hold/No actions, "More about this" expansion. `brain.feed_cards` table with visibility_scope, ingestion_log for audit.
+
+9. **Snapshotting Engine** — ✅ COMPLETE. `/api/brain/snapshot` accepts natural language queries, uses Claude to determine which tables to query, executes against Supabase, formats results into markdown snapshot cards in the feed. Replaces static pages.
+
+10. **Your Clearing** — ✅ COMPLETE. `/clearing` route. Thought capture (absorbed into brain memory via ingestion), brain-assisted Q&A, drag-and-drop file ingestion. Multiple sessions, dissolve when done. Gate for deeper work — not a creation tool.
+
+11. **Engine Room + Motion Map** — ✅ COMPLETE. `/engine` route. Four tabs: Motion Map (renders harness classifier markdown files), Brain Accuracy (per-category stats from CEO actions), Autonomy (category progress toward self-governance), Integrations (connection status).
+
+12. **Classifier Training at Scale** — ✅ COMPLETE (infrastructure). `/api/brain/accuracy` computes per-category accuracy from CEO feed actions (Do=correct, No=incorrect). Daily cron scheduling via Vercel (scanner at 6am EST, briefing at 7am EST). Training velocity depends on CEO daily review cadence.
+
+13. **Daily Synthesis Loop** — ✅ COMPLETE. `/api/agents/daily-briefing` reads all feed cards from last 24 hours, sends to Claude for synthesis, emits a briefing card with: top line, needs attention, decisions made, patterns, heads up. Runs automatically via Vercel cron.
+
+14. **Behavioral Adaptation / Autonomy Engine** — ✅ COMPLETE (infrastructure). `/api/brain/autonomy` evaluates which categories have earned autonomous operation (20+ reviews, 90%+ accuracy). POST auto-acts on qualifying cards and emits reflection cards. Runs after each daily briefing. Autonomy tab in Engine Room shows progress.
+
+15. **Knowledge Ingestion Enhancement** — ✅ COMPLETE. `/api/brain/ingest` now emits feed cards for ingested documents. Clearing uses this for file drop ingestion.
+
+16. **Single Ingestion Point** — Core architectural principle documented. All data enters through one endpoint. Brain classifies, decides, acts, emits cards. No UI writes directly to database.
+
+17. **Visibility Scope** — `visibility_scope` field on every feed card: `personal` (Phase 1), `team` (Phase 2), `regiment` (Phase 3). Publish/subscribe model for teams — no RBAC.
+
 ---
 
-## Near-Term Efforts
+## Near-Term Efforts (Operational Phase)
 
-8. **Your Motion — Feed Architecture** — Replace all static CRM pages with a single scrollable feed of interactive cards. Card types: Decision, Action/Spawn, Signal, Briefing, Snapshot, Intelligence, Reflection. This is the primary frontend build. See `docs/product/ui-requirements.md` and `docs/product/design-brief.md`.
+18. **Training Velocity** — T1-T4 workstream. Run scanner daily, CEO reviews cards, accuracy accumulates, categories earn autonomy. Infrastructure built — needs consistent use.
 
-9. **Snapshotting Engine** — On-demand data views compiled by the brain into the feed. Replaces static pages for orgs, contacts, pipeline, KPIs. The brain generates visual data cards in response to user prompts.
-
-10. **Your Clearing** — Thinking/prep space. Freeform notes, file ingestion, brain-assisted reflection. The gate for deeper work — not a creation tool.
-
-11. **Engine Room + Motion Map** — Configuration layer with the Motion Map at center (CEO's readable view of the harness). Integrations, data connections, permissions.
-
-12. **Classifier Training at Scale** — Run scanner on higher email volume, accumulate CEO review data, compute per-category accuracy scores. Prove classifier before expanding autonomy. See `docs/operational/training-plan.md`.
-
-13. **Daily Synthesis Loop** — Automated agent that reads recent activity, cross-references signals, writes derived insights, produces CEO briefing cards in the feed. The compounding mechanism.
-
-14. **Parallel Entity Intelligence Layer** — New brain-schema tables for entity provenance, derived insights, enrichment queue. The knowledge layer that makes entities smarter over time.
+19. **Parallel Entity Intelligence Layer** — New brain-schema tables for entity provenance, derived insights, enrichment queue. The knowledge layer that makes entities smarter over time.
 
 ---
 
 ## Medium-Term Efforts
 
-15. **Market Intelligence Scanners** — External data internalization: competitive intelligence, content concepts, M&A/strategic, customer/partner acquisition, consumer insights. Start with one, prove the pipeline.
+20. **Market Intelligence Scanners** — External data internalization: competitive intelligence, content concepts, M&A/strategic, customer/partner acquisition, consumer insights. Start with one, prove the pipeline.
 
-16. **Conversation Persistence & History** — Brain chat responses persisted to DB so prior conversations are fully reloadable. Thread continuity across sessions.
+21. **Conversation Persistence & History** — Brain chat responses persisted to DB so prior conversations are fully reloadable. Thread continuity across sessions.
 
-17. **Knowledge Ingestion Pipeline** — Accept any asset type (docs, CSVs, PDFs, images), extract content, classify, embed, map to entities. The "training data" ingest path. Key input channel for Your Clearing.
+22. **Commerce Integration** — Connect Printify/Drop data to platform. Real KPI values (revenue, items sold, AOV, conversion). Product creation event capture with design detail logging.
 
-18. **Commerce Integration** — Connect Printify/Drop data to platform. Real KPI values (revenue, items sold, AOV, conversion). Product creation event capture with design detail logging.
+23. **The MiMGina Notepad** — Mobile-first (iPhone) note capture. Minimal formatting, image/file attachment, voice dictation. Submits to MiM Brain with confidentiality rank, harness/category assignment, due date. First consumer of the MiMGina input door.
 
-19. **Behavioral Adaptation Engine** — System learns from CEO corrections and pattern data. Writes/updates its own behavioral rules. Confidence thresholds gate which rules auto-execute vs require approval.
+24. **Teams** — Add a second user acting independently on the same brain. Prerequisite to any scaling. Not multi-tenant — shared brain, separate views. Publish/subscribe visibility model already designed.
 
-20. **The MiMGina Notepad** — Mobile-first (iPhone) note capture. Minimal formatting, image/file attachment, voice dictation. Submits to MiM Brain with confidentiality rank, harness/category assignment, due date. First consumer of the MiMGina input door.
+25. **Automated Report Generation** — Monthly investor updates, internal company updates, other recurring reports — generated by the brain from accumulated intelligence and delivered automatically.
 
-21. **Teams** — Add a second user acting independently on the same brain. Prerequisite to any scaling. Not multi-tenant — shared brain, separate views.
-
-22. **Automated Report Generation** — Monthly investor updates, internal company updates, other recurring reports — generated by the brain from accumulated intelligence and delivered automatically.
-
-23. **Long-Form Content & Research Publishing** — Brain-generated research papers, weekly industry newsletters, daily content bites. Customer-facing platform where orgs see relevant content and KPI insights.
+26. **Long-Form Content & Research Publishing** — Brain-generated research papers, weekly industry newsletters, daily content bites. Customer-facing platform where orgs see relevant content and KPI insights.
 
 ---
 
 ## Longer-Term Efforts
 
-24. **Harness Operating Model** — Structured MD behavioral contracts defining departments, processes, decision trees, scanner logic. Needs its own discovery/scoping session.
+27. **Harness Operating Model** — Structured MD behavioral contracts defining departments, processes, decision trees, scanner logic. Needs its own discovery/scoping session.
 
-25. **Autonomous Enrichment** — Self-directed scanner activation where the brain identifies entities with low knowledge completeness and triggers enrichment without being asked.
+28. **Autonomous Enrichment** — Self-directed scanner activation where the brain identifies entities with low knowledge completeness and triggers enrichment without being asked.
 
-26. **Asset/OCR Performance Intelligence** — Closed-loop system: capture product creation design decisions → correlate with performance data → derive actionable product insights.
+29. **Asset/OCR Performance Intelligence** — Closed-loop system: capture product creation design decisions → correlate with performance data → derive actionable product insights.
 
-27. **Model Abstraction Layer** — Abstract the LLM interface so Claude can be swapped for local models on high-volume structured tasks. Configuration not code changes.
+30. **Model Abstraction Layer** — Abstract the LLM interface so Claude can be swapped for local models on high-volume structured tasks. Configuration not code changes.
 
-28. **Multi-User / Auth** — Full login system, role-based access, team member permissions.
+31. **Multi-User / Auth** — Full login system, role-based access, team member permissions.
 
-29. **Calendaring Tools** — TBD, to be unpacked.
+32. **Calendaring Tools** — TBD, to be unpacked.
 
-30. **Game Event & Scheduling Tools** — TBD, to be unpacked.
+33. **Game Event & Scheduling Tools** — TBD, to be unpacked.
 
-31. **Team Chatting Tools** — TBD, to be unpacked.
+34. **Team Chatting Tools** — TBD, to be unpacked.
+
+35. **Person Feed Protocol** — AI-native identity standard (Phase 3). Design constraint only — don't build, don't block.
 
 ---
 
-*Last updated: 2026-03-14*
+*Last updated: 2026-03-15*

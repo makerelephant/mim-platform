@@ -22,13 +22,15 @@ The CEO reviews each classification and marks it correct, incorrect, or partial.
 
 ---
 
-## Current State
+## Current State (Updated 2026-03-15)
 
-- Gmail scanner operational, classifying with Acumen categories
-- `brain.classification_log` captures category, importance, reasoning per email
-- `/decisions` page allows CEO review (correct/incorrect/partial)
-- `/api/decisions/review` endpoint updates review data
-- Volume: low (ad hoc scanner runs, ~5-10 emails per run)
+- Gmail scanner operational, classifying with Acumen categories, emitting feed cards
+- `brain.feed_cards` table captures cards with card_type, priority, acumen_category
+- CEO reviews via **Your Motion** feed — Do/Hold/No actions on cards (replaces old `/decisions` page)
+- `/api/brain/accuracy` computes per-category accuracy from CEO actions
+- `/api/brain/autonomy` evaluates and executes autonomous operation for qualifying categories
+- Vercel cron: scanner at 6am EST daily, briefing at 7am EST daily
+- Volume: daily cron operational, needs consistent CEO review cadence
 
 ---
 
@@ -49,7 +51,7 @@ The CEO reviews each classification and marks it correct, incorrect, or partial.
 - Per-importance-level accuracy
 - Common misclassification patterns (category A mistaken for category B)
 
-**UI needs:** The existing `/decisions` page is sufficient. Add a stats section showing per-category accuracy counts.
+**UI:** CEO reviews via feed card actions (Do/Hold/No) in Your Motion. Accuracy stats visible at `/engine` (Brain Accuracy tab). Autonomy progress at `/engine` (Autonomy tab).
 
 ### Phase 2: Harness Refinement (200 → 500 reviewed decisions)
 
@@ -139,4 +141,4 @@ Training is never truly finished — but it transitions from active calibration 
 
 ---
 
-*Last updated: 2026-03-14*
+*Last updated: 2026-03-15*
