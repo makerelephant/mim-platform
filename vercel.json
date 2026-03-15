@@ -1,0 +1,13 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "crons": [
+    {
+      "path": "/api/agents/gmail-scanner",
+      "schedule": "0 */2 * * *"
+    },
+    {
+      "path": "/api/agents/daily-briefing",
+      "schedule": "0 12 * * *"
+    }
+  ]
+}
