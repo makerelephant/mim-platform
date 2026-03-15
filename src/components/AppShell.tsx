@@ -2,21 +2,18 @@
 
 import { usePathname } from "next/navigation";
 import { Sidebar } from "@/components/Sidebar";
+import { LegacySidebar } from "@/components/LegacySidebar";
 import { Suspense } from "react";
 
-/** Routes that should NOT show the sidebar */
+/** Routes that should NOT show any sidebar */
 const BARE_ROUTES = new Set(["/login"]);
 
-/** Routes that use the old CRM layout (dark sidebar) */
-const LEGACY_ROUTES = [
-  "/brain", "/tasks", "/orgs", "/contacts", "/people",
-  "/pipeline", "/outreach", "/activity", "/intelligence",
-  "/knowledge", "/news-sentiment", "/applications",
-  "/settings", "/decisions",
-];
+/** Routes that use the NEW Motion sidebar */
+const MOTION_ROUTES = ["/", "/clearing", "/engine", "/me"];
 
-function isLegacyRoute(pathname: string): boolean {
-  return LEGACY_ROUTES.some((r) => pathname === r || pathname.startsWith(r + "/"));
+function isMotionRoute(pathname: string): boolean {
+  if (pathname === "/") return true;
+  return MOTION_ROUTES.some((r) => r !== "/" && (pathname === r || pathname.startsWith(r + "/")));
 }
 
 export function AppShell({ children }: { children: React.ReactNode }) {
@@ -26,24 +23,27 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     return <>{children}</>;
   }
 
-  // Legacy CRM pages — render without the new sidebar
-  if (isLegacyRoute(pathname)) {
+  // New Motion layout — minimal floating sidebar
+  if (isMotionRoute(pathname)) {
     return (
-      <div className="flex h-screen overflow-hidden">
-        <main className="flex-1 overflow-y-auto bg-[#f3f3f3] p-4 sm:p-6">
+      <div className="flex h-screen overflow-hidden bg-[#f6f5f5]">
+        <Suspense>
+          <Sidebar />
+        </Suspense>
+        <main className="flex-1 overflow-y-auto">
           {children}
         </main>
       </div>
     );
   }
 
-  // New Motion layout — minimal floating sidebar
+  // Everything else — old dark sidebar
   return (
-    <div className="flex h-screen overflow-hidden bg-[#f6f5f5]">
+    <div className="flex h-screen overflow-hidden">
       <Suspense>
-        <Sidebar />
+        <LegacySidebar />
       </Suspense>
-      <main className="flex-1 overflow-y-auto">
+      <main className="flex-1 overflow-y-auto bg-[#f3f3f3] p-4 sm:p-6">
         {children}
       </main>
     </div>
