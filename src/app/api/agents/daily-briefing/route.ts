@@ -135,11 +135,23 @@ Keep it under 500 words. No corporate speak. Be direct.`;
       return NextResponse.json({ success: false, error: insertErr.message }, { status: 500 });
     }
 
+    // ── Run autonomy check after briefing ──
+    let autonomyResult = null;
+    try {
+      const autonomyRes = await fetch(new URL("/api/brain/autonomy", process.env.NEXT_PUBLIC_SITE_URL || "https://mim-platform.vercel.app"), {
+        method: "POST",
+      });
+      autonomyResult = await autonomyRes.json();
+    } catch {
+      // Non-fatal
+    }
+
     return NextResponse.json({
       success: true,
       card_id: card?.id,
       stats: { total, decisions, actions, signals, acted, pending, critical },
       title: briefingTitle,
+      autonomy: autonomyResult,
     });
   } catch (err) {
     return NextResponse.json(
