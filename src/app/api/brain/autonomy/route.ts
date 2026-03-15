@@ -120,7 +120,8 @@ function envError() {
   return NextResponse.json({ success: false, error: "Missing env vars" }, { status: 500 });
 }
 
-async function computeAutonomyReport(sb: ReturnType<typeof createClient>) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function computeAutonomyReport(sb: any) {
   const { data: actedCards } = await sb
     .schema("brain")
     .from("feed_cards")
