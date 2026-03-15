@@ -73,6 +73,13 @@ export default function FeedCard({ card, onAction, onDismiss }: FeedCardProps) {
   const isActed = card.status === "acted";
   const timeAgo = formatDistanceToNow(new Date(card.created_at), { addSuffix: false });
 
+  // Extract email metadata if present
+  const meta = card.metadata as Record<string, unknown> | null;
+  const fromName = meta?.from_name as string | undefined;
+  const fromEmail = meta?.from_email as string | undefined;
+  const subject = meta?.subject as string | undefined;
+  const toEmails = meta?.to as string[] | undefined;
+
   async function handleAction(action: "do" | "no" | "not_now") {
     setActing(true);
     try {
@@ -110,6 +117,31 @@ export default function FeedCard({ card, onAction, onDismiss }: FeedCardProps) {
           </span>
         </div>
       </div>
+
+      {/* ── Email Context ── */}
+      {(fromName || fromEmail || subject) && (
+        <div className="px-5 pt-3 pb-0 space-y-0.5">
+          {(fromName || fromEmail) && (
+            <p className="text-xs text-[#6e7b80]">
+              <span className="font-semibold text-[#344054]">From:</span>{" "}
+              {fromName && <span className="font-medium text-[#1e252a]">{fromName}</span>}
+              {fromEmail && <span className="text-[#6e7b80]"> &lt;{fromEmail}&gt;</span>}
+            </p>
+          )}
+          {toEmails && toEmails.length > 0 && (
+            <p className="text-xs text-[#6e7b80]">
+              <span className="font-semibold text-[#344054]">To:</span>{" "}
+              {toEmails.join(", ")}
+            </p>
+          )}
+          {subject && (
+            <p className="text-xs text-[#6e7b80]">
+              <span className="font-semibold text-[#344054]">Subject:</span>{" "}
+              <span className="text-[#1e252a]">{subject}</span>
+            </p>
+          )}
+        </div>
+      )}
 
       {/* ── Title ── */}
       <div className="px-5 pt-4 pb-1">
