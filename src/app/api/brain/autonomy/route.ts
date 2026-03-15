@@ -99,7 +99,7 @@ export async function POST() {
     return NextResponse.json({
       success: true,
       auto_acted: autoActed,
-      autonomous_categories: autonomousSlugs,
+      auto_acted_categories: autonomousSlugs,
       ...report,
     });
   } catch (err) {
