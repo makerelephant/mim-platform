@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { runGmailScanner } from "@/lib/gmail-scanner";
 
-export const maxDuration = 120; // Vercel serverless limit
+export const maxDuration = 120;
 
 /**
  * POST /api/agents/gmail-bulk-import

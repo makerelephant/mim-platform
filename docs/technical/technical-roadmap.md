@@ -131,16 +131,27 @@ The build is done. Now the system needs **use**:
 2. **Scanner runs daily** — Vercel cron fires at 6am EST
 3. **Briefing runs daily** — Vercel cron fires at 7am EST, runs autonomy check
 4. **Categories earn autonomy** — 20+ reviews at 90%+ accuracy = auto-act
-5. **Design iteration** — UI polish based on CEO feedback (card design, sidebar, spacing)
+5. **Bulk import historical email** — `/engine/import` for fast training data accumulation
+6. **Design iteration** — UI polish based on CEO feedback (card design, sidebar, spacing)
 
 ### Training Workstream (T1-T4)
 
 | Step | What | Status |
 |------|------|--------|
-| T1 | Volume ramp (100+ classifications/day) | 🔲 Needs consistent scanner runs |
+| T1 | Volume ramp (100+ classifications/day) | 🟡 Bulk import available at `/engine/import` |
 | T2 | CEO review cadence (daily 5-min review) | 🔲 Needs habit formation |
 | T3 | Harness refinement (rewrite dept MDs from corrections) | 🔲 Needs accuracy data |
 | T4 | Confidence gating (auto-act on high-confidence categories) | ✅ Infrastructure built |
+
+### Memory / RAG Workstream
+
+| Step | What | Status |
+|------|------|--------|
+| R1 | Embedding pipeline (OpenAI text-embedding-3-small) | ✅ Built — needs `OPENAI_API_KEY` in Vercel env |
+| R2 | Auto-embed on ingestion | ✅ Wired into `/api/brain/ingest` |
+| R3 | Vector search in brain Q&A | ✅ `/api/brain/ask` uses cosine similarity + keyword dedup |
+| R4 | Backfill existing knowledge | ✅ `/api/brain/embed-backfill` endpoint ready |
+| R5 | Correction learning | ✅ `/api/brain/learn` stores corrections as institutional memory |
 
 ---
 
