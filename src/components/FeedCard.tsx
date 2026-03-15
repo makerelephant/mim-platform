@@ -1,9 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Trash2, ArrowUpRight, ChevronDown, ChevronUp, CheckCircle2, Clock, XCircle } from "lucide-react";
+import { ChevronDown, ChevronUp } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
-import Image from "next/image";
 
 /* eslint-disable @next/next/no-img-element */
 
@@ -52,18 +51,15 @@ function sourceLabel(source: string): string {
   return source;
 }
 
-function priorityConfig(priority: string | null | undefined) {
+function titleStyle(priority: string | null | undefined): string {
   switch (priority) {
     case "critical":
-      return { label: "Critical", color: "bg-red-500" };
     case "high":
-      return { label: "High", color: "bg-red-500" };
-    case "medium":
-      return { label: "Medium", color: "bg-amber-500" };
+      return "text-[32px] leading-[1.15] font-bold text-[#1a1a1a]";
     case "low":
-      return { label: "Low", color: "bg-slate-400" };
-    default:
-      return { label: "Medium", color: "bg-amber-500" };
+      return "text-[20px] leading-[1.2] font-semibold text-[#94A3B8]";
+    default: // medium
+      return "text-[24px] leading-[1.2] font-semibold text-[#64748B]";
   }
 }
 
@@ -72,8 +68,8 @@ function priorityConfig(priority: string | null | undefined) {
 export default function FeedCard({ card, onAction, onDismiss }: FeedCardProps) {
   const [expanded, setExpanded] = useState(false);
   const [acting, setActing] = useState(false);
-  const pri = priorityConfig(card.priority);
   const isDecision = card.card_type === "decision";
+  const isAction = card.card_type === "action";
   const isActed = card.status === "acted";
   const timeAgo = formatDistanceToNow(new Date(card.created_at), { addSuffix: false });
 
@@ -96,86 +92,140 @@ export default function FeedCard({ card, onAction, onDismiss }: FeedCardProps) {
   }
 
   return (
-    <div className={`bg-white rounded-xl shadow-[0px_1px_4px_0px_rgba(0,0,0,0.1)] overflow-hidden transition-all ${isActed ? "opacity-60" : ""}`}>
-      {/* ── Header Bar ── */}
-      <div className="flex items-center justify-between px-4 py-2.5 bg-[rgba(238,242,245,0.6)]">
-        <div className="flex items-center gap-3 min-w-0">
-          <Image
+    <div className={`bg-white rounded-xl shadow-[0px_1px_4px_0px_rgba(0,0,0,0.08)] overflow-hidden transition-all ${isActed ? "opacity-50" : ""}`}>
+
+      {/* ── Header Pill ── */}
+      <div className="px-5 pt-5 pb-0">
+        <div className="inline-flex items-center gap-2.5 bg-[#f4f5f6] rounded-full px-4 py-2">
+          <img
             src="/icons/gophers.png"
             alt=""
-            width={22}
-            height={26}
+            width={24}
+            height={28}
             className="shrink-0"
           />
-          <span className="text-xs text-[#6e7b80]" style={{ fontFamily: "'Inter', sans-serif" }}>
+          <span className="text-sm text-[#6e7b80]" style={{ fontFamily: "var(--font-geist-sans), 'Geist', sans-serif" }}>
             {timeAgo} Ago from{" "}
             <span className="font-bold text-[#1e252a]">{sourceLabel(card.source_type)}</span>
           </span>
-          <div className="flex items-center gap-1.5 shrink-0">
-            <span className={`w-2 h-2 rounded-full ${pri.color}`} />
-            <span className="text-xs font-medium text-[#344054]">{pri.label}</span>
-          </div>
-        </div>
-        <div className="flex items-center gap-4 shrink-0">
-          <button
-            onClick={handleDismiss}
-            disabled={acting || isActed}
-            className="text-slate-400 hover:text-slate-600 transition-colors disabled:opacity-30"
-          >
-            <Trash2 className="w-5 h-5" />
-          </button>
-          <button
-            onClick={() => setExpanded(!expanded)}
-            className="text-slate-400 hover:text-slate-600 transition-colors"
-          >
-            <ArrowUpRight className="w-5 h-5" />
-          </button>
         </div>
       </div>
 
       {/* ── Title ── */}
-      <div className="px-5 pt-4 pb-2">
-        <h2 className={`leading-tight tracking-tight ${
-          card.priority === "critical" || card.priority === "high"
-            ? "text-2xl font-bold text-[#1a1a1a]"
-            : card.priority === "low"
-              ? "text-base font-semibold text-[#94A3B8]"
-              : "text-lg font-semibold text-[#64748B]"
-        }`}>
+      <div className="px-5 pt-4 pb-1">
+        <h2
+          className={`tracking-tight ${titleStyle(card.priority)}`}
+          style={{ fontFamily: "var(--font-geist-sans), 'Geist', sans-serif" }}
+        >
           {card.title}
         </h2>
-
-        {/* Entity name as subtitle */}
-        {card.entity_name && (
-          <p className="text-sm font-semibold text-[#344054] mt-1">
-            {card.entity_name}
-          </p>
-        )}
       </div>
 
-      {/* ── Body ── */}
-      {card.body && (
-        <div className="px-5 pb-3">
-          <p className="text-sm text-[#4b5563] leading-relaxed">
-            {card.body}
-          </p>
+      {/* ── Action Buttons (Decision cards) ── */}
+      {isDecision && !isActed && (
+        <div className="px-5 pt-2 pb-1 flex items-center gap-6">
+          <button
+            onClick={() => handleAction("do")}
+            disabled={acting}
+            className="inline-flex items-center gap-1.5 text-sm font-medium text-[#344054] hover:text-emerald-700 transition-colors disabled:opacity-40"
+          >
+            Do
+            <svg width="22" height="22" viewBox="0 0 22 22" fill="none" className="shrink-0">
+              <circle cx="11" cy="11" r="10" stroke="#16a34a" strokeWidth="1.5" fill="none" />
+              <path d="M7 11l3 3 5-5" stroke="#16a34a" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+            </svg>
+          </button>
+          <button
+            onClick={() => handleAction("not_now")}
+            disabled={acting}
+            className="inline-flex items-center gap-1.5 text-sm font-medium text-[#344054] hover:text-amber-700 transition-colors disabled:opacity-40"
+          >
+            Hold
+            <svg width="22" height="22" viewBox="0 0 22 22" fill="none" className="shrink-0">
+              <circle cx="11" cy="11" r="10" stroke="#d97706" strokeWidth="1.5" fill="none" />
+              <path d="M8 8.5C8.5 7 10 6.5 11 7.5c1 1-0.5 2-1 3s-0.5 2 0.5 3c1 1 2.5 0.5 3-0.5" stroke="#d97706" strokeWidth="1.5" strokeLinecap="round" fill="none" />
+            </svg>
+          </button>
+          <button
+            onClick={() => handleAction("no")}
+            disabled={acting}
+            className="inline-flex items-center gap-1.5 text-sm font-medium text-[#344054] hover:text-red-700 transition-colors disabled:opacity-40"
+          >
+            No
+            <svg width="22" height="22" viewBox="0 0 22 22" fill="none" className="shrink-0">
+              <circle cx="11" cy="11" r="10" stroke="#dc2626" strokeWidth="1.5" fill="none" />
+              <rect x="7" y="7" width="8" height="8" rx="1.5" stroke="#dc2626" strokeWidth="1.5" fill="none" />
+              <circle cx="11" cy="11" r="2" fill="#dc2626" />
+            </svg>
+          </button>
         </div>
       )}
 
-      {/* ── Expand Trigger ── */}
-      {(card.reasoning || card.metadata) && (
+      {/* ── Action Buttons (Action cards) ── */}
+      {isAction && !isActed && (
+        <div className="px-5 pt-2 pb-1 flex items-center gap-6">
+          <button
+            onClick={() => handleAction("do")}
+            disabled={acting}
+            className="inline-flex items-center gap-1.5 text-sm font-medium text-[#344054] hover:text-emerald-700 transition-colors disabled:opacity-40"
+          >
+            Do
+            <svg width="22" height="22" viewBox="0 0 22 22" fill="none" className="shrink-0">
+              <circle cx="11" cy="11" r="10" stroke="#16a34a" strokeWidth="1.5" fill="none" />
+              <path d="M7 11l3 3 5-5" stroke="#16a34a" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+            </svg>
+          </button>
+          <button
+            onClick={() => handleDismiss()}
+            disabled={acting}
+            className="inline-flex items-center gap-1.5 text-sm font-medium text-[#344054] hover:text-slate-500 transition-colors disabled:opacity-40"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
+
+      {/* ── Acted indicator ── */}
+      {isActed && card.ceo_action && (
+        <div className="px-5 pt-2 pb-1">
+          <span className={`inline-flex items-center gap-1.5 text-sm font-semibold ${
+            card.ceo_action === "do" ? "text-emerald-600" :
+            card.ceo_action === "no" ? "text-red-500" :
+            "text-amber-600"
+          }`}>
+            {card.ceo_action === "do" ? "✓ Done" : card.ceo_action === "no" ? "✗ Declined" : "⏸ On Hold"}
+          </span>
+        </div>
+      )}
+
+      {/* ── Entity Name ── */}
+      {card.entity_name && (
+        <div className="px-5 pt-3 pb-0">
+          <p className="text-base font-bold text-[#1e252a]">{card.entity_name}</p>
+        </div>
+      )}
+
+      {/* ── Body ── */}
+      {card.body && (
+        <div className="px-5 pt-2 pb-3">
+          <p className="text-sm text-[#4b5563] leading-relaxed">{card.body}</p>
+        </div>
+      )}
+
+      {/* ── More about this ── */}
+      {(card.reasoning || card.metadata || card.acumen_category || (card.related_entities && card.related_entities.length > 0)) && (
         <button
           onClick={() => setExpanded(!expanded)}
-          className="flex items-center gap-1.5 px-5 pb-3 text-xs text-slate-400 hover:text-slate-600 transition-colors"
+          className="flex items-center gap-1 px-5 pb-4 pt-1 text-sm font-medium text-[#0ea5e9] hover:text-[#0284c7] transition-colors"
         >
-          {expanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-          {expanded ? "Less" : "More..."}
+          {expanded ? "Less" : "More about this"}
+          {expanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
         </button>
       )}
 
       {/* ── Expanded Content ── */}
       {expanded && (
-        <div className="px-5 pb-4 space-y-3 border-t border-slate-100 pt-3">
+        <div className="px-5 pb-5 space-y-3 border-t border-slate-100 pt-3">
           {card.reasoning && (
             <div>
               <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Brain&apos;s Reasoning</p>
@@ -202,69 +252,6 @@ export default function FeedCard({ card, onAction, onDismiss }: FeedCardProps) {
               </div>
             </div>
           )}
-          {card.ceo_action && (
-            <div>
-              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Your Action</p>
-              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${
-                card.ceo_action === "do" ? "bg-emerald-50 text-emerald-700" :
-                card.ceo_action === "no" ? "bg-red-50 text-red-700" :
-                "bg-amber-50 text-amber-700"
-              }`}>
-                {card.ceo_action === "do" ? "Done" : card.ceo_action === "no" ? "Declined" : "Deferred"}
-              </span>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* ── Actions (Decision cards only, not yet acted) ── */}
-      {isDecision && !isActed && (
-        <div className="px-5 pb-4 flex items-center gap-3">
-          <button
-            onClick={() => handleAction("do")}
-            disabled={acting}
-            className="inline-flex items-center gap-1.5 px-5 py-2 rounded-lg text-sm font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 transition-colors disabled:opacity-50"
-          >
-            <CheckCircle2 className="w-4 h-4" />
-            DO
-          </button>
-          <button
-            onClick={() => handleAction("not_now")}
-            disabled={acting}
-            className="inline-flex items-center gap-1.5 px-5 py-2 rounded-lg text-sm font-semibold bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100 transition-colors disabled:opacity-50"
-          >
-            <Clock className="w-4 h-4" />
-            NOT NOW
-          </button>
-          <button
-            onClick={() => handleAction("no")}
-            disabled={acting}
-            className="inline-flex items-center gap-1.5 px-5 py-2 rounded-lg text-sm font-semibold bg-red-50 text-red-700 border border-red-200 hover:bg-red-100 transition-colors disabled:opacity-50"
-          >
-            <XCircle className="w-4 h-4" />
-            DON&apos;T
-          </button>
-        </div>
-      )}
-
-      {/* ── Actions for action cards ── */}
-      {!isDecision && !isActed && card.card_type === "action" && (
-        <div className="px-5 pb-4 flex items-center gap-3">
-          <button
-            onClick={() => handleAction("do")}
-            disabled={acting}
-            className="inline-flex items-center gap-1.5 px-5 py-2 rounded-lg text-sm font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 transition-colors disabled:opacity-50"
-          >
-            <CheckCircle2 className="w-4 h-4" />
-            DO
-          </button>
-          <button
-            onClick={() => handleAction("no")}
-            disabled={acting}
-            className="inline-flex items-center gap-1.5 px-5 py-2 rounded-lg text-sm font-semibold bg-slate-50 text-slate-600 border border-slate-200 hover:bg-slate-100 transition-colors disabled:opacity-50"
-          >
-            Dismiss
-          </button>
         </div>
       )}
     </div>
