@@ -46,7 +46,7 @@ interface AccuracyData {
 // ─── Component ──────────────────────────────────────────────────────────────
 
 export default function EngineRoomPage() {
-  const [activeTab, setActiveTab] = useState<"map" | "accuracy" | "integrations">("map");
+  const [activeTab, setActiveTab] = useState<"map" | "accuracy" | "integrations" | "autonomy">("map");
   const [harness, setHarness] = useState<HarnessFile[]>([]);
   const [accuracy, setAccuracy] = useState<AccuracyData | null>(null);
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
@@ -101,6 +101,7 @@ export default function EngineRoomPage() {
         {[
           { key: "map" as const, label: "Motion Map" },
           { key: "accuracy" as const, label: "Brain Accuracy" },
+          { key: "autonomy" as const, label: "Autonomy" },
           { key: "integrations" as const, label: "Integrations" },
         ].map((tab) => (
           <button
@@ -253,6 +254,9 @@ export default function EngineRoomPage() {
               </>
             )}
           </div>
+        ) : activeTab === "autonomy" ? (
+          /* ── Autonomy ── */
+          <AutonomyPanel />
         ) : (
           /* ── Integrations ── */
           <div className="grid grid-cols-2 gap-4">
@@ -276,6 +280,98 @@ function StatCard({ label, value, color }: { label: string; value: string; color
     <div className="bg-white rounded-xl shadow-sm p-4">
       <p className="text-xs text-[#94A3B8] mb-1">{label}</p>
       <p className={`text-2xl font-bold ${color || "text-[#1e252a]"}`}>{value}</p>
+    </div>
+  );
+}
+
+function AutonomyPanel() {
+  const [data, setData] = useState<{
+    autonomous_categories: Array<{ category: string; accuracy: number; reviews: number }>;
+    approaching_categories: Array<{ category: string; accuracy: number; reviews: number }>;
+    all_categories: Array<{ category: string; accuracy: number; reviews: number; qualifies: boolean }>;
+    thresholds: { reviews: number; accuracy: number };
+  } | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch("/api/brain/autonomy")
+      .then((r) => r.json())
+      .then((d) => { if (d.success) setData(d); })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) return <div className="text-sm text-[#94A3B8]">Loading...</div>;
+  if (!data) return <div className="text-sm text-[#94A3B8]">Could not load autonomy data.</div>;
+
+  return (
+    <div className="space-y-6">
+      {/* Thresholds */}
+      <div className="bg-white rounded-xl shadow-sm p-5">
+        <h3 className="text-sm font-bold text-[#1e252a] mb-2">Autonomy Thresholds</h3>
+        <p className="text-xs text-[#6e7b80]">
+          A category earns autonomous operation when it reaches <strong>{data.thresholds.reviews}+ reviews</strong> with <strong>{data.thresholds.accuracy}%+ accuracy</strong>.
+          The brain will auto-approve cards in those categories without asking.
+        </p>
+      </div>
+
+      {/* Autonomous */}
+      {data.autonomous_categories.length > 0 && (
+        <div className="bg-emerald-50 rounded-xl shadow-sm p-5 border border-emerald-100">
+          <h3 className="text-sm font-bold text-emerald-800 mb-3">🟢 Autonomous Categories</h3>
+          <div className="space-y-2">
+            {data.autonomous_categories.map((c) => (
+              <div key={c.category} className="flex items-center gap-3">
+                <span className="text-xs font-medium text-emerald-700 w-40 truncate">{c.category}</span>
+                <span className="text-xs font-semibold text-emerald-600">{c.accuracy}%</span>
+                <span className="text-[10px] text-emerald-500">{c.reviews} reviews</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Approaching */}
+      {data.approaching_categories.length > 0 && (
+        <div className="bg-amber-50 rounded-xl shadow-sm p-5 border border-amber-100">
+          <h3 className="text-sm font-bold text-amber-800 mb-3">🟡 Approaching Autonomy</h3>
+          <div className="space-y-2">
+            {data.approaching_categories.map((c) => (
+              <div key={c.category} className="flex items-center gap-3">
+                <span className="text-xs font-medium text-amber-700 w-40 truncate">{c.category}</span>
+                <span className="text-xs font-semibold text-amber-600">{c.accuracy}%</span>
+                <span className="text-[10px] text-amber-500">{c.reviews} reviews — need {data.thresholds.reviews - c.reviews} more</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* All categories */}
+      <div className="bg-white rounded-xl shadow-sm p-5">
+        <h3 className="text-sm font-bold text-[#1e252a] mb-3">All Categories</h3>
+        {data.all_categories.length === 0 ? (
+          <p className="text-xs text-[#94A3B8]">No categories with CEO reviews yet. Act on cards in Motion to start training.</p>
+        ) : (
+          <div className="space-y-2">
+            {data.all_categories.map((c) => (
+              <div key={c.category} className="flex items-center gap-3">
+                <span className={`text-xs font-medium w-40 truncate ${c.qualifies ? "text-emerald-600" : "text-[#64748B]"}`}>
+                  {c.qualifies ? "✓ " : ""}{c.category}
+                </span>
+                <div className="flex-1 h-2 bg-[#f0f0f0] rounded-full overflow-hidden">
+                  <div
+                    className={`h-full rounded-full ${c.qualifies ? "bg-emerald-400" : c.accuracy >= 80 ? "bg-amber-400" : "bg-[#94A3B8]"}`}
+                    style={{ width: `${c.accuracy}%` }}
+                  />
+                </div>
+                <span className="text-xs font-semibold text-[#1e252a] w-12 text-right">{c.accuracy}%</span>
+                <span className="text-[10px] text-[#94A3B8] w-20 text-right">{c.reviews} reviews</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
