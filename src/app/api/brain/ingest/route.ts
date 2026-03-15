@@ -317,7 +317,37 @@ Respond with ONLY a JSON object:
         })
         .eq("id", kbId);
 
-      // ── 7. Log activity ──
+      // ── 7. Emit feed card ──
+      try {
+        const cardType = taxonomyCategories.some(c =>
+          c.includes("fundrais") || c.includes("partner") || c.includes("deal")
+        ) ? "decision" : "intelligence";
+
+        await sb.schema('brain').from("feed_cards").insert({
+          card_type: cardType,
+          title: title || summary.slice(0, 100),
+          body: summary,
+          source_type: sourceType,
+          source_ref: sourceRef || kbId,
+          acumen_category: taxonomyCategories[0] || null,
+          priority: "medium",
+          visibility_scope: "personal",
+          entity_id: entityIds[0] || null,
+          entity_type: entityIds.length > 0 ? "organizations" : null,
+          metadata: {
+            knowledge_base_id: kbId,
+            file_type: fileType || null,
+            file_name: fileName || null,
+            tags: extractedTags,
+            categories: taxonomyCategories,
+            uploaded_by: uploadedBy,
+          },
+        });
+      } catch {
+        // Non-fatal — card emission shouldn't break ingestion
+      }
+
+      // ── 8. Log activity ──
       await sb.schema('brain').from("activity").insert({
         entity_type: "system",
         entity_id: null,

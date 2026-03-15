@@ -4,10 +4,18 @@ import { runGmailScanner } from "@/lib/gmail-scanner";
 
 export const maxDuration = 120; // Allow up to 2 minutes for scanner
 
+// GET handler for Vercel cron jobs
+export async function GET() {
+  return runScanner(4); // Cron scans last 4 hours
+}
+
 export async function POST(request: Request) {
+  const body = await request.json().catch(() => ({}));
+  return runScanner(body.scanHours || 24);
+}
+
+async function runScanner(scanHours: number) {
   try {
-    const body = await request.json().catch(() => ({}));
-    const scanHours = body.scanHours || 24;
 
     // Validate required env vars
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
