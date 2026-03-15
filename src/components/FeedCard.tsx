@@ -135,7 +135,13 @@ export default function FeedCard({ card, onAction, onDismiss }: FeedCardProps) {
 
       {/* ── Title ── */}
       <div className="px-5 pt-4 pb-2">
-        <h2 className="text-2xl font-bold text-[#111928] leading-tight tracking-tight">
+        <h2 className={`leading-tight tracking-tight ${
+          card.priority === "critical" || card.priority === "high"
+            ? "text-2xl font-bold text-[#1a1a1a]"
+            : card.priority === "low"
+              ? "text-base font-semibold text-[#94A3B8]"
+              : "text-lg font-semibold text-[#64748B]"
+        }`}>
           {card.title}
         </h2>
 

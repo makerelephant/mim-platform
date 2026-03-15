@@ -72,16 +72,9 @@ export default function MotionFeedPage() {
   // ─── RENDER ──────────────────────────────────────────────────────────────
 
   return (
-    <div className="h-full flex flex-col bg-[#f3f3f3] -m-6">
+    <div className="h-full flex flex-col bg-[#f6f5f5]">
       {/* ── Header ── */}
-      <div className="bg-white px-4 sm:px-6 py-4 sm:py-5 shrink-0 shadow-[0px_1px_3px_0px_rgba(0,0,0,0.06)]">
-        <h1 className="text-2xl sm:text-3xl font-semibold text-[var(--mim-text-primary)] tracking-tight">
-          Your Motion
-        </h1>
-        <p className="text-sm text-[var(--mim-text-secondary)] tracking-tight mt-0.5">
-          {total > 0 ? `${total} items in your feed` : "Your operational life stream"}
-        </p>
-      </div>
+      {/* No header bar — the sidebar "Motion" label serves as the page identifier */}
 
       {/* ── Feed ── */}
       <div className="flex-1 overflow-y-auto">
