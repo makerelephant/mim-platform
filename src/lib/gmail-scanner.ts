@@ -15,6 +15,7 @@ import { loadTaxonomy, matchTaxonomyCategory, buildTaxonomyPromptSection, enforc
 import { loadStandingOrders, buildStandingOrdersPromptSection } from "./instruction-loader";
 import { writeProvenance, recomputeKCSForEntities } from "./entity-intelligence";
 import { buildAcumenPromptSection } from "./harness-loader";
+import { emitFeedCard, inferCardType, logIngestion } from "./feed-card-emitter";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -904,8 +905,29 @@ export async function runGmailScanner(
       // ── Resolve entities — counterparty only (never fall back to user's own email) ──
       let allMatches = resolver.resolveMultiple(counterpartyEmails);
 
-      // Auto-create contact for unresolved sender (skip user's own emails)
-      if (allMatches.length === 0 && !userEmails.has(fromEmail)) {
+      // Auto-create contact for unresolved sender — with quality gate
+      // Skip: user's own emails, generic/automated senders, company-only names
+      const JUNK_EMAIL_PATTERNS = [
+        /^no[-_.]?reply@/i, /^do[-_.]?not[-_.]?reply@/i,
+        /^support@/i, /^info@/i, /^hello@/i, /^team@/i,
+        /^billing@/i, /^sales@/i, /^admin@/i,
+        /^notifications?@/i, /^alerts?@/i, /^updates?@/i,
+        /^newsletter@/i, /^digest@/i, /^mailer/i,
+        /^feedback@/i, /^help@/i, /^contact@/i,
+        /^service[s]?@/i, /^customer@/i, /^receipt/i,
+        /^order[s]?@/i, /^confirm/i, /^bounce/i,
+        /^postmaster@/i, /^webmaster@/i,
+        /@.*\.docusign\./i, /@.*noreply\./i,
+      ];
+      const isJunkEmail = JUNK_EMAIL_PATTERNS.some(p => p.test(fromEmail));
+      const senderDisplayName = fromName || fromEmail.split("@")[0];
+      const nameParts = senderDisplayName.split(' ');
+      const hasRealName = nameParts.length >= 2 && nameParts[0].length > 1 && nameParts[1].length > 1;
+      const looksLikeCompany = /^[A-Z][a-z]+$/.test(senderDisplayName.trim()) === false
+        && !senderDisplayName.includes(' ')
+        && senderDisplayName.length > 2;
+
+      if (allMatches.length === 0 && !userEmails.has(fromEmail) && !isJunkEmail && hasRealName && !looksLikeCompany) {
         // Check if contact already exists by email
         const { data: existingByEmail } = await sb
           .schema('core').from("contacts")
@@ -1249,6 +1271,69 @@ export async function runGmailScanner(
           ceo_review_status: "pending",
         });
       } catch { /* ignore logging error */ }
+
+      // ── Emit feed card ──
+      try {
+        const cardType = inferCardType({
+          acumen_family: result.acumen_category?.split("/")[0],
+          acumen_category: result.acumen_category,
+          priority: enforcedPriority,
+          action_items: result.action_items,
+          summary: result.summary,
+        });
+
+        const card = await emitFeedCard(sb, {
+          card_type: cardType,
+          title: details.subject,
+          body: result.summary,
+          reasoning: result.acumen_reasoning || undefined,
+          source_type: "email",
+          source_ref: `gmail_${msgId}`,
+          acumen_family: result.acumen_category?.split("/")[0],
+          acumen_category: result.acumen_category,
+          priority: enforcedPriority as "critical" | "high" | "medium" | "low",
+          confidence: result.action_items[0]?.goal_relevance_score || undefined,
+          visibility_scope: "personal",
+          entity_id: entityId || undefined,
+          entity_type: entityType || undefined,
+          entity_name: result.primary_entity_name || undefined,
+          related_entities: allMatches
+            .filter(m => m.entity_id !== entityId)
+            .map(m => ({ id: m.entity_id, type: m.entity_type, name: m.entity_name })),
+          metadata: {
+            from: details.from,
+            to: details.to,
+            direction,
+            tags: result.tags,
+            sentiment: result.sentiment,
+            thread_id: details.thread_id,
+          },
+          agent_run_id: runId,
+        }, addLog);
+
+        // Log ingestion
+        await logIngestion(sb, {
+          source_type: "email",
+          source_ref: `gmail_${msgId}`,
+          raw_content: `From: ${details.from}\nSubject: ${details.subject}\n\n${details.body?.slice(0, 500)}`,
+          normalized_content: result.summary,
+          classification: {
+            acumen_category: result.acumen_category,
+            importance_level: result.importance_level,
+            priority: enforcedPriority,
+            tags: result.tags,
+            sentiment: result.sentiment,
+          },
+          actions_taken: result.action_items.map(a => ({
+            action: "create_task",
+            target: a.title,
+            result: "pending_review",
+          })),
+          feed_card_id: card?.id,
+        });
+      } catch (e) {
+        addLog(`  Feed card emission failed: ${e instanceof Error ? e.message : String(e)}`);
+      }
 
       // ── Log correspondence ──
       if (entityId) {
