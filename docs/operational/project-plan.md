@@ -42,7 +42,7 @@ One person — the CEO — operating entirely through Your Motion. The feed repl
 | B1 | Feed cards table + scanner integration | ✅ COMPLETE | B0 |
 | B2 | Classifier training at scale | ✅ COMPLETE (accuracy endpoint + crons) | B1 |
 | B3 | Daily synthesis loop | ✅ COMPLETE | B1 |
-| B4 | Behavioral adaptation | 🔲 | B2 + B3 |
+| B4 | Behavioral adaptation | ✅ COMPLETE (autonomy engine + reflection cards) | B2 + B3 |
 | B5 | Knowledge ingestion enhancement | ✅ COMPLETE (emits feed cards) | B1 |
 
 #### Frontend (Blocked on design)
@@ -53,7 +53,7 @@ One person — the CEO — operating entirely through Your Motion. The feed repl
 | F2 | Snapshotting | ✅ COMPLETE | F1 |
 | F3 | Your Clearing | ✅ COMPLETE | F1 |
 | F4 | Engine Room + Motion Map | ✅ COMPLETE | F1 |
-| F5 | Page retirement | 🔲 | F2 (verify coverage) |
+| F5 | Page retirement | ✅ COMPLETE (old pages preserved, snapshots replace views) | F2 (verify coverage) |
 
 #### Training (Parallel)
 
@@ -155,4 +155,4 @@ These apply to every decision at every phase:
 
 ---
 
-*Last updated: 2026-03-14*
+*Last updated: 2026-03-15*
