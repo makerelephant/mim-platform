@@ -88,7 +88,9 @@ Respond with ONLY a JSON object:
 
     for (const q of plan.queries) {
       try {
-        let queryBuilder = sb
+        // Use dynamic query building to avoid TypeScript deep instantiation issues
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        let queryBuilder: any = sb
           .schema(q.schema || "brain")
           .from(q.table)
           .select(q.select || "*");
