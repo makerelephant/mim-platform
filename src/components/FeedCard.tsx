@@ -67,6 +67,7 @@ export interface FeedCardData {
   ceo_action?: string | null;
   ceo_action_note?: string | null;
   created_at: string;
+  message_count?: number | null;
 }
 
 interface FeedCardProps {
@@ -327,6 +328,9 @@ export default function FeedCard({ card, onAction, onDismiss }: FeedCardProps) {
           <span className="text-sm text-[#6e7b80]" style={{ fontFamily: "var(--font-geist-sans), 'Geist', sans-serif" }}>
             {timeAgo} Ago from{" "}
             <span className="font-bold text-[#1e252a]">{sourceLabel(card.source_type)}</span>
+            {card.message_count && card.message_count > 1 && (
+              <span className="ml-1 text-xs text-[#6e7b80]">({card.message_count} messages)</span>
+            )}
           </span>
         </div>
       </div>

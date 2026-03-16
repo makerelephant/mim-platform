@@ -91,11 +91,105 @@ export function inferCardType(classification: {
   return "signal";
 }
 
+// ─── Thread Consolidation ───────────────────────────────────────────────────
+
+const PRIORITY_RANK: Record<string, number> = { critical: 4, high: 3, medium: 2, low: 1 };
+
+/**
+ * Find an existing feed card for a Gmail thread.
+ * Returns the card if found, null otherwise.
+ */
+export async function findExistingThreadCard(
+  sb: SupabaseClient,
+  threadId: string,
+  log?: (msg: string) => void,
+): Promise<FeedCard | null> {
+  const addLog = log || (() => {});
+
+  // Check by thread_id column
+  const { data } = await sb
+    .schema("brain")
+    .from("feed_cards")
+    .select("*")
+    .eq("thread_id", threadId)
+    .eq("source_type", "email")
+    .order("created_at", { ascending: false })
+    .limit(1);
+
+  if (data && data.length > 0) {
+    addLog(`  Found existing thread card: ${data[0].id}`);
+    return data[0] as FeedCard;
+  }
+
+  return null;
+}
+
+/**
+ * Update an existing thread card with new message data.
+ * Upgrades priority if new message is higher, resurfaces as unread.
+ */
+export async function updateThreadCard(
+  sb: SupabaseClient,
+  existingCard: FeedCard,
+  input: FeedCardInput,
+  log?: (msg: string) => void,
+): Promise<FeedCard | null> {
+  const addLog = log || (() => {});
+
+  const existing = existingCard as unknown as Record<string, unknown>;
+  const existingRank = PRIORITY_RANK[existing.priority as string || "medium"] || 2;
+  const newRank = PRIORITY_RANK[input.priority || "medium"] || 2;
+  const currentCount = (existing.message_count as number) || 1;
+  const now = new Date().toISOString();
+
+  const updates: Record<string, unknown> = {
+    body: input.body || existing.body,
+    reasoning: input.reasoning || existing.reasoning,
+    // Upgrade priority if new message is higher
+    priority: newRank > existingRank ? input.priority : existing.priority,
+    // Resurface as unread
+    status: "unread",
+    // Thread tracking
+    message_count: currentCount + 1,
+    thread_updated_at: now,
+    metadata: {
+      ...(existing.metadata as Record<string, unknown> || {}),
+      ...(input.metadata || {}),
+      message_count: currentCount + 1,
+    },
+    updated_at: now,
+  };
+
+  // If previously acted on, clear the action so it resurfaces fresh
+  if (existing.status === "acted" || existing.status === "dismissed") {
+    updates.ceo_action = null;
+    updates.ceo_action_at = null;
+  }
+
+  const { data, error } = await sb
+    .schema("brain")
+    .from("feed_cards")
+    .update(updates)
+    .eq("id", existingCard.id)
+    .select()
+    .single();
+
+  if (error) {
+    addLog(`  Failed to update thread card: ${error.message}`);
+    return null;
+  }
+
+  addLog(`  Updated thread card ${existingCard.id} (${currentCount + 1} messages)`);
+  return data as FeedCard;
+}
+
 // ─── Emit Card ──────────────────────────────────────────────────────────────
 
 /**
  * Create a feed card in brain.feed_cards.
- * Returns the created card or null on error.
+ * If thread_id is in metadata and a card exists for that thread,
+ * updates the existing card instead of creating a new one.
+ * Returns the created/updated card or null on error.
  */
 export async function emitFeedCard(
   sb: SupabaseClient,
@@ -103,6 +197,15 @@ export async function emitFeedCard(
   log?: (msg: string) => void,
 ): Promise<FeedCard | null> {
   const addLog = log || (() => {});
+
+  // Thread consolidation: update existing card if same thread
+  const threadId = (input.metadata as Record<string, unknown>)?.thread_id as string | undefined;
+  if (threadId) {
+    const existing = await findExistingThreadCard(sb, threadId, log);
+    if (existing) {
+      return updateThreadCard(sb, existing, input, log);
+    }
+  }
 
   const { data, error } = await sb
     .schema("brain")
@@ -127,16 +230,19 @@ export async function emitFeedCard(
       expires_at: input.expires_at || null,
       classification_log_id: input.classification_log_id || null,
       agent_run_id: input.agent_run_id || null,
+      thread_id: threadId || null,
+      message_count: 1,
+      thread_updated_at: new Date().toISOString(),
     })
     .select()
     .single();
 
   if (error) {
-    addLog(`  ❌ Feed card emission failed: ${error.message}`);
+    addLog(`  Feed card emission failed: ${error.message}`);
     return null;
   }
 
-  addLog(`  ✅ Feed card emitted: [${input.card_type}] ${input.title.slice(0, 60)}`);
+  addLog(`  Feed card emitted: [${input.card_type}] ${input.title.slice(0, 60)}`);
   return data as FeedCard;
 }
 

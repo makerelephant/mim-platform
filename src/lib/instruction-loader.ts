@@ -75,6 +75,63 @@ export function buildStandingOrdersPromptSection(orders: Instruction[]): string 
   return lines.join("\n");
 }
 
+// ─── CEO Correction Loading (Feedback Loop) ─────────────────────────────────
+
+export interface CorrectionRecord {
+  ceo_correction: string;
+  decision: string;
+  created_at: string;
+}
+
+/**
+ * Load recent CEO corrections from brain.decision_log.
+ * These get injected into the classifier prompt so the brain learns from
+ * past mistakes without needing manual harness edits.
+ *
+ * Returns up to `limit` most recent corrections (default 30).
+ * Gracefully returns empty array if table doesn't exist yet.
+ */
+export async function loadRecentCorrections(
+  sb: SupabaseClient,
+  limit = 30,
+): Promise<CorrectionRecord[]> {
+  const { data, error } = await sb
+    .schema("brain")
+    .from("decision_log")
+    .select("ceo_correction, decision, created_at")
+    .eq("ceo_override", true)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  if (error) {
+    // Table may not exist yet — don't crash the scanner
+    console.warn("[instruction-loader] Could not load corrections:", error.message);
+    return [];
+  }
+  return data ?? [];
+}
+
+/**
+ * Build a prompt section from CEO corrections for injection into
+ * the classifier system prompt. Groups corrections by pattern to
+ * keep the prompt compact.
+ */
+export function buildCorrectionsPromptSection(corrections: CorrectionRecord[]): string {
+  if (corrections.length === 0) return "";
+
+  const lines: string[] = [];
+  lines.push("\n## CEO CORRECTIONS — LEARN FROM THESE");
+  lines.push("The CEO has corrected the following past classifications. Use these to improve your accuracy:\n");
+
+  for (const c of corrections) {
+    lines.push(`• ${c.ceo_correction}`);
+  }
+
+  lines.push("\nApply the patterns from these corrections to similar future messages. If you see a message similar to one that was corrected, use the corrected classification, not the original.\n");
+
+  return lines.join("\n");
+}
+
 /**
  * Mark an instruction as executed (increment count, set last_executed_at).
  * For one-time instructions (recurrence='once'), also mark as 'fulfilled'.

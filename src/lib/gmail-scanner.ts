@@ -12,7 +12,7 @@ import { preFilterGmail } from "./scanner-prefilter";
 import { buildEntityDossier } from "./entity-dossier";
 import { computeFeedbackForEntities } from "./feedback-engine";
 import { loadTaxonomy, matchTaxonomyCategory, buildTaxonomyPromptSection, enforcePriorityRules } from "./taxonomy-loader";
-import { loadStandingOrders, buildStandingOrdersPromptSection } from "./instruction-loader";
+import { loadStandingOrders, buildStandingOrdersPromptSection, loadRecentCorrections, buildCorrectionsPromptSection } from "./instruction-loader";
 import { writeProvenance, recomputeKCSForEntities } from "./entity-intelligence";
 import { buildAcumenPromptSection } from "./harness-loader";
 import { emitFeedCard, inferCardType, logIngestion } from "./feed-card-emitter";
@@ -755,6 +755,14 @@ export async function runGmailScanner(
       addLog(`Injected ${standingOrders.length} standing order(s) into classifier prompt`);
     }
 
+    // ── Inject CEO corrections (feedback loop) ──
+    const corrections = await loadRecentCorrections(sb, 30);
+    if (corrections.length > 0) {
+      const correctionsSection = buildCorrectionsPromptSection(corrections);
+      agentSystemPrompt += "\n" + correctionsSection;
+      addLog(`Injected ${corrections.length} CEO correction(s) into classifier prompt`);
+    }
+
     const userEmails = new Set(userEmailsList.map((e) => e.toLowerCase().trim()));
 
     // ── Brain email config (for knowledge ingestion routing) ──
@@ -1417,59 +1425,7 @@ export async function runGmailScanner(
         },
       });
 
-      // ── Emit feed card ──
-      try {
-        // Determine card type from classification
-        let cardType = "signal";
-        if (result.action_items.length > 0) {
-          const topPriority = result.action_items[0]?.priority;
-          if (topPriority === "critical" || topPriority === "high") {
-            cardType = "decision";
-          } else {
-            cardType = "action";
-          }
-        }
-        if (result.tags?.includes("newsletter") || result.tags?.includes("automated")) {
-          cardType = "signal";
-        }
-
-        const topAction = result.action_items[0];
-        const cardTitle = topAction?.title || result.summary || details.subject;
-        const cardBody = topAction?.summary || topAction?.recommended_action || result.summary || null;
-        const cardReasoning = topAction?.recommended_action && topAction?.summary
-          ? topAction.recommended_action
-          : null;
-
-        await sb.schema('brain').from("feed_cards").insert({
-          card_type: cardType,
-          title: cardTitle,
-          body: cardBody,
-          reasoning: cardReasoning,
-          source_type: "email",
-          source_ref: msgId,
-          acumen_category: taxonomySlug || null,
-          priority: enforcedPriority || topAction?.priority || "medium",
-          visibility_scope: "personal",
-          entity_id: entityId || null,
-          entity_type: entityType || null,
-          entity_name: result.primary_entity_name || null,
-          metadata: {
-            from_name: fromName,
-            from_email: fromEmail,
-            to: toEmails,
-            subject: details.subject,
-            date: emailDate || null,
-            direction,
-            sentiment: result.sentiment,
-            tags: result.tags,
-            draft_reply: result.draft_reply || null,
-            goal_relevance: topAction?.goal_relevance_score ?? null,
-          },
-        });
-        addLog(`  Feed card emitted [${cardType}]: ${cardTitle.slice(0, 60)}`);
-      } catch (feedErr) {
-        addLog(`  Feed card emission failed: ${feedErr instanceof Error ? feedErr.message : String(feedErr)}`);
-      }
+      // NOTE: Legacy duplicate card emission removed — emitFeedCard() above (line ~1293) is the single emission point
 
       recordsUpdated++;
       const entityLabel = result.primary_entity_name
