@@ -1,10 +1,38 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronDown, ChevronUp } from "lucide-react";
+import { ChevronDown, ChevronUp, Pencil } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 
 /* eslint-disable @next/next/no-img-element */
+
+// ─── Constants ──────────────────────────────────────────────────────────────
+
+const ACUMEN_CATEGORIES = [
+  "fundraising",
+  "partnership",
+  "product",
+  "operations",
+  "legal",
+  "finance",
+  "marketing",
+  "hr",
+  "customer",
+  "competitor",
+  "industry",
+] as const;
+
+const PRIORITY_OPTIONS = ["critical", "high", "medium", "low"] as const;
+
+const CARD_TYPE_OPTIONS = [
+  "decision",
+  "action",
+  "signal",
+  "intelligence",
+  "briefing",
+  "reflection",
+  "snapshot",
+] as const;
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -72,6 +100,35 @@ function titleStyle(priority: string | null | undefined): string {
   }
 }
 
+// ─── Email Context Sub-component ─────────────────────────────────────────────
+
+function EmailContext({ fromName, fromEmail, subject, toEmails }: { fromName: string; fromEmail: string; subject: string; toEmails: string[] }) {
+  if (!fromName && !fromEmail && !subject) return null;
+  return (
+    <div className="px-5 pt-3 pb-0 space-y-0.5">
+      {(fromName || fromEmail) ? (
+        <p className="text-xs text-[#6e7b80]">
+          <span className="font-semibold text-[#344054]">From:</span>{" "}
+          {fromName ? <span className="font-medium text-[#1e252a]">{fromName}</span> : null}
+          {fromEmail ? <span className="text-[#6e7b80]"> &lt;{fromEmail}&gt;</span> : null}
+        </p>
+      ) : null}
+      {toEmails.length > 0 ? (
+        <p className="text-xs text-[#6e7b80]">
+          <span className="font-semibold text-[#344054]">To:</span>{" "}
+          {toEmails.join(", ")}
+        </p>
+      ) : null}
+      {subject ? (
+        <p className="text-xs text-[#6e7b80]">
+          <span className="font-semibold text-[#344054]">Subject:</span>{" "}
+          <span className="text-[#1e252a]">{subject}</span>
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
 // ─── Component ──────────────────────────────────────────────────────────────
 
 export default function FeedCard({ card, onAction, onDismiss }: FeedCardProps) {
@@ -84,17 +141,28 @@ export default function FeedCard({ card, onAction, onDismiss }: FeedCardProps) {
   const [correctionPriority, setCorrectionPriority] = useState("");
   const [correctionNote, setCorrectionNote] = useState("");
 
+  // Train modal state
+  const [showTrainPanel, setShowTrainPanel] = useState(false);
+  const [trainCategory, setTrainCategory] = useState("");
+  const [trainPriority, setTrainPriority] = useState("");
+  const [trainCardType, setTrainCardType] = useState("");
+  const [trainShouldNotExist, setTrainShouldNotExist] = useState(false);
+  const [trainNote, setTrainNote] = useState("");
+  const [trainSubmitting, setTrainSubmitting] = useState(false);
+  const [trainSuccess, setTrainSuccess] = useState(false);
+
   const isDecision = card.card_type === "decision";
   const isAction = card.card_type === "action";
+  const isSignalOrIntel = card.card_type === "signal" || card.card_type === "intelligence";
   const isActed = card.status === "acted";
   const timeAgo = formatDistanceToNow(new Date(card.created_at), { addSuffix: false });
 
   // Extract email metadata if present
   const meta = card.metadata as Record<string, unknown> | null;
-  const fromName = meta?.from_name as string | undefined;
-  const fromEmail = meta?.from_email as string | undefined;
-  const subject = meta?.subject as string | undefined;
-  const toEmails = meta?.to as string[] | undefined;
+  const fromName: string = (meta?.from_name as string) || "";
+  const fromEmail: string = (meta?.from_email as string) || "";
+  const subject: string = (meta?.subject as string) || "";
+  const toEmails: string[] = (meta?.to as string[]) || [];
 
   async function handleAction(action: "do" | "no" | "not_now", correction?: CorrectionData) {
     setActing(true);
@@ -124,11 +192,13 @@ export default function FeedCard({ card, onAction, onDismiss }: FeedCardProps) {
   function handleNoClick() {
     setShowNoPanel(true);
     setShowHoldPanel(false);
+    setShowTrainPanel(false);
   }
 
   function handleHoldClick() {
     setShowHoldPanel(true);
     setShowNoPanel(false);
+    setShowTrainPanel(false);
   }
 
   function handleCancelPanel() {
@@ -159,6 +229,88 @@ export default function FeedCard({ card, onAction, onDismiss }: FeedCardProps) {
     handleAction("not_now", { resurface_hours: hours });
   }
 
+  // ─── Train Modal ─────────────────────────────────────────────────────────
+
+  function handleTrainOpen() {
+    setShowTrainPanel(true);
+    setShowNoPanel(false);
+    setShowHoldPanel(false);
+    setTrainCategory(card.acumen_category || "");
+    setTrainPriority(card.priority || "");
+    setTrainCardType(card.card_type || "");
+    setTrainShouldNotExist(false);
+    setTrainNote("");
+    setTrainSuccess(false);
+  }
+
+  function handleTrainCancel() {
+    setShowTrainPanel(false);
+    setTrainCategory("");
+    setTrainPriority("");
+    setTrainCardType("");
+    setTrainShouldNotExist(false);
+    setTrainNote("");
+    setTrainSuccess(false);
+  }
+
+  async function handleTrainSubmit() {
+    setTrainSubmitting(true);
+    try {
+      const correction: CorrectionData = {};
+
+      // Only include fields that differ from current values
+      if (trainCategory && trainCategory !== (card.acumen_category || "")) {
+        correction.wrong_category = trainCategory;
+      }
+      if (trainPriority && trainPriority !== (card.priority || "")) {
+        correction.wrong_priority = trainPriority;
+      }
+      if (trainCardType && trainCardType !== (card.card_type || "")) {
+        correction.wrong_card_type = trainCardType;
+      }
+      if (trainShouldNotExist) {
+        correction.should_not_exist = true;
+      }
+      if (trainNote) {
+        correction.note = trainNote;
+      }
+
+      // Only submit if there's at least one correction
+      const hasCorrection =
+        correction.wrong_category ||
+        correction.wrong_priority ||
+        correction.wrong_card_type ||
+        correction.should_not_exist ||
+        correction.note;
+
+      if (!hasCorrection) {
+        setTrainSubmitting(false);
+        return;
+      }
+
+      const res = await fetch("/api/feed", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: card.id,
+          ceo_action: "no",
+          ceo_correction: correction,
+          correction,
+        }),
+      });
+
+      if (res.ok) {
+        setTrainSuccess(true);
+        setTimeout(() => {
+          setShowTrainPanel(false);
+          setTrainSuccess(false);
+        }, 1500);
+      }
+    } finally {
+      setTrainSubmitting(false);
+    }
+  }
+
   return (
     <div className={`bg-white rounded-xl shadow-[0px_1px_4px_0px_rgba(0,0,0,0.08)] overflow-hidden transition-all ${isActed ? "opacity-50" : ""}`}>
 
@@ -180,29 +332,7 @@ export default function FeedCard({ card, onAction, onDismiss }: FeedCardProps) {
       </div>
 
       {/* ── Email Context ── */}
-      {(fromName || fromEmail || subject) && (
-        <div className="px-5 pt-3 pb-0 space-y-0.5">
-          {(fromName || fromEmail) && (
-            <p className="text-xs text-[#6e7b80]">
-              <span className="font-semibold text-[#344054]">From:</span>{" "}
-              {fromName && <span className="font-medium text-[#1e252a]">{fromName}</span>}
-              {fromEmail && <span className="text-[#6e7b80]"> &lt;{fromEmail}&gt;</span>}
-            </p>
-          )}
-          {toEmails && toEmails.length > 0 && (
-            <p className="text-xs text-[#6e7b80]">
-              <span className="font-semibold text-[#344054]">To:</span>{" "}
-              {toEmails.join(", ")}
-            </p>
-          )}
-          {subject && (
-            <p className="text-xs text-[#6e7b80]">
-              <span className="font-semibold text-[#344054]">Subject:</span>{" "}
-              <span className="text-[#1e252a]">{subject}</span>
-            </p>
-          )}
-        </div>
-      )}
+      <EmailContext fromName={fromName} fromEmail={fromEmail} subject={subject} toEmails={toEmails} />
 
       {/* ── Title ── */}
       <div className="px-5 pt-4 pb-1">
@@ -213,6 +343,17 @@ export default function FeedCard({ card, onAction, onDismiss }: FeedCardProps) {
           {card.title}
         </h2>
       </div>
+
+      {/* ── Action Recommendation ── */}
+      {typeof meta?.action_recommendation === "string" && (card.card_type === "decision" || card.card_type === "action") && (
+        <div className="px-5 pt-1 pb-0">
+          <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3">
+            <p className="text-sm font-medium text-amber-800">
+              {String(meta.action_recommendation)}
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* ── Action Buttons (Decision cards) ── */}
       {isDecision && !isActed && (
@@ -432,6 +573,26 @@ export default function FeedCard({ card, onAction, onDismiss }: FeedCardProps) {
         </div>
       )}
 
+      {/* ── Signal/Intelligence: Noted + Dismiss ── */}
+      {isSignalOrIntel && !isActed && (
+        <div className="px-5 pt-2 pb-1 flex items-center gap-6">
+          <button
+            onClick={() => handleAction("do")}
+            disabled={acting}
+            className="inline-flex items-center gap-1.5 text-sm font-medium text-[#344054] hover:text-emerald-700 transition-colors disabled:opacity-40"
+          >
+            Noted
+          </button>
+          <button
+            onClick={() => handleDismiss()}
+            disabled={acting}
+            className="inline-flex items-center gap-1.5 text-sm font-medium text-[#344054] hover:text-slate-500 transition-colors disabled:opacity-40"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
+
       {/* ── Acted indicator ── */}
       {isActed && card.ceo_action && (
         <div className="px-5 pt-2 pb-1">
@@ -475,15 +636,164 @@ export default function FeedCard({ card, onAction, onDismiss }: FeedCardProps) {
         </div>
       )}
 
-      {/* ── More about this ── */}
-      {(card.reasoning || card.metadata || card.acumen_category || (card.related_entities && card.related_entities.length > 0)) && (
+      {/* ── Training Mode Framing ── */}
+      {!isActed && card.acumen_category && (
+        <div className="px-5 pt-1 pb-0">
+          <p className="text-xs text-[#94A3B8] italic">
+            Brain classified this as{" "}
+            <span className="font-semibold text-[#64748B]">{card.acumen_category}</span>
+            {card.priority && (
+              <>
+                {" / "}
+                <span className="font-semibold text-[#64748B]">{card.priority}</span>
+              </>
+            )}
+            {card.card_type && (
+              <>
+                {" / "}
+                <span className="font-semibold text-[#64748B]">{card.card_type}</span>
+              </>
+            )}
+            {". "}
+            <button
+              onClick={handleTrainOpen}
+              className="text-[#0ea5e9] hover:text-[#0284c7] font-medium not-italic"
+            >
+              Correct?
+            </button>
+          </p>
+        </div>
+      )}
+
+      {/* ── Footer: More About This + Train ── */}
+      <div className="px-5 pb-4 pt-1 flex items-center justify-between">
+        <div>
+          {(card.reasoning || card.metadata || card.acumen_category || (card.related_entities && card.related_entities.length > 0)) && (
+            <button
+              onClick={() => setExpanded(!expanded)}
+              className="flex items-center gap-1 text-sm font-medium text-[#0ea5e9] hover:text-[#0284c7] transition-colors"
+            >
+              {expanded ? "Less" : "More about this"}
+              {expanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+            </button>
+          )}
+        </div>
         <button
-          onClick={() => setExpanded(!expanded)}
-          className="flex items-center gap-1 px-5 pb-4 pt-1 text-sm font-medium text-[#0ea5e9] hover:text-[#0284c7] transition-colors"
+          onClick={handleTrainOpen}
+          className="inline-flex items-center gap-1.5 text-xs font-medium text-[#94A3B8] hover:text-[#475569] transition-colors"
+          title="Train the brain"
         >
-          {expanded ? "Less" : "More about this"}
-          {expanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+          <Pencil className="w-3.5 h-3.5" />
+          Train
         </button>
+      </div>
+
+      {/* ── Train Panel (All card types) ── */}
+      {showTrainPanel && (
+        <div className="px-5 pt-0 pb-4">
+          <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 space-y-3">
+            {trainSuccess ? (
+              <div className="flex items-center justify-center py-3">
+                <span className="text-sm font-semibold text-emerald-600">Learned &#10003;</span>
+              </div>
+            ) : (
+              <>
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Train the Brain</p>
+
+                {/* Category */}
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">Category</label>
+                  <select
+                    value={trainCategory}
+                    onChange={(e) => setTrainCategory(e.target.value)}
+                    className="w-full px-3 py-1.5 text-sm border border-slate-300 rounded-md bg-white focus:outline-none focus:ring-1 focus:ring-blue-300"
+                  >
+                    <option value="">-- select --</option>
+                    {ACUMEN_CATEGORIES.map((cat) => (
+                      <option key={cat} value={cat}>
+                        {cat}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Priority */}
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">Priority</label>
+                  <select
+                    value={trainPriority}
+                    onChange={(e) => setTrainPriority(e.target.value)}
+                    className="w-full px-3 py-1.5 text-sm border border-slate-300 rounded-md bg-white focus:outline-none focus:ring-1 focus:ring-blue-300"
+                  >
+                    <option value="">-- select --</option>
+                    {PRIORITY_OPTIONS.map((p) => (
+                      <option key={p} value={p}>
+                        {p}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Card Type */}
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">Card Type</label>
+                  <select
+                    value={trainCardType}
+                    onChange={(e) => setTrainCardType(e.target.value)}
+                    className="w-full px-3 py-1.5 text-sm border border-slate-300 rounded-md bg-white focus:outline-none focus:ring-1 focus:ring-blue-300"
+                  >
+                    <option value="">-- select --</option>
+                    {CARD_TYPE_OPTIONS.map((ct) => (
+                      <option key={ct} value={ct}>
+                        {ct}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Should Not Exist */}
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={trainShouldNotExist}
+                    onChange={(e) => setTrainShouldNotExist(e.target.checked)}
+                    className="w-4 h-4 rounded border-slate-300 text-red-600 focus:ring-red-300"
+                  />
+                  <span className="text-sm text-slate-700">This card should not have been created</span>
+                </label>
+
+                {/* Note */}
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">Note</label>
+                  <input
+                    type="text"
+                    placeholder="Optional feedback..."
+                    value={trainNote}
+                    onChange={(e) => setTrainNote(e.target.value)}
+                    className="w-full px-3 py-1.5 text-sm border border-slate-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-300"
+                  />
+                </div>
+
+                {/* Submit / Cancel */}
+                <div className="flex items-center gap-3 pt-1">
+                  <button
+                    onClick={handleTrainSubmit}
+                    disabled={trainSubmitting}
+                    className="px-4 py-1.5 text-xs font-semibold bg-[#0ea5e9] text-white rounded-md hover:bg-[#0284c7] transition-colors disabled:opacity-40"
+                  >
+                    {trainSubmitting ? "Submitting..." : "Submit Correction"}
+                  </button>
+                  <button
+                    onClick={handleTrainCancel}
+                    className="text-xs text-slate-400 hover:text-slate-600 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
       )}
 
       {/* ── Expanded Content ── */}

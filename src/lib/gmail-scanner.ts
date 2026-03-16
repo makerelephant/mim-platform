@@ -49,6 +49,7 @@ interface ClassificationResult {
   acumen_category: string | null;
   importance_level: string | null;
   acumen_reasoning: string | null;
+  action_recommendation: string | null;
 }
 
 interface MessageDetails {
@@ -159,10 +160,12 @@ Respond with ONLY a JSON object in this exact format:
   "draft_reply": "A ready-to-send 2-3 sentence reply to this email, or null if no reply is needed",
   "acumen_category": "fundraising" | "legal" | "customer-partner-ops" | "accounting-finance" | "scheduling" | "product-engineering" | "ux-design" | "marketing" | "ai" | "family" | "administration",
   "importance_level": "high" | "medium" | "low",
-  "acumen_reasoning": "Brief explanation of why this category and importance were chosen"
+  "acumen_reasoning": "Brief explanation of why this category and importance were chosen",
+  "action_recommendation": "Recommended action: [specific 1-2 sentence recommendation]" | null
 }
 
 IMPORTANT:
+- If this email requires a decision or action from the CEO, provide a clear, specific recommendation in "action_recommendation". Frame it as: "Recommended action: [specific action]". Keep it concise (1-2 sentences max). If no action is needed, return null.
 - If there are no action items, return an empty array []
 - Task titles should be actionable and specific (e.g., "Follow up with Sequoia on term sheet" not "Follow up")
 - Only extract genuine action items that require the user to do something
@@ -205,7 +208,8 @@ Example 1 — Investor follow-up email:
   "draft_reply": "Hi Sarah, thanks for the heads up on timing. I'll have the updated P&L, revenue forecast, and cap table over to you by Friday EOD. Let me know if you need anything else ahead of the partner meeting.",
   "acumen_category": "fundraising",
   "importance_level": "high",
-  "acumen_reasoning": "Investor requesting financials ahead of partner meeting — active due diligence with time pressure"
+  "acumen_reasoning": "Investor requesting financials ahead of partner meeting — active due diligence with time pressure",
+  "action_recommendation": "Recommended action: Prepare and send updated P&L, revenue forecast, and cap table to Sequoia by Friday EOD before their partner meeting."
 }
 
 Example 2 — Partner inquiry:
@@ -229,7 +233,8 @@ Example 2 — Partner inquiry:
   "draft_reply": "Hi! Thanks for reaching out — we'd love to help Bay State FC get set up with a team store for spring season. Are you available for a quick 30-minute call this week? I can walk you through how our Drop links work and have a sample ready with your logo.",
   "acumen_category": "customer-partner-ops",
   "importance_level": "medium",
-  "acumen_reasoning": "New customer inquiry for team store setup — revenue opportunity but not urgent"
+  "acumen_reasoning": "New customer inquiry for team store setup — revenue opportunity but not urgent",
+  "action_recommendation": "Recommended action: Schedule a 30-minute demo call with Bay State FC this week and prepare a sample Drop link with their logo."
 }
 
 Example 3 — Newsletter (skip):
@@ -244,7 +249,8 @@ Example 3 — Newsletter (skip):
   "draft_reply": null,
   "acumen_category": "marketing",
   "importance_level": "low",
-  "acumen_reasoning": "Automated newsletter — industry reading, no action required"
+  "acumen_reasoning": "Automated newsletter — industry reading, no action required",
+  "action_recommendation": null
 }`;
 
 // ─── Entity Resolver ────────────────────────────────────────────────────────
@@ -552,6 +558,7 @@ async function classifyMessage(
       acumen_category: data.acumen_category || null,
       importance_level: data.importance_level || null,
       acumen_reasoning: data.acumen_reasoning || null,
+      action_recommendation: data.action_recommendation || null,
       prompt_tokens: response.usage?.input_tokens,
       completion_tokens: response.usage?.output_tokens,
     };
@@ -570,6 +577,7 @@ async function classifyMessage(
       acumen_category: null,
       importance_level: null,
       acumen_reasoning: null,
+      action_recommendation: null,
     };
   }
 }
@@ -1307,6 +1315,7 @@ export async function runGmailScanner(
             tags: result.tags,
             sentiment: result.sentiment,
             thread_id: details.thread_id,
+            action_recommendation: result.action_recommendation || null,
           },
           agent_run_id: runId,
         }, addLog);
