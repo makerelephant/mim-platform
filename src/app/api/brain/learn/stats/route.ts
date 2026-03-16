@@ -22,7 +22,6 @@ export async function GET() {
 
     // ── 1. Fetch all correction knowledge_base entries ──
     const { data: corrections, error: corrError } = await sb
-      .schema("brain")
       .from("knowledge_base")
       .select("id, title, source_ref, metadata, created_at")
       .eq("source_type", "ceo_correction")

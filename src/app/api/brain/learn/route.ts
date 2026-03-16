@@ -204,7 +204,6 @@ export async function POST(request: NextRequest) {
       ].join("\n");
 
       await (sb as any)
-        .schema("brain")
         .from("knowledge_base")
         .insert({
           title: title.slice(0, 200),
