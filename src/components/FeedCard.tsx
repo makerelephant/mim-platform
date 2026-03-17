@@ -33,17 +33,19 @@ const CARD_TYPE_OPTIONS = [
   "snapshot",
 ] as const;
 
-// Card type badge config — colors per Figma design system
-// Decision: #d8e5dd bg, black text, gauge icon, gap 10px
-// Action: #289bff bg, white text, rocket icon, gap 6px
-const CARD_TYPE_BADGES: Record<string, { bg: string; textColor: string; label: string; icon: string; gap: string }> = {
-  decision:     { bg: "#d8e5dd", textColor: "black",  label: "Decision",     icon: "/icons/gauge.svg",  gap: "10px" },
-  action:       { bg: "#289bff", textColor: "white",  label: "Action",       icon: "/icons/rocket.svg", gap: "6px" },
-  signal:       { bg: "#d8e5dd", textColor: "black",  label: "Signal",       icon: "/icons/gauge.svg",  gap: "10px" },
-  intelligence: { bg: "#d8e5dd", textColor: "black",  label: "Intelligence", icon: "/icons/gauge.svg",  gap: "10px" },
-  briefing:     { bg: "#d8e5dd", textColor: "black",  label: "Briefing",     icon: "/icons/gauge.svg",  gap: "10px" },
-  reflection:   { bg: "#d8e5dd", textColor: "black",  label: "Reflection",   icon: "/icons/gauge.svg",  gap: "10px" },
-  snapshot:     { bg: "#d8e5dd", textColor: "black",  label: "Snapshot",     icon: "/icons/gauge.svg",  gap: "10px" },
+// Card type badge config — all from Figma node 15:3592
+// Decision: #d8e5dd, black text, gauge, gap 10px, resolved bg #f3f2ed
+// Action:   #289bff, white text, rocket, gap 10px, resolved bg #ecfaff
+// Signal:   #9c6ade, white text, satellite, gap 6px, resolved bg #f2e9fa
+// Briefing: #3e4c60, white text, radar, gap 6px, resolved bg #e6e9ee
+const CARD_TYPE_BADGES: Record<string, { bg: string; textColor: string; label: string; icon: string; gap: string; resolvedBg: string }> = {
+  decision:     { bg: "#d8e5dd", textColor: "black",  label: "Decision",     icon: "/icons/gauge.svg",     gap: "10px", resolvedBg: "#f3f2ed" },
+  action:       { bg: "#289bff", textColor: "white",  label: "Action",       icon: "/icons/rocket.svg",    gap: "10px", resolvedBg: "#ecfaff" },
+  signal:       { bg: "#9c6ade", textColor: "white",  label: "Signal",       icon: "/icons/satellite.svg", gap: "6px",  resolvedBg: "#f2e9fa" },
+  intelligence: { bg: "#9c6ade", textColor: "white",  label: "Intelligence", icon: "/icons/satellite.svg", gap: "6px",  resolvedBg: "#f2e9fa" },
+  briefing:     { bg: "#3e4c60", textColor: "white",  label: "Briefing",     icon: "/icons/radar.svg",     gap: "6px",  resolvedBg: "#e6e9ee" },
+  reflection:   { bg: "#d8e5dd", textColor: "black",  label: "Reflection",   icon: "/icons/gauge.svg",     gap: "10px", resolvedBg: "#f3f2ed" },
+  snapshot:     { bg: "#d8e5dd", textColor: "black",  label: "Snapshot",     icon: "/icons/gauge.svg",     gap: "10px", resolvedBg: "#f3f2ed" },
 };
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -303,8 +305,8 @@ export default function FeedCard({ card, onAction, onDismiss }: FeedCardProps) {
 
   // ─── Render ───────────────────────────────────────────────────────────
 
-  // Resolved state: bg changes to #f3f2ed, entire card at opacity 60%
-  const cardBg = resolvedDo ? "#f3f2ed" : "white";
+  // Resolved state: bg changes per card type, entire card at opacity 60%
+  const cardBg = isResolved ? badge.resolvedBg : "white";
   const cardOpacity = isResolved ? "opacity-60" : "";
 
   return (
