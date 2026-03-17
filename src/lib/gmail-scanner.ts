@@ -15,7 +15,7 @@ import { loadTaxonomy, matchTaxonomyCategory, buildTaxonomyPromptSection, enforc
 import { loadStandingOrders, buildStandingOrdersPromptSection, loadRecentCorrections, buildCorrectionsPromptSection } from "./instruction-loader";
 import { writeProvenance, recomputeKCSForEntities } from "./entity-intelligence";
 import { buildAcumenPromptSection } from "./harness-loader";
-import { emitFeedCard, inferCardType, logIngestion } from "./feed-card-emitter";
+import { emitFeedCard, inferCardType, logIngestion, embedCorrespondence } from "./feed-card-emitter";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -1052,9 +1052,9 @@ export async function runGmailScanner(
               },
             });
 
-            // Still create correspondence entry so it's tracked
+            // Still create correspondence entry so it's tracked + embed for RAG
             if (skipEntityId) {
-              await sb.schema('brain').from("correspondence").insert({
+              const { data: skipCorrRow } = await sb.schema('brain').from("correspondence").insert({
                 entity_type: skipEntityType,
                 entity_id: skipEntityId,
                 channel: "gmail",
@@ -1069,7 +1069,12 @@ export async function runGmailScanner(
                   gmail_message_id: msgId,
                   source_message_id: msgId,
                 },
-              });
+              }).select("id").single();
+
+              if (skipCorrRow?.id && details.body) {
+                const embeddableText = `Subject: ${details.subject}\nFrom: ${details.from}\n\n${details.body}`;
+                await embedCorrespondence(sb, skipCorrRow.id, embeddableText, addLog);
+              }
             }
 
             recordsUpdated++;
@@ -1352,9 +1357,9 @@ export async function runGmailScanner(
         addLog(`  Feed card emission failed: ${e instanceof Error ? e.message : String(e)}`);
       }
 
-      // ── Log correspondence ──
+      // ── Log correspondence + embed for RAG ──
       if (entityId) {
-        await sb.schema('brain').from("correspondence").insert({
+        const { data: corrRow } = await sb.schema('brain').from("correspondence").insert({
           entity_type: entityType,
           entity_id: entityId,
           channel: "gmail",
@@ -1369,7 +1374,13 @@ export async function runGmailScanner(
             gmail_message_id: msgId,
             source_message_id: msgId,
           },
-        });
+        }).select("id").single();
+
+        // Embed full email content for vector search
+        if (corrRow?.id) {
+          const embeddableText = `Subject: ${details.subject}\nFrom: ${details.from}\n\n${details.body}`;
+          await embedCorrespondence(sb, corrRow.id, embeddableText, addLog);
+        }
       }
 
       // ── Create tasks (Phase 1C: enforced priority, 1E: pending_review, 1F: taxonomy_category) ──
