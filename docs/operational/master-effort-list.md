@@ -72,6 +72,12 @@
 
 30. **Training Velocity** — T1-T4 workstream. Run scanner daily, CEO reviews cards, accuracy accumulates, categories earn autonomy. Infrastructure built — needs consistent use. Bulk import available to accelerate.
 
+31. **Sidebar Navigation (Figma Pixel-Perfect)** — ✅ COMPLETE. Sidebar.tsx rewritten to match Figma node 30:419. 163px white card, rounded-12, shadow 200px, nav items at 14px Geist Medium with active pill (#3e4c60 at 60% opacity, rounded-tr/br-18px). Glossary + Technical Docs links with arrow-right icons. MiMbrain icon + "© 2026 Made In Motion PBC" footer.
+
+32. **Clearing Page (Figma Pixel-Perfect)** — ✅ COMPLETE. Clearing page rewritten to match Figma node 41:3869. Chat Header with "A Thinking Space" title + blue subtitle. Two-column layout: Prior Conversations panel (257px, shadow, session list) + chat area (user messages right-aligned in white cards, brain responses left-aligned plain text). Bottom: input bar with blue border (#a9d8ff), "Launch a Gopher" pill (#ecfaff), "Add To Knowledge" pill (#f2e9fa). Drag-and-drop file ingestion.
+
+33. **Feed Card Visibility Fix** — ✅ COMPLETE. Feed was showing only 3 of 24 cards because query filtered to unread/read status only. Updated to include "acted" cards so resolved cards remain visible in feed with per-type resolved backgrounds and 60% opacity.
+
 ---
 
 ## Medium-Term Efforts
@@ -114,4 +120,4 @@
 
 ---
 
-*Last updated: 2026-03-17*
+*Last updated: 2026-03-17 (v2)*
