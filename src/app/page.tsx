@@ -16,6 +16,8 @@ export default function MotionFeedPage() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [scanning, setScanning] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searching, setSearching] = useState(false);
   const limit = 30;
 
   // ── Load feed cards ──
@@ -64,6 +66,31 @@ export default function MotionFeedPage() {
       console.error("Scanner error:", err);
     } finally {
       setScanning(false);
+    }
+  }
+
+  // ── Search / Snapshot ──
+  async function handleSearch() {
+    if (!searchQuery.trim()) return;
+    const query = searchQuery.trim();
+    setSearching(true);
+    try {
+      // Use the snapshot endpoint to generate an on-demand data view
+      const res = await fetch("/api/brain/snapshot", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        // Reload feed to show the new snapshot card at top
+        await loadCards(0, false);
+      }
+    } catch (err) {
+      console.error("Search error:", err);
+    } finally {
+      setSearching(false);
+      setSearchQuery("");
     }
   }
 
@@ -177,20 +204,34 @@ export default function MotionFeedPage() {
 
           {/* Search Input */}
           <div
-            className="flex items-start justify-between overflow-hidden px-[14px] py-[10px] rounded-[12px] bg-white w-full"
+            className="flex items-center justify-between overflow-hidden px-[14px] py-[10px] rounded-[12px] bg-white w-full"
             style={{ border: "1px solid #e9e9e9" }}
           >
-            <span
-              className="text-[12px] font-medium text-[#b0b8bb] leading-[24px] whitespace-nowrap"
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSearch();
+                }
+              }}
+              placeholder="Ask Anything about the business."
+              disabled={searching}
+              className="flex-1 text-[12px] font-medium text-black placeholder:text-[#b0b8bb] leading-[24px] bg-transparent focus:outline-none"
               style={{ fontFamily: "var(--font-geist-sans), 'Geist', sans-serif" }}
-            >
-              Ask Anything about the business.
-            </span>
+            />
             <div className="flex gap-[24px] items-end h-[21px] w-[143px]">
               <img src="/icons/calendar-plus.svg" alt="" className="w-[16px] h-[16px] shrink-0" />
               <img src="/icons/paperclip.svg" alt="" className="w-[16px] h-[16px] shrink-0" />
               <img src="/icons/mic.svg" alt="" className="w-[16px] h-[16px] shrink-0" />
-              <img src="/icons/arrow-up-circle.svg" alt="" className="w-[16px] h-[16px] shrink-0" />
+              <img
+                src="/icons/arrow-up-circle.svg"
+                alt=""
+                className={`w-[16px] h-[16px] shrink-0 cursor-pointer ${searching ? "animate-spin" : ""}`}
+                onClick={handleSearch}
+              />
             </div>
           </div>
         </div>
