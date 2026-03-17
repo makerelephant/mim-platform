@@ -52,9 +52,10 @@ The platform is undergoing a radical UI redesign. **All 34 static CRM-style page
 
 ## Current State (March 17, 2026)
 
-- **Backend:** CRM data layer complete, Gmail scanner classifying with Acumen categories, decision logging operational, brain chat working, daily briefing cron, autonomy engine, resurface cron for held cards, behavioral rules engine
-- **Frontend:** Feed-first architecture COMPLETE. Your Motion (feed of interactive cards at /), Your Clearing (thinking space at /clearing), Engine Room (at /engine), sidebar navigation pixel-perfect to Figma. Card types: Decision, Action, Signal, Intelligence, Briefing, Reflection, Snapshot — each with Figma-accurate badges, actions, and resolved states
+- **Backend:** CRM data layer complete, Gmail scanner classifying with Acumen categories, decision logging operational, brain chat working, daily briefing cron, autonomy engine, resurface cron for held cards, behavioral rules engine, entity intelligence (KCS + provenance), synthesis agent, embedding/RAG pipeline
+- **Frontend:** Feed-first architecture COMPLETE. Your Motion (feed of interactive cards at /), Your Clearing (thinking space at /clearing with persistent conversations), Engine Room (at /engine with dynamic integration status), sidebar navigation pixel-perfect to Figma. Card types: Decision, Action, Signal, Intelligence, Briefing, Reflection, Snapshot — each with Figma-accurate badges, actions, and resolved states
 - **Training:** Acumen classifier running, CEO review via feed card actions (Do/Hold/No), correction learning pipeline, 11 categories
+- **Clearing Persistence:** Sessions and messages persist to brain.clearing_sessions/clearing_messages. Auto-titled from first message. Prior Conversations panel loads from DB.
 
 ## Do Not
 

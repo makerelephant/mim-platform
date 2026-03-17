@@ -48,6 +48,7 @@ interface AccuracyData {
 export default function EngineRoomPage() {
   const [activeTab, setActiveTab] = useState<"map" | "accuracy" | "integrations" | "autonomy">("map");
   const [harness, setHarness] = useState<HarnessFile[]>([]);
+  const [integrations, setIntegrations] = useState<Array<{ name: string; icon: string; status: string; description: string }>>([]);
   const [accuracy, setAccuracy] = useState<AccuracyData | null>(null);
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -71,6 +72,15 @@ export default function EngineRoomPage() {
         const accRes = await fetch("/api/brain/accuracy");
         if (accRes.ok) {
           setAccuracy(await accRes.json());
+        }
+      } catch { /* ignore */ }
+
+      try {
+        // Load integration status
+        const intRes = await fetch("/api/engine/integrations");
+        if (intRes.ok) {
+          const intData = await intRes.json();
+          if (intData.success) setIntegrations(intData.integrations);
         }
       } catch { /* ignore */ }
 
@@ -260,12 +270,19 @@ export default function EngineRoomPage() {
         ) : (
           /* ── Integrations ── */
           <div className="grid grid-cols-2 gap-4">
-            <IntegrationCard name="Gmail" status="connected" description="Scanning every day at 6am EST" icon="📧" />
-            <IntegrationCard name="Slack" status="planned" description="Not yet connected" icon="💬" />
-            <IntegrationCard name="Google Drive" status="planned" description="Not yet connected" icon="📁" />
-            <IntegrationCard name="Stripe" status="planned" description="Not yet connected" icon="💳" />
-            <IntegrationCard name="Calendar" status="planned" description="Not yet connected" icon="📅" />
-            <IntegrationCard name="Notion" status="planned" description="Not yet connected" icon="📝" />
+            {integrations.length > 0
+              ? integrations.map((i) => (
+                  <IntegrationCard key={i.name} name={i.name} status={i.status} description={i.description} icon={i.icon} />
+                ))
+              : <>
+                  <IntegrationCard name="Gmail" status="connected" description="Scanning every day at 6am EST" icon="📧" />
+                  <IntegrationCard name="Slack" status="planned" description="Not yet connected" icon="💬" />
+                  <IntegrationCard name="Google Drive" status="planned" description="Not yet connected" icon="📁" />
+                  <IntegrationCard name="Stripe" status="planned" description="Not yet connected" icon="💳" />
+                  <IntegrationCard name="Calendar" status="planned" description="Not yet connected" icon="📅" />
+                  <IntegrationCard name="Notion" status="planned" description="Not yet connected" icon="📝" />
+                </>
+            }
           </div>
         )}
       </div>

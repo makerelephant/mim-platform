@@ -78,13 +78,15 @@
 
 33. **Feed Card Visibility Fix** — ✅ COMPLETE. Feed was showing only 3 of 24 cards because query filtered to unread/read status only. Updated to include "acted" cards so resolved cards remain visible in feed with per-type resolved backgrounds and 60% opacity.
 
+34. **Dynamic Integration Status** — ✅ COMPLETE. `/api/engine/integrations` endpoint checks env vars to report real-time connection status for Gmail, Slack, Stripe, Google Drive, Calendar, Notion. Engine Room Integrations tab now fetches dynamically instead of hardcoded statuses.
+
 ---
 
 ## Medium-Term Efforts
 
 28. **Market Intelligence Scanners** — External data internalization: competitive intelligence, content concepts, M&A/strategic, customer/partner acquisition, consumer insights. Start with one, prove the pipeline.
 
-29. **Conversation Persistence & History** — Brain chat responses persisted to DB so prior conversations are fully reloadable. Thread continuity across sessions.
+29. **Conversation Persistence & History** — ✅ COMPLETE. Clearing page wired to `/api/clearing/sessions` and `/api/clearing/messages` endpoints. Sessions persist to `brain.clearing_sessions`, messages to `brain.clearing_messages`. Prior Conversations panel loads from DB on mount. Auto-titles sessions from first message. Dissolve sessions via hover action. Full reload across page navigations.
 
 30. **Commerce Integration** — Connect Printify/Drop data to platform. Real KPI values (revenue, items sold, AOV, conversion). Product creation event capture with design detail logging.
 
