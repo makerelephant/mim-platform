@@ -43,6 +43,7 @@ export default function ClearingPage() {
   const [thinking, setThinking] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const [loadingSessions, setLoadingSessions] = useState(true);
+  const [showGopherMenu, setShowGopherMenu] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -309,6 +310,49 @@ export default function ClearingPage() {
       } else {
         newSession();
       }
+    }
+  }
+
+  // ── Launch a gopher (background agent) ──
+  async function launchGopher(name: string, endpoint: string) {
+    setShowGopherMenu(false);
+    addMessage({ role: "user", content: `Launching gopher: ${name}`, type: "thought" });
+    try {
+      const res = await fetch(endpoint);
+      const data = await res.json();
+      addMessage({
+        role: "brain",
+        content: data.success
+          ? `Gopher "${name}" completed successfully.${data.title ? ` Result: ${data.title}` : ""}${data.cards_analyzed ? ` (${data.cards_analyzed} cards analyzed)` : ""}`
+          : `Gopher "${name}" failed: ${data.error || "Unknown error"}`,
+        type: "response",
+      });
+    } catch {
+      addMessage({ role: "brain", content: `Failed to launch "${name}". Try again.`, type: "response" });
+    }
+  }
+
+  // ── Add current input to knowledge ──
+  async function addToKnowledge() {
+    if (!input.trim()) return;
+    const text = input.trim();
+    setInput("");
+    addMessage({ role: "user", content: `Adding to knowledge: ${text}`, type: "ingestion" });
+    try {
+      await fetch("/api/brain/ingest", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          text,
+          title: text.slice(0, 60),
+          source_type: "clearing",
+          uploaded_by: "ceo",
+          tags: ["knowledge", "clearing", "manual"],
+        }),
+      });
+      addMessage({ role: "brain", content: "Added to knowledge base. I'll reference this going forward.", type: "response" });
+    } catch {
+      addMessage({ role: "brain", content: "Failed to add to knowledge. Try again.", type: "response" });
     }
   }
 
@@ -664,31 +708,59 @@ export default function ClearingPage() {
                   />
 
                   {/* Action pills */}
-                  <div className="flex gap-[15px] items-center">
+                  <div className="flex gap-[15px] items-center relative">
                     {/* Launch a Gopher */}
-                    <button
-                      className="flex gap-[6px] items-center px-[12px] py-[4px] rounded-[16px]"
-                      style={{
-                        backgroundColor: "#ecfaff",
-                        border: "1px solid #b9e6ff",
-                      }}
-                    >
-                      <img
-                        src="/icons/gophers.png"
-                        alt=""
-                        className="shrink-0"
-                        style={{ width: "18px", height: "20px" }}
-                      />
-                      <span
-                        className="text-[12px] font-semibold text-[#1e252a] leading-[18px] tracking-[-0.24px] whitespace-nowrap"
-                        style={{ fontFamily: "var(--font-geist-sans), 'Geist', sans-serif" }}
+                    <div className="relative">
+                      <button
+                        onClick={() => setShowGopherMenu(!showGopherMenu)}
+                        className="flex gap-[6px] items-center px-[12px] py-[4px] rounded-[16px]"
+                        style={{
+                          backgroundColor: "#ecfaff",
+                          border: "1px solid #b9e6ff",
+                        }}
                       >
-                        Launch a Gopher
-                      </span>
-                    </button>
+                        <img
+                          src="/icons/gophers.png"
+                          alt=""
+                          className="shrink-0"
+                          style={{ width: "18px", height: "20px" }}
+                        />
+                        <span
+                          className="text-[12px] font-semibold text-[#1e252a] leading-[18px] tracking-[-0.24px] whitespace-nowrap"
+                          style={{ fontFamily: "var(--font-geist-sans), 'Geist', sans-serif" }}
+                        >
+                          Launch a Gopher
+                        </span>
+                      </button>
+                      {showGopherMenu && (
+                        <div className="absolute bottom-full mb-2 left-0 bg-white rounded-[8px] shadow-[0px_0px_20px_0px_rgba(0,0,0,0.15)] p-[6px] min-w-[200px] z-50">
+                          {[
+                            { name: "Scan Gmail", endpoint: "/api/agents/gmail-scanner", icon: "📧" },
+                            { name: "Daily Briefing", endpoint: "/api/agents/daily-briefing", icon: "📊" },
+                            { name: "Weekly Synthesis", endpoint: "/api/agents/synthesis", icon: "🧠" },
+                            { name: "Monthly Report", endpoint: "/api/agents/monthly-report", icon: "📋" },
+                          ].map((g) => (
+                            <button
+                              key={g.name}
+                              onClick={() => launchGopher(g.name, g.endpoint)}
+                              className="flex items-center gap-[8px] w-full px-[8px] py-[6px] rounded-[4px] hover:bg-[#f6f5f5] transition-colors text-left"
+                            >
+                              <span className="text-[14px]">{g.icon}</span>
+                              <span
+                                className="text-[12px] font-medium text-[#1e252a]"
+                                style={{ fontFamily: "var(--font-geist-sans), 'Geist', sans-serif" }}
+                              >
+                                {g.name}
+                              </span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
 
                     {/* Add To Knowledge */}
                     <button
+                      onClick={addToKnowledge}
                       className="flex gap-[6px] items-center px-[12px] py-[4px] rounded-[16px]"
                       style={{
                         backgroundColor: "#f2e9fa",
