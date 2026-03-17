@@ -86,6 +86,12 @@
 
 37. **Feed Type Filters** — ✅ COMPLETE. Filter pills (All, Decisions, Actions, Signals, Intel, Briefings) above the feed stream. Clicking a filter reloads via the existing card_type API parameter.
 
+38. **Platform Health Dashboard** — ✅ COMPLETE. `/api/engine/health` endpoint reports database connectivity, last scanner/briefing/synthesis times, feed status breakdown, pending resurface count, env var availability. Engine Room Health tab displays all checks visually.
+
+39. **Gopher Launcher + Add To Knowledge** — ✅ COMPLETE. Clearing page "Launch a Gopher" pill opens a popup menu with 4 agents (Gmail Scanner, Daily Briefing, Weekly Synthesis, Monthly Report). Results show in conversation. "Add To Knowledge" pill ingests current input text into brain.knowledge_base.
+
+40. **Resurface Frequency** — ✅ COMPLETE. Resurface cron changed from daily (14:00 UTC) to every 4 hours so held cards surface closer to their scheduled time.
+
 ---
 
 ## Medium-Term Efforts
@@ -128,4 +134,4 @@
 
 ---
 
-*Last updated: 2026-03-17 (v3) — efforts 29, 33-37 completed this session*
+*Last updated: 2026-03-17 (v4) — efforts 29, 33-40 completed this session*
