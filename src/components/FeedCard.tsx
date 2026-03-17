@@ -40,7 +40,7 @@ const CARD_TYPE_OPTIONS = [
 // Briefing: #3e4c60, white text, radar, gap 6px, resolved bg #e6e9ee
 const CARD_TYPE_BADGES: Record<string, { bg: string; textColor: string; label: string; icon: string; gap: string; resolvedBg: string }> = {
   decision:     { bg: "#d8e5dd", textColor: "black",  label: "Decision",     icon: "/icons/gauge.svg",     gap: "10px", resolvedBg: "#f3f2ed" },
-  action:       { bg: "#289bff", textColor: "white",  label: "Action",       icon: "/icons/rocket.svg",    gap: "10px", resolvedBg: "#ecfaff" },
+  action:       { bg: "#289bff", textColor: "white",  label: "Action",       icon: "/icons/rocket.svg",    gap: "6px",  resolvedBg: "#ecfaff" },
   signal:       { bg: "#9c6ade", textColor: "white",  label: "Signal",       icon: "/icons/satellite.svg", gap: "6px",  resolvedBg: "#f2e9fa" },
   intelligence: { bg: "#9c6ade", textColor: "white",  label: "Intelligence", icon: "/icons/satellite.svg", gap: "6px",  resolvedBg: "#f2e9fa" },
   briefing:     { bg: "#3e4c60", textColor: "white",  label: "Briefing",     icon: "/icons/radar.svg",     gap: "6px",  resolvedBg: "#e6e9ee" },
@@ -305,13 +305,14 @@ export default function FeedCard({ card, onAction, onDismiss }: FeedCardProps) {
 
   // ─── Render ───────────────────────────────────────────────────────────
 
-  // Resolved state: bg changes per card type, entire card at opacity 60%
+  // Resolved state: bg changes per card type, entire card at opacity 60%, NO shadow
   const cardBg = isResolved ? badge.resolvedBg : "white";
   const cardOpacity = isResolved ? "opacity-60" : "";
+  const cardShadow = isResolved ? "" : "shadow-[0px_0px_60px_0px_rgba(0,0,0,0.12)]";
 
   return (
     <div
-      className={`flex flex-col gap-[6px] p-[12px] rounded-[12px] shadow-[0px_0px_60px_6px_rgba(0,0,0,0.12)] transition-all w-[500px] overflow-hidden ${cardOpacity}`}
+      className={`flex flex-col gap-[6px] p-[12px] rounded-[12px] ${cardShadow} transition-all w-[500px] overflow-hidden ${cardOpacity}`}
       style={{ backgroundColor: cardBg }}
     >
       {/* ══════════════════════════════════════════════════════════════════
@@ -379,7 +380,7 @@ export default function FeedCard({ card, onAction, onDismiss }: FeedCardProps) {
                 <img
                   src="/icons/gmail.svg"
                   alt=""
-                  className="w-[16px] h-[16px] shrink-0"
+                  className="w-[20px] h-[20px] shrink-0"
                 />
               )}
 
@@ -541,33 +542,14 @@ export default function FeedCard({ card, onAction, onDismiss }: FeedCardProps) {
             </a>
           )}
 
-          {/* Body text */}
+          {/* Body text — same styling for all card types per Figma */}
           {card.body && (
-            <div className="w-full">
-              {(card.card_type === "briefing" || card.card_type === "snapshot") ? (
-                <div
-                  className="text-[12px] text-[#0c111d] leading-[16px] prose prose-sm max-w-none prose-headings:text-[#1e252a] prose-strong:text-[#1e252a]"
-                  style={{ fontFamily: "var(--font-geist-sans), 'Geist', sans-serif" }}
-                  dangerouslySetInnerHTML={{
-                    __html: card.body
-                      .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
-                      .replace(/^### (.+)$/gm, '<h4 class="text-sm font-bold mt-3 mb-1">$1</h4>')
-                      .replace(/^## (.+)$/gm, '<h3 class="text-base font-bold mt-4 mb-1">$1</h3>')
-                      .replace(/^# (.+)$/gm, '<h2 class="text-lg font-bold mt-4 mb-2">$1</h2>')
-                      .replace(/^- (.+)$/gm, '<li class="ml-4 list-disc">$1</li>')
-                      .replace(/\n{2,}/g, "<br/><br/>")
-                      .replace(/\n/g, "<br/>"),
-                  }}
-                />
-              ) : (
-                <p
-                  className="text-[12px] text-[#0c111d] leading-[16px]"
-                  style={{ fontFamily: "var(--font-geist-sans), 'Geist', sans-serif" }}
-                >
-                  {card.body}
-                </p>
-              )}
-            </div>
+            <p
+              className="text-[12px] text-[#0c111d] leading-[16px] w-full"
+              style={{ fontFamily: "var(--font-geist-sans), 'Geist', sans-serif" }}
+            >
+              {card.body}
+            </p>
           )}
         </div>
 
@@ -577,7 +559,7 @@ export default function FeedCard({ card, onAction, onDismiss }: FeedCardProps) {
         {(card.reasoning || card.acumen_category || (card.related_entities && card.related_entities.length > 0)) && (
           <button
             onClick={() => setExpanded(!expanded)}
-            className="flex gap-[12px] items-center px-[12px] py-[4px] rounded-[8px]"
+            className={`flex items-center px-[12px] py-[4px] rounded-[8px] ${expanded ? "gap-[6px]" : "gap-[12px]"}`}
             style={{ backgroundColor: expanded ? "#f4efea" : "rgba(244, 239, 234, 0.8)" }}
           >
             <span
