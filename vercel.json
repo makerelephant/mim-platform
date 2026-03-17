@@ -20,6 +20,10 @@
     {
       "path": "/api/agents/synthesis",
       "schedule": "0 8 * * 0"
+    },
+    {
+      "path": "/api/agents/monthly-report",
+      "schedule": "0 13 1 * *"
     }
   ]
 }
