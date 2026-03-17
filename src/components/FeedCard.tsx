@@ -362,12 +362,20 @@ export default function FeedCard({ card, onAction, onDismiss }: FeedCardProps) {
                 <span className="font-bold text-[#1e252a]">{sourceLabel(card.source_type)}</span>
               </span>
 
-              {/* Slack icon — per Figma: 20x20 */}
-              <img
-                src="/icons/slack.svg"
-                alt=""
-                className="w-[20px] h-[20px] shrink-0"
-              />
+              {/* Source icon — Gmail M for email, Slack for slack */}
+              {sourceLabel(card.source_type) === "Slack" ? (
+                <img
+                  src="/icons/slack.svg"
+                  alt=""
+                  className="w-[20px] h-[20px] shrink-0"
+                />
+              ) : (
+                <img
+                  src="/icons/gmail.svg"
+                  alt=""
+                  className="w-[16px] h-[16px] shrink-0"
+                />
+              )}
 
               {/* External link — per Figma: 16x16, links back to source */}
               {sourceUrl(card) ? (
@@ -389,7 +397,8 @@ export default function FeedCard({ card, onAction, onDismiss }: FeedCardProps) {
           </div>
 
           {/* ── Right: Action buttons ── */}
-          {(isDecision || isAction) && !isActed && (
+          {/* Decision: Do / Hold / No */}
+          {isDecision && !isActed && (
             <div className="flex gap-[20px] items-start px-[6px] shrink-0">
               <button
                 onClick={() => handleAction("do")}
@@ -399,18 +408,16 @@ export default function FeedCard({ card, onAction, onDismiss }: FeedCardProps) {
               >
                 Do
               </button>
-              {isDecision && (
-                <button
-                  onClick={handleHoldClick}
-                  disabled={acting}
-                  className="text-[12px] font-medium text-[#344054] leading-[18px] text-center whitespace-nowrap hover:text-amber-700 transition-colors disabled:opacity-40"
-                  style={{ fontFamily: "-apple-system, 'SF Pro Display', system-ui, sans-serif" }}
-                >
-                  Hold
-                </button>
-              )}
               <button
-                onClick={isDecision ? handleNoClick : () => handleDismiss()}
+                onClick={handleHoldClick}
+                disabled={acting}
+                className="text-[12px] font-medium text-[#344054] leading-[18px] text-center whitespace-nowrap hover:text-amber-700 transition-colors disabled:opacity-40"
+                style={{ fontFamily: "-apple-system, 'SF Pro Display', system-ui, sans-serif" }}
+              >
+                Hold
+              </button>
+              <button
+                onClick={handleNoClick}
                 disabled={acting}
                 className="text-[12px] font-medium text-[#344054] leading-[18px] text-center whitespace-nowrap hover:text-red-700 transition-colors disabled:opacity-40"
                 style={{ fontFamily: "-apple-system, 'SF Pro Display', system-ui, sans-serif" }}
@@ -420,8 +427,8 @@ export default function FeedCard({ card, onAction, onDismiss }: FeedCardProps) {
             </div>
           )}
 
-          {/* Signal/Intelligence: Noted + Dismiss in header */}
-          {isSignalOrIntel && !isActed && (
+          {/* Action: Do / Dismiss */}
+          {isAction && !isActed && (
             <div className="flex gap-[20px] items-start px-[6px] shrink-0">
               <button
                 onClick={() => handleAction("do")}
@@ -429,7 +436,7 @@ export default function FeedCard({ card, onAction, onDismiss }: FeedCardProps) {
                 className="text-[12px] font-medium text-[#344054] leading-[18px] text-center whitespace-nowrap hover:text-emerald-700 transition-colors disabled:opacity-40"
                 style={{ fontFamily: "-apple-system, 'SF Pro Display', system-ui, sans-serif" }}
               >
-                Noted
+                Do
               </button>
               <button
                 onClick={() => handleDismiss()}
@@ -442,18 +449,49 @@ export default function FeedCard({ card, onAction, onDismiss }: FeedCardProps) {
             </div>
           )}
 
+          {/* Signal/Intelligence/Briefing/Snapshot/Reflection: Do / Hold / No */}
+          {!isDecision && !isAction && !isActed && (
+            <div className="flex gap-[20px] items-start px-[6px] shrink-0">
+              <button
+                onClick={() => handleAction("do")}
+                disabled={acting}
+                className="text-[12px] font-medium text-[#344054] leading-[18px] text-center whitespace-nowrap hover:text-emerald-700 transition-colors disabled:opacity-40"
+                style={{ fontFamily: "-apple-system, 'SF Pro Display', system-ui, sans-serif" }}
+              >
+                Do
+              </button>
+              <button
+                onClick={handleHoldClick}
+                disabled={acting}
+                className="text-[12px] font-medium text-[#344054] leading-[18px] text-center whitespace-nowrap hover:text-amber-700 transition-colors disabled:opacity-40"
+                style={{ fontFamily: "-apple-system, 'SF Pro Display', system-ui, sans-serif" }}
+              >
+                Hold
+              </button>
+              <button
+                onClick={handleNoClick}
+                disabled={acting}
+                className="text-[12px] font-medium text-[#344054] leading-[18px] text-center whitespace-nowrap hover:text-red-700 transition-colors disabled:opacity-40"
+                style={{ fontFamily: "-apple-system, 'SF Pro Display', system-ui, sans-serif" }}
+              >
+                No
+              </button>
+            </div>
+          )}
+
           {/* Acted indicator in header position */}
           {isActed && card.ceo_action && (
             <div className="flex items-start px-[6px]">
               <span
-                className={`text-[12px] font-medium leading-[18px] ${
-                  card.ceo_action === "do" ? "text-emerald-600" :
-                  card.ceo_action === "no" ? "text-red-500" :
-                  "text-amber-600"
-                }`}
-                style={{ fontFamily: "-apple-system, 'SF Pro Display', system-ui, sans-serif" }}
+                className="text-[12px] font-medium leading-[18px]"
+                style={{
+                  fontFamily: "-apple-system, 'SF Pro Display', system-ui, sans-serif",
+                  color: card.ceo_action === "do" ? "#16a34a" :
+                         card.ceo_action === "no" ? "#ef4444" :
+                         "#e8845f",
+                }}
               >
-                {card.ceo_action === "do" ? "Done" : card.ceo_action === "no" ? "Declined" : "On Hold"}
+                {card.ceo_action === "do" ? "Done" : card.ceo_action === "no" ? "Declined" : "Hold"}
               </span>
             </div>
           )}
