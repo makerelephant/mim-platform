@@ -613,6 +613,23 @@ export default function FeedCard({ card, onAction, onDismiss }: FeedCardProps) {
           )}
         </div>
 
+        {/* Action recommendation banner — amber, on Decision/Action cards when scanner provided one */}
+        {(isDecision || isAction) && !!meta?.action_recommendation && !isActed && (
+          <div
+            className="flex items-start gap-[8px] px-[10px] py-[8px] rounded-[6px] w-full"
+            style={{ backgroundColor: "rgba(255, 178, 10, 0.1)", border: "1px solid rgba(255, 178, 10, 0.3)" }}
+          >
+            <span className="text-[11px] shrink-0 mt-[1px]">💡</span>
+            <p
+              className="text-[11px] font-medium text-[#92710a] leading-[15px]"
+              style={{ fontFamily: "var(--font-geist-sans), 'Geist', sans-serif" }}
+            >
+              {String(meta.action_recommendation)}
+            </p>
+          </div>
+        )}
+
+
         {/* ══════════════════════════════════════════════════════════════════
             "More About This" / "Less" toggle — Figma expand trigger
             ══════════════════════════════════════════════════════════════════ */}
