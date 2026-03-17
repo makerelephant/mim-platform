@@ -72,13 +72,9 @@ export default function MotionFeedPage() {
   // ─── RENDER ──────────────────────────────────────────────────────────────
 
   return (
-    <div className="h-full flex flex-col bg-[#f6f5f5]">
-      {/* ── Header ── */}
-      {/* No header bar — the sidebar "Motion" label serves as the page identifier */}
-
+    <div className="min-h-full" style={{ backgroundImage: "url('/icons/background.png')", backgroundSize: "cover", backgroundPosition: "center", backgroundRepeat: "no-repeat" }}>
       {/* ── Feed ── */}
-      <div className="flex-1 overflow-y-auto">
-        <div className="max-w-2xl mx-auto px-4 sm:px-6 py-6 space-y-4">
+      <div className="mx-auto py-6 space-y-4" style={{ width: "500px" }}>
           {loading ? (
             <div className="flex items-center justify-center py-20">
               <Loader2 className="w-6 h-6 text-slate-400 animate-spin" />
@@ -119,7 +115,6 @@ export default function MotionFeedPage() {
             </>
           )}
         </div>
-      </div>
     </div>
   );
 }

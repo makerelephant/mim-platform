@@ -46,7 +46,7 @@ export function Sidebar() {
           <div className="w-12 h-12 rounded-full overflow-hidden shadow-[0px_2px_4px_0px_rgba(0,0,0,0.25)]">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src="/icons/Ellipse 2831.png"
+              src="/icons/mark-avatar.png"
               alt="Mark Slater"
               width={48}
               height={48}
