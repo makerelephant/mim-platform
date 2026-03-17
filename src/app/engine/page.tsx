@@ -46,8 +46,9 @@ interface AccuracyData {
 // ─── Component ──────────────────────────────────────────────────────────────
 
 export default function EngineRoomPage() {
-  const [activeTab, setActiveTab] = useState<"map" | "accuracy" | "integrations" | "autonomy">("map");
+  const [activeTab, setActiveTab] = useState<"map" | "accuracy" | "integrations" | "autonomy" | "health">("map");
   const [harness, setHarness] = useState<HarnessFile[]>([]);
+  const [integrations, setIntegrations] = useState<Array<{ name: string; icon: string; status: string; description: string }>>([]);
   const [accuracy, setAccuracy] = useState<AccuracyData | null>(null);
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -71,6 +72,15 @@ export default function EngineRoomPage() {
         const accRes = await fetch("/api/brain/accuracy");
         if (accRes.ok) {
           setAccuracy(await accRes.json());
+        }
+      } catch { /* ignore */ }
+
+      try {
+        // Load integration status
+        const intRes = await fetch("/api/engine/integrations");
+        if (intRes.ok) {
+          const intData = await intRes.json();
+          if (intData.success) setIntegrations(intData.integrations);
         }
       } catch { /* ignore */ }
 
@@ -103,6 +113,7 @@ export default function EngineRoomPage() {
           { key: "accuracy" as const, label: "Brain Accuracy" },
           { key: "autonomy" as const, label: "Autonomy" },
           { key: "integrations" as const, label: "Integrations" },
+          { key: "health" as const, label: "Health" },
         ].map((tab) => (
           <button
             key={tab.key}
@@ -257,16 +268,26 @@ export default function EngineRoomPage() {
         ) : activeTab === "autonomy" ? (
           /* ── Autonomy ── */
           <AutonomyPanel />
-        ) : (
+        ) : activeTab === "integrations" ? (
           /* ── Integrations ── */
           <div className="grid grid-cols-2 gap-4">
-            <IntegrationCard name="Gmail" status="connected" description="Scanning every day at 6am EST" icon="📧" />
-            <IntegrationCard name="Slack" status="planned" description="Not yet connected" icon="💬" />
-            <IntegrationCard name="Google Drive" status="planned" description="Not yet connected" icon="📁" />
-            <IntegrationCard name="Stripe" status="planned" description="Not yet connected" icon="💳" />
-            <IntegrationCard name="Calendar" status="planned" description="Not yet connected" icon="📅" />
-            <IntegrationCard name="Notion" status="planned" description="Not yet connected" icon="📝" />
+            {integrations.length > 0
+              ? integrations.map((i) => (
+                  <IntegrationCard key={i.name} name={i.name} status={i.status} description={i.description} icon={i.icon} />
+                ))
+              : <>
+                  <IntegrationCard name="Gmail" status="connected" description="Scanning every day at 6am EST" icon="📧" />
+                  <IntegrationCard name="Slack" status="planned" description="Not yet connected" icon="💬" />
+                  <IntegrationCard name="Google Drive" status="planned" description="Not yet connected" icon="📁" />
+                  <IntegrationCard name="Stripe" status="planned" description="Not yet connected" icon="💳" />
+                  <IntegrationCard name="Calendar" status="planned" description="Not yet connected" icon="📅" />
+                  <IntegrationCard name="Notion" status="planned" description="Not yet connected" icon="📝" />
+                </>
+            }
           </div>
+        ) : (
+          /* ── Health ── */
+          <HealthPanel />
         )}
       </div>
     </div>
@@ -371,6 +392,135 @@ function AutonomyPanel() {
             ))}
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+function HealthPanel() {
+  const [health, setHealth] = useState<Record<string, unknown> | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch("/api/engine/health")
+      .then((r) => r.json())
+      .then((d) => { if (d.success) setHealth(d); })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) return <div className="text-sm text-[#94A3B8]">Checking systems...</div>;
+  if (!health) return <div className="text-sm text-[#94A3B8]">Could not load health data.</div>;
+
+  const checks = health.checks as Record<string, Record<string, unknown>>;
+  const status = health.status as string;
+
+  return (
+    <div className="space-y-4">
+      {/* Overall status */}
+      <div className={`rounded-xl shadow-sm p-5 ${status === "healthy" ? "bg-emerald-50 border border-emerald-100" : "bg-amber-50 border border-amber-100"}`}>
+        <h3 className={`text-sm font-bold mb-1 ${status === "healthy" ? "text-emerald-800" : "text-amber-800"}`}>
+          {status === "healthy" ? "🟢 All Systems Operational" : "🟡 Some Systems Degraded"}
+        </h3>
+        <p className="text-xs text-[#6e7b80]">
+          Checked in {String(health.duration_ms)}ms
+        </p>
+      </div>
+
+      {/* Database */}
+      {checks.database && (
+        <div className="bg-white rounded-xl shadow-sm p-5">
+          <h3 className="text-sm font-bold text-[#1e252a] mb-2">Database</h3>
+          <div className="flex items-center gap-2">
+            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${(checks.database.status as string) === "ok" ? "bg-emerald-50 text-emerald-600" : "bg-red-50 text-red-600"}`}>
+              {checks.database.status as string}
+            </span>
+            <span className="text-xs text-[#6e7b80]">
+              {checks.database.feed_cards_total as number} feed cards total
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* Automated Systems */}
+      <div className="bg-white rounded-xl shadow-sm p-5">
+        <h3 className="text-sm font-bold text-[#1e252a] mb-3">Automated Systems</h3>
+        <div className="space-y-3">
+          {checks.gmail_scanner && (
+            <HealthRow
+              name="Gmail Scanner"
+              status={(checks.gmail_scanner.status as string) || "unknown"}
+              detail={checks.gmail_scanner.last_card_at
+                ? `Last card: ${new Date(checks.gmail_scanner.last_card_at as string).toLocaleString()} (${checks.gmail_scanner.age_hours}h ago)`
+                : "No cards yet"}
+            />
+          )}
+          {checks.daily_briefing && (
+            <HealthRow
+              name="Daily Briefing"
+              status={(checks.daily_briefing.status as string) || "unknown"}
+              detail={checks.daily_briefing.last_briefing_at
+                ? `"${(checks.daily_briefing.title as string || "").slice(0, 50)}" — ${checks.daily_briefing.age_hours}h ago`
+                : "No briefings yet"}
+            />
+          )}
+          {checks.synthesis && (
+            <HealthRow
+              name="Weekly Synthesis"
+              status={(checks.synthesis.status as string) || "unknown"}
+              detail={checks.synthesis.last_reflection_at
+                ? `"${(checks.synthesis.title as string || "").slice(0, 50)}"`
+                : "No reflections yet"}
+            />
+          )}
+        </div>
+      </div>
+
+      {/* Feed Status */}
+      {checks.feed_status && (
+        <div className="bg-white rounded-xl shadow-sm p-5">
+          <h3 className="text-sm font-bold text-[#1e252a] mb-3">Feed Status</h3>
+          <div className="grid grid-cols-4 gap-3">
+            {Object.entries(checks.feed_status as Record<string, number>).map(([key, val]) => (
+              <div key={key} className="text-center">
+                <div className="text-lg font-bold text-[#1e252a]">{val}</div>
+                <div className="text-[10px] text-[#94A3B8] capitalize">{key}</div>
+              </div>
+            ))}
+          </div>
+          {checks.pending_resurface !== undefined && (
+            <p className="text-xs text-[#6e7b80] mt-3">
+              {String(checks.pending_resurface)} cards pending resurface
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* Env vars */}
+      {checks.env && (
+        <div className="bg-white rounded-xl shadow-sm p-5">
+          <h3 className="text-sm font-bold text-[#1e252a] mb-3">Environment</h3>
+          <div className="grid grid-cols-3 gap-2">
+            {Object.entries(checks.env as Record<string, boolean>).map(([key, available]) => (
+              <div key={key} className="flex items-center gap-1.5">
+                <span className={`w-2 h-2 rounded-full ${available ? "bg-emerald-400" : "bg-[#cbd5e1]"}`} />
+                <span className="text-xs text-[#64748B] capitalize">{key}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function HealthRow({ name, status, detail }: { name: string; status: string; detail: string }) {
+  return (
+    <div className="flex items-start gap-3">
+      <span className={`mt-0.5 w-2 h-2 rounded-full shrink-0 ${status === "ok" ? "bg-emerald-400" : status === "no_data" ? "bg-[#cbd5e1]" : "bg-red-400"}`} />
+      <div>
+        <p className="text-xs font-medium text-[#1e252a]">{name}</p>
+        <p className="text-[10px] text-[#6e7b80]">{detail}</p>
       </div>
     </div>
   );

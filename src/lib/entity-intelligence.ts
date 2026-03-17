@@ -5,33 +5,58 @@ import 'server-only';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 // ─── Field Weight Maps ──────────────────────────────────────────────────────
-// Higher weight = more important for completeness. Scale: 1-10.
+// Weights as fractions that sum to ~1.0 per entity type.
+// "relation:" prefix means the field is checked via a related table query,
+// not a column on the entity row itself.
 
-const ORG_FIELD_WEIGHTS: Record<string, number> = {
-  name: 10,
-  website: 8,
-  location: 6,
-  description: 5,
-  geography: 4,
-  avatar_url: 3,
-  address: 3,
-  notes: 2,
-  corporate_structure: 2,
-  parent_org_id: 2,
+interface FieldWeight {
+  weight: number;
+  /** If set, check this related table instead of entity column */
+  relation?: {
+    schema: string;
+    table: string;
+    foreignKey: string;     // column in related table that references entity id
+    entityKey?: string;     // column name on the related table for entity_type (if polymorphic)
+    entityTypeValue?: string; // value to match for entityKey
+  };
+}
+
+const ORG_FIELD_WEIGHTS: Record<string, FieldWeight> = {
+  name:          { weight: 0.10 },
+  website:       { weight: 0.10 },
+  description:   { weight: 0.10 },
+  types:         { weight: 0.10, relation: { schema: 'core', table: 'org_types', foreignKey: 'org_id' } },
+  contacts:      { weight: 0.15, relation: { schema: 'core', table: 'relationships', foreignKey: 'org_id' } },
+  correspondence:{ weight: 0.15, relation: { schema: 'brain', table: 'correspondence', foreignKey: 'entity_id', entityKey: 'entity_type', entityTypeValue: 'organizations' } },
+  tasks:         { weight: 0.10, relation: { schema: 'brain', table: 'tasks', foreignKey: 'entity_id', entityKey: 'entity_type', entityTypeValue: 'organizations' } },
+  pipeline:      { weight: 0.10, relation: { schema: 'crm', table: 'pipeline', foreignKey: 'org_id' } },
+  notes:         { weight: 0.10 },
 };
 
-const CONTACT_FIELD_WEIGHTS: Record<string, number> = {
-  first_name: 10,
-  email: 9,
-  last_name: 8,
-  role: 6,
-  phone: 4,
-  avatar_url: 3,
-  notes: 2,
+const CONTACT_FIELD_WEIGHTS: Record<string, FieldWeight> = {
+  name:          { weight: 0.15 },   // checks first_name
+  email:         { weight: 0.15 },
+  phone:         { weight: 0.10 },
+  title:         { weight: 0.10 },   // checks role column
+  org_relationship: { weight: 0.15, relation: { schema: 'core', table: 'relationships', foreignKey: 'contact_id' } },
+  correspondence:   { weight: 0.15, relation: { schema: 'brain', table: 'correspondence', foreignKey: 'entity_id', entityKey: 'entity_type', entityTypeValue: 'contacts' } },
+  tasks:            { weight: 0.10, relation: { schema: 'brain', table: 'tasks', foreignKey: 'entity_id', entityKey: 'entity_type', entityTypeValue: 'contacts' } },
+  notes:            { weight: 0.10 },
 };
 
-function getFieldWeights(entityType: string): Record<string, number> {
+/** Map virtual field names to actual entity column names for direct-column checks */
+const COLUMN_ALIASES: Record<string, string> = {
+  name: 'first_name',   // contacts: check first_name; orgs: check name
+  title: 'role',
+};
+
+function getFieldWeights(entityType: string): Record<string, FieldWeight> {
   return entityType === 'organizations' ? ORG_FIELD_WEIGHTS : CONTACT_FIELD_WEIGHTS;
+}
+
+function resolveColumnName(field: string, entityType: string): string {
+  if (field === 'name' && entityType === 'organizations') return 'name';
+  return COLUMN_ALIASES[field] ?? field;
 }
 
 // ─── KCS Calculation ────────────────────────────────────────────────────────
@@ -39,6 +64,9 @@ function getFieldWeights(entityType: string): Record<string, number> {
 /**
  * Compute Knowledge Completeness Score for an entity.
  * KCS = Sum(field_weight * field_populated * field_confidence) / Sum(field_weight)
+ *
+ * Checks both direct columns and related tables (contacts, correspondence,
+ * tasks, pipeline, org_types, relationships).
  *
  * Returns { kcs: 0.0-1.0, gaps: string[] of unpopulated field names }
  */
@@ -77,19 +105,53 @@ export async function computeKCS(
     }
   }
 
+  // Check related tables in parallel for relation-based fields
+  const relationFields = Object.entries(fieldWeights).filter(([, fw]) => fw.relation);
+  const relationResults: Record<string, boolean> = {};
+
+  if (relationFields.length > 0) {
+    const checks = relationFields.map(async ([field, fw]) => {
+      const rel = fw.relation!;
+      try {
+        let query = sb.schema(rel.schema).from(rel.table)
+          .select('id', { count: 'exact', head: true })
+          .eq(rel.foreignKey, entityId);
+
+        if (rel.entityKey && rel.entityTypeValue) {
+          query = query.eq(rel.entityKey, rel.entityTypeValue);
+        }
+
+        const { count } = await query;
+        relationResults[field] = (count ?? 0) > 0;
+      } catch {
+        relationResults[field] = false;
+      }
+    });
+    await Promise.all(checks);
+  }
+
   let weightedSum = 0;
   let totalWeight = 0;
   const gaps: string[] = [];
 
-  for (const [field, weight] of Object.entries(fieldWeights)) {
-    totalWeight += weight;
+  for (const [field, fw] of Object.entries(fieldWeights)) {
+    totalWeight += fw.weight;
 
-    const value = entity[field];
-    const populated = value !== null && value !== undefined && value !== '';
+    let populated = false;
+
+    if (fw.relation) {
+      // Relation-based field — already checked above
+      populated = relationResults[field] ?? false;
+    } else {
+      // Direct column check
+      const col = resolveColumnName(field, entityType);
+      const value = entity[col];
+      populated = value !== null && value !== undefined && value !== '';
+    }
 
     if (populated) {
       const confidence = confidenceMap[field] ?? 0.5; // default confidence if no provenance
-      weightedSum += weight * confidence;
+      weightedSum += fw.weight * confidence;
     } else {
       gaps.push(field);
     }
@@ -182,7 +244,7 @@ export async function writeProvenance(
 
 /**
  * Compute KCS for an entity and update its row with the result.
- * Also sets enrichment_priority based on KCS level.
+ * Also sets enrichment_priority based on KCS level and updates confidence_score.
  */
 export async function recomputeAndStoreKCS(
   sb: SupabaseClient,
@@ -198,10 +260,24 @@ export async function recomputeAndStoreKCS(
   else if (kcs < 0.4) enrichmentPriority = 'medium';
   else if (kcs < 0.6) enrichmentPriority = 'low';
 
+  // Compute aggregate confidence_score from provenance records
+  const { data: provRecords } = await sb
+    .schema('brain').from('entity_provenance')
+    .select('confidence')
+    .eq('entity_type', entityType)
+    .eq('entity_id', entityId);
+
+  let confidenceScore = 0;
+  if (provRecords && provRecords.length > 0) {
+    const sum = provRecords.reduce((acc: number, r: { confidence: number }) => acc + (r.confidence ?? 0), 0);
+    confidenceScore = Math.round((sum / provRecords.length) * 1000) / 1000;
+  }
+
   const { error } = await sb
     .schema('core').from(table)
     .update({
       knowledge_completeness_score: kcs,
+      confidence_score: confidenceScore,
       enrichment_gaps: gaps,
       enrichment_priority: enrichmentPriority,
       updated_at: new Date().toISOString(),
@@ -249,4 +325,45 @@ export async function recomputeKCSForEntities(
   }
 
   return count;
+}
+
+// ─── Aggregate KCS Stats ────────────────────────────────────────────────────
+
+/**
+ * Returns aggregate KCS statistics across all organizations and contacts.
+ * Used by the /api/brain/kcs GET endpoint.
+ */
+export async function getKCSStats(sb: SupabaseClient): Promise<{
+  organizations: { count: number; avg_kcs: number; distribution: Record<string, number> };
+  contacts: { count: number; avg_kcs: number; distribution: Record<string, number> };
+}> {
+  const buildStats = async (entityType: 'organizations' | 'contacts') => {
+    const table = entityType === 'organizations' ? 'organizations' : 'contacts';
+    const { data, error } = await sb
+      .schema('core').from(table)
+      .select('knowledge_completeness_score, enrichment_priority');
+
+    if (error || !data) {
+      return { count: 0, avg_kcs: 0, distribution: { high: 0, medium: 0, low: 0, none: 0 } };
+    }
+
+    const count = data.length;
+    const sum = data.reduce((acc: number, r) => acc + (r.knowledge_completeness_score ?? 0), 0);
+    const avg_kcs = count > 0 ? Math.round((sum / count) * 1000) / 1000 : 0;
+
+    const distribution: Record<string, number> = { high: 0, medium: 0, low: 0, none: 0 };
+    for (const r of data) {
+      const priority = r.enrichment_priority ?? 'none';
+      distribution[priority] = (distribution[priority] ?? 0) + 1;
+    }
+
+    return { count, avg_kcs, distribution };
+  };
+
+  const [organizations, contacts] = await Promise.all([
+    buildStats('organizations'),
+    buildStats('contacts'),
+  ]);
+
+  return { organizations, contacts };
 }

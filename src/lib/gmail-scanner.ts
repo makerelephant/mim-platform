@@ -13,6 +13,7 @@ import { buildEntityDossier } from "./entity-dossier";
 import { computeFeedbackForEntities } from "./feedback-engine";
 import { loadTaxonomy, matchTaxonomyCategory, buildTaxonomyPromptSection, enforcePriorityRules } from "./taxonomy-loader";
 import { loadStandingOrders, buildStandingOrdersPromptSection, loadRecentCorrections, buildCorrectionsPromptSection } from "./instruction-loader";
+import { loadBehavioralRules, buildBehavioralRulesPromptSection } from "./behavioral-rules";
 import { writeProvenance, recomputeKCSForEntities } from "./entity-intelligence";
 import { buildAcumenPromptSection } from "./harness-loader";
 import { emitFeedCard, inferCardType, logIngestion, embedCorrespondence } from "./feed-card-emitter";
@@ -763,6 +764,14 @@ export async function runGmailScanner(
       addLog(`Injected ${corrections.length} CEO correction(s) into classifier prompt`);
     }
 
+    // ── Inject permanent behavioral rules (synthesized from repeated corrections) ──
+    const behavioralRules = await loadBehavioralRules(sb);
+    if (behavioralRules.length > 0) {
+      const behavioralRulesSection = buildBehavioralRulesPromptSection(behavioralRules);
+      agentSystemPrompt += "\n" + behavioralRulesSection;
+      addLog(`Injected ${behavioralRules.length} permanent behavioral rule(s) into classifier prompt`);
+    }
+
     const userEmails = new Set(userEmailsList.map((e) => e.toLowerCase().trim()));
 
     // ── Brain email config (for knowledge ingestion routing) ──
@@ -781,16 +790,33 @@ export async function runGmailScanner(
     const orgContext = await loadOrgContext(sb);
     addLog(`Loaded org context (${orgContext.length} chars)`);
 
-    // ── Fetch recent messages ──
+    // ── Fetch recent messages (paginated, up to 500) ──
     const afterTs = Math.floor((Date.now() - scanHours * 60 * 60 * 1000) / 1000);
     const query = `after:${afterTs}`;
-    const listResult = await gmail.users.messages.list({
-      userId: "me",
-      q: query,
-      maxResults: 100,
-    });
+    const MAX_MESSAGES_PER_SCAN = 500;
+    const messages: Array<{ id?: string | null; threadId?: string | null }> = [];
+    let pageToken: string | undefined = undefined;
 
-    const messages = listResult.data.messages || [];
+    do {
+      const listParams: { userId: string; q: string; maxResults: number; pageToken?: string } = {
+        userId: "me",
+        q: query,
+        maxResults: 100,
+      };
+      if (pageToken) listParams.pageToken = pageToken;
+      const listResult = await gmail.users.messages.list(listParams);
+
+      const pageMessages = listResult.data.messages || [];
+      messages.push(...pageMessages);
+      pageToken = listResult.data.nextPageToken ?? undefined;
+      addLog(`Fetched page of ${pageMessages.length} messages (total so far: ${messages.length})`);
+    } while (pageToken && messages.length < MAX_MESSAGES_PER_SCAN);
+
+    // Trim to cap in case the last page pushed us over
+    if (messages.length > MAX_MESSAGES_PER_SCAN) {
+      messages.length = MAX_MESSAGES_PER_SCAN;
+    }
+
     addLog(`Found ${messages.length} messages in the last ${scanHours} hours`);
 
     let recordsProcessed = 0;
@@ -1378,7 +1404,7 @@ export async function runGmailScanner(
 
         // Embed full email content for vector search
         if (corrRow?.id) {
-          const embeddableText = `Subject: ${details.subject}\nFrom: ${details.from}\n\n${details.body}`;
+          const embeddableText = `Subject: ${details.subject}\nFrom: ${details.from}\nTo: ${details.to || ""}\n\n${details.body}`;
           await embedCorrespondence(sb, corrRow.id, embeddableText, addLog);
         }
       }

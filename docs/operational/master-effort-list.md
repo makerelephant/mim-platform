@@ -62,9 +62,35 @@
 
 ## Near-Term Efforts (Operational Phase)
 
-26. **Training Velocity** — T1-T4 workstream. Run scanner daily, CEO reviews cards, accuracy accumulates, categories earn autonomy. Infrastructure built — needs consistent use. Bulk import available to accelerate.
+26. **Decision Card UI (Figma Pixel-Perfect)** — ✅ COMPLETE. FeedCard.tsx rewritten to match Figma Decision Card design exactly. 500px fixed width, 12px padding, 12px border radius, drop shadow (60px blur, 6px spread). Card type badges, source pills (gopher + Gmail/Slack icon + external link), entity dotted underlines linking to detail pages, "More About This" expansion, MOTION REASONING section, natural sentence metadata ("This Fundraising conversation includes both Walt Doyle and David Brown"). Resolved states (Do/Hold/No) with opacity and background changes.
 
-27. **Parallel Entity Intelligence Layer** — New brain-schema tables for entity provenance, derived insights, enrichment queue. The knowledge layer that makes entities smarter over time.
+27. **Motion Page Header & Scanner Trigger** — ✅ COMPLETE. Avatar + "Mark Slater, CEO." + "Important Conversations" title + "updated X ago" timestamp + blue refresh spinner icon that triggers POST /api/agents/gmail-scanner. Search bar with placeholder icons. Scanner populates feed on demand.
+
+28. **Cherry-Pick Backend from busy-black** — ✅ COMPLETE. SQL migrations step-19 through step-23 (cleanup duplicates, fresh reimport, entity intelligence, derived insights, clearing conversations). New API routes: synthesis agent, brain ask/KCS, clearing sessions/messages. Behavioral rules engine. Enhanced gmail-scanner with paginated fetch (up to 500) and correspondence embedding.
+
+29. **Parallel Entity Intelligence Layer** — ✅ COMPLETE (schema). brain.entity_provenance, brain.enrichment_queue, brain.derived_insights tables created. Intelligence columns added to core.organizations and core.contacts (confidence_score, knowledge_completeness_score, enrichment_priority, enrichment_gaps). SQL migrations run in Supabase.
+
+30. **Training Velocity** — T1-T4 workstream. Run scanner daily, CEO reviews cards, accuracy accumulates, categories earn autonomy. Infrastructure built — needs consistent use. Bulk import available to accelerate.
+
+31. **Sidebar Navigation (Figma Pixel-Perfect)** — ✅ COMPLETE. Sidebar.tsx rewritten to match Figma node 30:419. 163px white card, rounded-12, shadow 200px, nav items at 14px Geist Medium with active pill (#3e4c60 at 60% opacity, rounded-tr/br-18px). Glossary + Technical Docs links with arrow-right icons. MiMbrain icon + "© 2026 Made In Motion PBC" footer.
+
+32. **Clearing Page (Figma Pixel-Perfect)** — ✅ COMPLETE. Clearing page rewritten to match Figma node 41:3869. Chat Header with "A Thinking Space" title + blue subtitle. Two-column layout: Prior Conversations panel (257px, shadow, session list) + chat area (user messages right-aligned in white cards, brain responses left-aligned plain text). Bottom: input bar with blue border (#a9d8ff), "Launch a Gopher" pill (#ecfaff), "Add To Knowledge" pill (#f2e9fa). Drag-and-drop file ingestion.
+
+33. **Feed Card Visibility Fix** — ✅ COMPLETE. Feed was showing only 3 of 24 cards because query filtered to unread/read status only. Updated to include "acted" cards so resolved cards remain visible in feed with per-type resolved backgrounds and 60% opacity.
+
+34. **Dynamic Integration Status** — ✅ COMPLETE. `/api/engine/integrations` endpoint checks env vars to report real-time connection status for Gmail, Slack, Stripe, Google Drive, Calendar, Notion. Engine Room Integrations tab now fetches dynamically instead of hardcoded statuses.
+
+35. **Motion Search Bar** — ✅ COMPLETE. Search bar in Motion header is now interactive — typing a query and pressing Enter triggers the snapshot engine, creating an on-demand data view card in the feed.
+
+36. **Me Page Dashboard** — ✅ COMPLETE. `/me` page shows brain accuracy, cards reviewed, unread count, autonomy progress bars per category, action breakdown, and quick action buttons to manually trigger scanner, briefing, synthesis, and monthly report.
+
+37. **Feed Type Filters** — ✅ COMPLETE. Filter pills (All, Decisions, Actions, Signals, Intel, Briefings) above the feed stream. Clicking a filter reloads via the existing card_type API parameter.
+
+38. **Platform Health Dashboard** — ✅ COMPLETE. `/api/engine/health` endpoint reports database connectivity, last scanner/briefing/synthesis times, feed status breakdown, pending resurface count, env var availability. Engine Room Health tab displays all checks visually.
+
+39. **Gopher Launcher + Add To Knowledge** — ✅ COMPLETE. Clearing page "Launch a Gopher" pill opens a popup menu with 4 agents (Gmail Scanner, Daily Briefing, Weekly Synthesis, Monthly Report). Results show in conversation. "Add To Knowledge" pill ingests current input text into brain.knowledge_base.
+
+40. **Resurface Frequency** — ✅ COMPLETE. Resurface cron changed from daily (14:00 UTC) to every 4 hours so held cards surface closer to their scheduled time.
 
 ---
 
@@ -72,7 +98,7 @@
 
 28. **Market Intelligence Scanners** — External data internalization: competitive intelligence, content concepts, M&A/strategic, customer/partner acquisition, consumer insights. Start with one, prove the pipeline.
 
-29. **Conversation Persistence & History** — Brain chat responses persisted to DB so prior conversations are fully reloadable. Thread continuity across sessions.
+29. **Conversation Persistence & History** — ✅ COMPLETE. Clearing page wired to `/api/clearing/sessions` and `/api/clearing/messages` endpoints. Sessions persist to `brain.clearing_sessions`, messages to `brain.clearing_messages`. Prior Conversations panel loads from DB on mount. Auto-titles sessions from first message. Dissolve sessions via hover action. Full reload across page navigations.
 
 30. **Commerce Integration** — Connect Printify/Drop data to platform. Real KPI values (revenue, items sold, AOV, conversion). Product creation event capture with design detail logging.
 
@@ -80,7 +106,7 @@
 
 32. **Teams** — Add a second user acting independently on the same brain. Prerequisite to any scaling. Not multi-tenant — shared brain, separate views. Publish/subscribe visibility model already designed.
 
-33. **Automated Report Generation** — Monthly investor updates, internal company updates, other recurring reports — generated by the brain from accumulated intelligence and delivered automatically.
+33. **Automated Report Generation** — ✅ PARTIAL. Monthly report endpoint `/api/agents/monthly-report` built and scheduled via Vercel cron (1st of each month at 8am EST). Aggregates 30 days of feed data, CEO actions, entity interactions, derived insights into executive report via Claude. Emits as briefing card. Still needed: custom report types, export to PDF/email.
 
 34. **Long-Form Content & Research Publishing** — Brain-generated research papers, weekly industry newsletters, daily content bites. Customer-facing platform where orgs see relevant content and KPI insights.
 
@@ -108,4 +134,4 @@
 
 ---
 
-*Last updated: 2026-03-15*
+*Last updated: 2026-03-17 (v4) — efforts 29, 33-40 completed this session*

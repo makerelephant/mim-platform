@@ -1,6 +1,18 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+/**
+ * Your Clearing — Pixel-perfect Figma match (node 41:3869)
+ *
+ * Layout:
+ * - Chat Header at top: Avatar + "Mark Slater, CEO" + "A Thinking Space" + subtitle
+ * - Main content area (semi-transparent white card):
+ *   - Top bar: Back button | "Last Conversation was X ago" | Share button
+ *   - Left panel: Prior Conversations list (257px)
+ *   - Right panel: Chat messages (user right-aligned in white cards, brain left-aligned plain text)
+ *   - Bottom: Input bar with icons + "Launch a Gopher" + "Add To Knowledge" pills
+ */
+
+import { useState, useRef, useCallback, useEffect } from "react";
 
 /* eslint-disable @next/next/no-img-element */
 
@@ -25,50 +37,127 @@ interface ClearingSession {
 // ─── Component ──────────────────────────────────────────────────────────────
 
 export default function ClearingPage() {
-  const [sessions, setSessions] = useState<ClearingSession[]>([
-    {
-      id: "default",
-      title: "Thought Stream",
-      messages: [],
-      created_at: new Date(),
-      status: "active",
-    },
-  ]);
-  const [activeSessionId, setActiveSessionId] = useState("default");
+  const [sessions, setSessions] = useState<ClearingSession[]>([]);
+  const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [input, setInput] = useState("");
   const [thinking, setThinking] = useState(false);
   const [dragOver, setDragOver] = useState(false);
+  const [loadingSessions, setLoadingSessions] = useState(true);
+  const [showGopherMenu, setShowGopherMenu] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // ── Load sessions from DB on mount ──
+  useEffect(() => {
+    async function loadSessions() {
+      try {
+        const res = await fetch("/api/clearing/sessions");
+        const data = await res.json();
+        if (data.success && data.sessions?.length > 0) {
+          const loaded: ClearingSession[] = data.sessions.map(
+            (s: { id: string; title: string; status: string; created_at: string; messages: Array<{ id: string; role: string; content: string; message_type: string; created_at: string }> }) => ({
+              id: s.id,
+              title: s.title || "Thought Stream",
+              status: s.status,
+              created_at: new Date(s.created_at),
+              messages: (s.messages || []).map(
+                (m: { id: string; role: string; content: string; message_type: string; created_at: string }) => ({
+                  id: m.id,
+                  role: m.role as "user" | "brain",
+                  content: m.content,
+                  type: m.message_type as ClearingMessage["type"],
+                  timestamp: new Date(m.created_at),
+                })
+              ),
+            })
+          );
+          setSessions(loaded);
+          setActiveSessionId(loaded[0].id);
+        } else {
+          // No sessions — create one
+          await createSessionInDB("Thought Stream");
+        }
+      } catch {
+        // API failed — create a local fallback session
+        const fallbackId = crypto.randomUUID();
+        setSessions([{ id: fallbackId, title: "Thought Stream", messages: [], created_at: new Date(), status: "active" }]);
+        setActiveSessionId(fallbackId);
+      } finally {
+        setLoadingSessions(false);
+      }
+    }
+    loadSessions();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const activeSession = sessions.find((s) => s.id === activeSessionId);
 
+  // ── Persist a message to DB (fire-and-forget) ──
+  async function persistMessage(sessionId: string, role: string, content: string, messageType: string) {
+    try {
+      await fetch("/api/clearing/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ session_id: sessionId, role, content, message_type: messageType }),
+      });
+    } catch {
+      // Silent — don't break UX if persistence fails
+    }
+  }
+
+  // ── Create session in DB ──
+  async function createSessionInDB(title: string): Promise<string | null> {
+    try {
+      const res = await fetch("/api/clearing/sessions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title }),
+      });
+      const data = await res.json();
+      if (data.success && data.session) {
+        const newSession: ClearingSession = {
+          id: data.session.id,
+          title: data.session.title || title,
+          messages: [],
+          created_at: new Date(data.session.created_at),
+          status: "active",
+        };
+        setSessions((prev) => [newSession, ...prev]);
+        setActiveSessionId(newSession.id);
+        return newSession.id;
+      }
+    } catch {
+      // Fall through
+    }
+    return null;
+  }
+
   const addMessage = useCallback(
     (msg: Omit<ClearingMessage, "id" | "timestamp">) => {
+      const newMsg = { ...msg, id: crypto.randomUUID(), timestamp: new Date() };
       setSessions((prev) =>
         prev.map((s) =>
           s.id === activeSessionId
-            ? {
-                ...s,
-                messages: [
-                  ...s.messages,
-                  { ...msg, id: crypto.randomUUID(), timestamp: new Date() },
-                ],
-              }
+            ? { ...s, messages: [...s.messages, newMsg] }
             : s
         )
       );
+      // Persist to DB
+      if (activeSessionId) {
+        persistMessage(activeSessionId, msg.role, msg.content, msg.type);
+      }
+      setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
     },
     [activeSessionId]
   );
 
   // ── Send thought or query to brain ──
   async function handleSend() {
-    if (!input.trim()) return;
+    if (!input.trim() || !activeSessionId) return;
 
     const text = input.trim();
     setInput("");
 
-    // Is this a question/query or a thought fragment?
     const isQuery = text.endsWith("?") || text.toLowerCase().startsWith("help me") ||
       text.toLowerCase().startsWith("show me") || text.toLowerCase().startsWith("what") ||
       text.toLowerCase().startsWith("who") || text.toLowerCase().startsWith("how") ||
@@ -81,8 +170,21 @@ export default function ClearingPage() {
       type: isQuery ? "query" : "thought",
     });
 
+    // Auto-title session from first message
+    if (activeSession && activeSession.messages.length === 0) {
+      const autoTitle = text.slice(0, 40) + (text.length > 40 ? "..." : "");
+      setSessions((prev) =>
+        prev.map((s) => (s.id === activeSessionId ? { ...s, title: autoTitle } : s))
+      );
+      // Persist title update
+      fetch("/api/clearing/sessions", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: activeSessionId, title: autoTitle }),
+      }).catch(() => {});
+    }
+
     if (isQuery) {
-      // Ask the brain
       setThinking(true);
       try {
         const res = await fetch("/api/brain/ask", {
@@ -106,7 +208,6 @@ export default function ClearingPage() {
         setThinking(false);
       }
     } else {
-      // Thought capture — ingest into brain memory
       try {
         await fetch("/api/brain/ingest", {
           method: "POST",
@@ -138,7 +239,7 @@ export default function ClearingPage() {
       const file = files[i];
       addMessage({
         role: "user",
-        content: `📄 Ingesting: ${file.name}`,
+        content: `Ingesting: ${file.name}`,
         type: "ingestion",
       });
 
@@ -159,7 +260,7 @@ export default function ClearingPage() {
         addMessage({
           role: "brain",
           content: data.success
-            ? `Absorbed **${file.name}**. ${data.summary || ""}\n\nTags: ${(data.tags || []).join(", ") || "none"}\nCategories: ${(data.categories || []).join(", ") || "none"}`
+            ? `Absorbed ${file.name}. ${data.summary || ""}`
             : `Failed to process ${file.name}: ${data.error}`,
           type: "response",
         });
@@ -176,31 +277,82 @@ export default function ClearingPage() {
   }
 
   // ── New session ──
-  function newSession() {
-    const id = crypto.randomUUID();
-    setSessions((prev) => [
-      ...prev,
-      {
-        id,
-        title: `Session ${prev.length + 1}`,
-        messages: [],
-        created_at: new Date(),
-        status: "active",
-      },
-    ]);
-    setActiveSessionId(id);
+  async function newSession() {
+    const title = `Session ${sessions.length + 1}`;
+    const dbId = await createSessionInDB(title);
+    if (!dbId) {
+      // Fallback to local
+      const id = crypto.randomUUID();
+      setSessions((prev) => [
+        { id, title, messages: [], created_at: new Date(), status: "active" },
+        ...prev,
+      ]);
+      setActiveSessionId(id);
+    }
   }
 
   // ── Dissolve session ──
-  function dissolveSession(sessionId: string) {
-    setSessions((prev) =>
-      prev.map((s) => (s.id === sessionId ? { ...s, status: "dissolved" as const } : s))
-    );
-    const remaining = sessions.filter((s) => s.id !== sessionId && s.status === "active");
-    if (remaining.length > 0) {
-      setActiveSessionId(remaining[0].id);
-    } else {
-      newSession();
+  async function dissolveSession(sessionId: string) {
+    try {
+      await fetch("/api/clearing/sessions", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: sessionId, status: "dissolved" }),
+      });
+    } catch {
+      // Silent
+    }
+    setSessions((prev) => prev.filter((s) => s.id !== sessionId));
+    if (activeSessionId === sessionId) {
+      const remaining = sessions.filter((s) => s.id !== sessionId && s.status === "active");
+      if (remaining.length > 0) {
+        setActiveSessionId(remaining[0].id);
+      } else {
+        newSession();
+      }
+    }
+  }
+
+  // ── Launch a gopher (background agent) ──
+  async function launchGopher(name: string, endpoint: string) {
+    setShowGopherMenu(false);
+    addMessage({ role: "user", content: `Launching gopher: ${name}`, type: "thought" });
+    try {
+      const res = await fetch(endpoint);
+      const data = await res.json();
+      addMessage({
+        role: "brain",
+        content: data.success
+          ? `Gopher "${name}" completed successfully.${data.title ? ` Result: ${data.title}` : ""}${data.cards_analyzed ? ` (${data.cards_analyzed} cards analyzed)` : ""}`
+          : `Gopher "${name}" failed: ${data.error || "Unknown error"}`,
+        type: "response",
+      });
+    } catch {
+      addMessage({ role: "brain", content: `Failed to launch "${name}". Try again.`, type: "response" });
+    }
+  }
+
+  // ── Add current input to knowledge ──
+  async function addToKnowledge() {
+    if (!input.trim()) return;
+    const text = input.trim();
+    setInput("");
+    addMessage({ role: "user", content: `Adding to knowledge: ${text}`, type: "ingestion" });
+    try {
+      await fetch("/api/brain/ingest", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          text,
+          title: text.slice(0, 60),
+          source_type: "clearing",
+          uploaded_by: "ceo",
+          tags: ["knowledge", "clearing", "manual"],
+        }),
+      });
+      addMessage({ role: "brain", content: "Added to knowledge base. I'll reference this going forward.", type: "response" });
+    } catch {
+      addMessage({ role: "brain", content: "Failed to add to knowledge. Try again.", type: "response" });
     }
   }
 
@@ -220,129 +372,34 @@ export default function ClearingPage() {
 
   const activeSessions = sessions.filter((s) => s.status === "active");
 
+  // ── Last conversation time ──
+  function lastConversationText(): string {
+    if (loadingSessions) return "Loading...";
+    if (!activeSession || activeSession.messages.length === 0) return "No conversations yet";
+    const last = activeSession.messages[activeSession.messages.length - 1];
+    const diffMs = Date.now() - last.timestamp.getTime();
+    const diffMin = Math.floor(diffMs / 60000);
+    if (diffMin < 1) return "Last Conversation was just now";
+    if (diffMin < 60) return `Last Conversation was ${diffMin} minutes ago`;
+    const diffHrs = Math.floor(diffMin / 60);
+    if (diffHrs < 24) return `Last Conversation was ${diffHrs} hour${diffHrs > 1 ? "s" : ""} ago`;
+    const diffDays = Math.floor(diffHrs / 24);
+    return `Last Conversation was ${diffDays} day${diffDays > 1 ? "s" : ""} ago`;
+  }
+
   return (
     <div
-      className="h-full flex flex-col bg-[#f6f5f5]"
+      className="min-h-full relative"
+      style={{
+        backgroundImage: "url('/icons/chat-background.png')",
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+        backgroundRepeat: "no-repeat",
+      }}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
     >
-      {/* ── Header ── */}
-      <div className="px-6 pt-6 pb-3 flex items-center justify-between">
-        <div>
-          <h1
-            className="text-2xl font-bold text-[#1e252a] tracking-tight"
-            style={{ fontFamily: "var(--font-geist-sans), 'Geist', sans-serif" }}
-          >
-            Your Clearing
-          </h1>
-          <p className="text-sm text-[#6e7b80] mt-0.5">
-            Think. Prepare. Ingest. Then step back into motion.
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          {activeSessions.length > 1 && (
-            <button
-              onClick={() => dissolveSession(activeSessionId)}
-              className="text-xs text-[#6e7b80] hover:text-red-500 transition-colors px-3 py-1.5 rounded-lg border border-[#e5e7eb] hover:border-red-200"
-            >
-              Dissolve
-            </button>
-          )}
-          <button
-            onClick={newSession}
-            className="text-xs font-medium text-[#0ea5e9] hover:text-[#0284c7] transition-colors px-3 py-1.5 rounded-lg border border-[#0ea5e9]/20 hover:border-[#0ea5e9]/40"
-          >
-            + New Session
-          </button>
-        </div>
-      </div>
-
-      {/* ── Session Tabs ── */}
-      {activeSessions.length > 1 && (
-        <div className="px-6 pb-2 flex gap-2 overflow-x-auto">
-          {activeSessions.map((s) => (
-            <button
-              key={s.id}
-              onClick={() => setActiveSessionId(s.id)}
-              className={`text-xs px-3 py-1.5 rounded-full transition-colors whitespace-nowrap ${
-                s.id === activeSessionId
-                  ? "bg-white text-[#1e252a] font-semibold shadow-sm"
-                  : "text-[#6e7b80] hover:text-[#1e252a] hover:bg-white/50"
-              }`}
-            >
-              {s.title}
-            </button>
-          ))}
-        </div>
-      )}
-
-      {/* ── Message Area ── */}
-      <div className="flex-1 overflow-y-auto px-6 pb-4">
-        {activeSession && activeSession.messages.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full text-center">
-            <img
-              src="/icons/gophers.png"
-              alt=""
-              width={48}
-              height={56}
-              className="opacity-30 mb-4"
-            />
-            <p className="text-[#94A3B8] text-sm max-w-md leading-relaxed">
-              Capture thoughts, ask the brain for help, or drop files to ingest.
-              <br />
-              <span className="text-xs mt-2 block text-[#94A3B8]/70">
-                Thoughts are absorbed into memory. Questions get answers. Files become institutional knowledge.
-              </span>
-            </p>
-          </div>
-        ) : (
-          <div className="space-y-4 pt-4">
-            {activeSession?.messages.map((msg) => (
-              <div
-                key={msg.id}
-                className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
-              >
-                <div
-                  className={`max-w-[80%] rounded-2xl px-4 py-3 ${
-                    msg.role === "user"
-                      ? msg.type === "ingestion"
-                        ? "bg-blue-50 text-blue-800 border border-blue-100"
-                        : msg.type === "query"
-                        ? "bg-[#1e252a] text-white"
-                        : "bg-[#e8e8e8] text-[#1e252a]"
-                      : "bg-white text-[#344054] shadow-sm border border-[#f0f0f0]"
-                  }`}
-                >
-                  <div
-                    className="text-sm leading-relaxed"
-                    dangerouslySetInnerHTML={{
-                      __html: msg.content
-                        .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
-                        .replace(/\n/g, "<br/>"),
-                    }}
-                  />
-                  <p className="text-[10px] opacity-40 mt-1">
-                    {msg.timestamp.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                  </p>
-                </div>
-              </div>
-            ))}
-            {thinking && (
-              <div className="flex justify-start">
-                <div className="bg-white rounded-2xl px-4 py-3 shadow-sm border border-[#f0f0f0]">
-                  <div className="flex gap-1">
-                    <span className="w-2 h-2 bg-[#94A3B8] rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
-                    <span className="w-2 h-2 bg-[#94A3B8] rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
-                    <span className="w-2 h-2 bg-[#94A3B8] rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-
       {/* ── Drag overlay ── */}
       {dragOver && (
         <div className="absolute inset-0 bg-blue-50/80 backdrop-blur-sm z-50 flex items-center justify-center rounded-xl border-2 border-dashed border-blue-300">
@@ -353,53 +410,377 @@ export default function ClearingPage() {
         </div>
       )}
 
-      {/* ── Input ── */}
-      <div className="px-6 pb-6 pt-2">
-        <div className="bg-white rounded-2xl shadow-sm border border-[#e5e7eb] flex items-end gap-2 px-4 py-3">
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            className="text-[#94A3B8] hover:text-[#64748B] transition-colors pb-0.5"
-            title="Ingest file"
-          >
-            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-              <path d="M17 10V13C17 15.2091 15.2091 17 13 17H7C4.79086 17 3 15.2091 3 13V7C3 4.79086 4.79086 3 7 3H10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-              <path d="M14 3L14 9M14 3L11 6M14 3L17 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          </button>
-          <input
-            ref={fileInputRef}
-            type="file"
-            multiple
-            className="hidden"
-            onChange={(e) => handleFileUpload(e.target.files)}
-          />
-          <textarea
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                handleSend();
-              }
+      <div className="mx-auto flex flex-col items-center" style={{ maxWidth: "960px" }}>
+        {/* ══════════════════════════════════════════════════════════════════
+            CHAT HEADER — Same pattern as Motion but "A Thinking Space"
+            ══════════════════════════════════════════════════════════════════ */}
+        <div
+          className="flex flex-col gap-[6px] items-start p-[12px] rounded-[12px] shadow-[0px_0px_60px_0px_rgba(0,0,0,0.12)] w-[526px] mt-[47px]"
+          style={{ backgroundColor: "rgba(255,244,224,0.2)" }}
+        >
+          {/* Avatar + Name */}
+          <div className="flex flex-col gap-[12px] items-start w-full">
+            <div className="flex gap-[6px] items-end pr-[6px] w-full">
+              <img
+                src="/icons/mark-avatar.png"
+                alt="Mark Slater"
+                className="w-[34px] h-[34px] rounded-full object-cover shrink-0"
+              />
+              <span
+                className="text-[18px] font-medium text-[#9ca5a9] leading-[20px] text-center whitespace-nowrap"
+                style={{
+                  fontFamily: "var(--font-geist-sans), 'Geist', sans-serif",
+                  letterSpacing: "-0.36px",
+                }}
+              >
+                Mark Slater, CEO
+              </span>
+            </div>
+
+            {/* Title */}
+            <div className="flex items-start justify-between pr-[6px] w-full">
+              <span
+                className="text-[18px] font-semibold text-[#1e252a] leading-[20px] text-center whitespace-nowrap"
+                style={{
+                  fontFamily: "var(--font-geist-sans), 'Geist', sans-serif",
+                  letterSpacing: "-0.36px",
+                }}
+              >
+                A Thinking Space
+              </span>
+            </div>
+          </div>
+
+          {/* Subtitle */}
+          <p
+            className="text-[12px] font-medium leading-[14px] w-full"
+            style={{
+              fontFamily: "var(--font-geist-sans), 'Geist', sans-serif",
+              color: "#627c9e",
             }}
-            placeholder="Capture a thought, ask a question, or drop a file..."
-            rows={1}
-            className="flex-1 resize-none text-sm text-[#1e252a] placeholder:text-[#94A3B8] focus:outline-none bg-transparent"
-            style={{ fontFamily: "var(--font-geist-sans), 'Geist', sans-serif" }}
-          />
-          <button
-            onClick={handleSend}
-            disabled={!input.trim() || thinking}
-            className="text-[#0ea5e9] hover:text-[#0284c7] disabled:text-[#d1d5db] transition-colors pb-0.5"
           >
-            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-              <path d="M4 10L16 4L10 16L9 11L4 10Z" fill="currentColor" />
-            </svg>
-          </button>
+            Where thoughtful reflection and calm decision making can occur free from the clutter...
+          </p>
         </div>
-        <p className="text-[10px] text-[#94A3B8] text-center mt-2">
-          Thoughts are absorbed into memory &middot; Questions get answers &middot; Files become knowledge
-        </p>
+
+        {/* ══════════════════════════════════════════════════════════════════
+            MAIN CONTENT AREA — Semi-transparent white card
+            ══════════════════════════════════════════════════════════════════ */}
+        <div
+          className="rounded-[12px] shadow-[0px_0px_60px_0px_rgba(0,0,0,0.12)] mt-[46px] mb-[24px] flex flex-col"
+          style={{
+            backgroundColor: "rgba(255,255,255,0.5)",
+            width: "933px",
+            minHeight: "700px",
+          }}
+        >
+          <div className="flex flex-col gap-[18px] items-start p-[12px] flex-1">
+            {/* ── Top bar: Back + Last Conversation + Share ── */}
+            <div className="flex items-center justify-between w-full h-[30px]">
+              {/* Back button */}
+              <button
+                className="flex gap-[6px] items-center px-[24px] py-[6px] rounded-[16px] mix-blend-multiply"
+                style={{
+                  backgroundColor: "#eef2f5",
+                  border: "1px solid #b0b8bb",
+                }}
+                onClick={() => window.history.back()}
+              >
+                <img src="/icons/arrow-left.svg" alt="" className="w-[16px] h-[16px]" />
+                <span
+                  className="text-[14px] font-semibold text-[#1e252a] leading-[18px] tracking-[-0.28px] whitespace-nowrap"
+                  style={{ fontFamily: "var(--font-inter), 'Inter', sans-serif" }}
+                >
+                  Back
+                </span>
+              </button>
+
+              {/* Right side: last conversation + share */}
+              <div className="flex gap-[12px] items-center justify-end">
+                <span
+                  className="text-[10px] font-medium text-[#9ca5a9] leading-[10px] whitespace-nowrap"
+                  style={{ fontFamily: "var(--font-geist-sans), 'Geist', sans-serif" }}
+                >
+                  {lastConversationText()}
+                </span>
+                <button className="flex gap-[6px] items-center px-[24px] py-[6px] rounded-[16px] mix-blend-multiply">
+                  <img src="/icons/share.svg" alt="" className="w-[16px] h-[16px]" />
+                  <span
+                    className="text-[14px] font-semibold text-[#1e252a] leading-[18px] tracking-[-0.28px] whitespace-nowrap"
+                    style={{ fontFamily: "var(--font-geist-sans), 'Geist', sans-serif" }}
+                  >
+                    Share
+                  </span>
+                </button>
+              </div>
+            </div>
+
+            {/* ── Two-column layout: Prior Chats + Messages ── */}
+            <div className="flex gap-[18px] items-start flex-1 w-full">
+              {/* ── Left panel: Prior Conversations ── */}
+              <div
+                className="flex flex-col gap-[24px] items-start pb-[24px] rounded-[8px] shadow-[0px_0px_60px_0px_rgba(0,0,0,0.12)] shrink-0"
+                style={{
+                  width: "257px",
+                  minHeight: "600px",
+                  backgroundColor: "rgba(243,242,237,0.3)",
+                }}
+              >
+                {/* Header */}
+                <div
+                  className="flex items-center justify-between p-[6px] rounded-[4px] shadow-[0px_1px_6px_0px_rgba(0,0,0,0.12)] w-full bg-white"
+                  style={{ height: "28px" }}
+                >
+                  <span
+                    className="text-[12px] font-semibold text-[#1e252a] leading-[14px] tracking-[-0.24px] whitespace-nowrap"
+                    style={{ fontFamily: "var(--font-inter), 'Inter', sans-serif" }}
+                  >
+                    Prior Conversations
+                  </span>
+                  <img src="/icons/more-horizontal.svg" alt="" className="w-[24px] h-[24px]" />
+                </div>
+
+                {/* Session list */}
+                <div className="flex flex-col gap-[12px] items-start pl-[6px]">
+                  {loadingSessions ? (
+                    <span className="text-[12px] text-[#9ca5a9]" style={{ fontFamily: "var(--font-geist-sans), 'Geist', sans-serif" }}>
+                      Loading conversations...
+                    </span>
+                  ) : activeSessions.map((s) => (
+                    <div key={s.id} className="flex items-center justify-between w-[229px] group">
+                      <button
+                        onClick={() => setActiveSessionId(s.id)}
+                        className="text-left flex-1"
+                        style={{
+                          fontFamily: "var(--font-geist-sans), 'Geist', sans-serif",
+                          fontSize: "14px",
+                          fontWeight: s.id === activeSessionId ? 500 : 400,
+                          lineHeight: "16px",
+                          color: "#1e252a",
+                        }}
+                      >
+                        {s.title}
+                        {s.messages.length > 0 && (
+                          <span className="text-[#9ca5a9]"> ({s.messages.length})</span>
+                        )}
+                      </button>
+                      {activeSessions.length > 1 && (
+                        <button
+                          onClick={() => dissolveSession(s.id)}
+                          className="opacity-0 group-hover:opacity-100 transition-opacity text-[#9ca5a9] hover:text-[#627c9e] text-[12px] ml-2 shrink-0"
+                          title="Dissolve"
+                        >
+                          ×
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                  {/* New conversation button */}
+                  <button
+                    onClick={newSession}
+                    className="text-[14px] text-[#627c9e] font-medium"
+                    style={{ fontFamily: "var(--font-geist-sans), 'Geist', sans-serif" }}
+                  >
+                    + New Conversation
+                  </button>
+                </div>
+              </div>
+
+              {/* ── Right panel: Messages ── */}
+              <div className="flex flex-col flex-1 min-h-0" style={{ gap: "18px" }}>
+                {/* Messages area */}
+                <div className="flex-1 overflow-y-auto flex flex-col gap-[24px] items-end pr-[4px]" style={{ minHeight: "400px" }}>
+                  {activeSession && activeSession.messages.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center h-full w-full text-center pt-[100px]">
+                      <img
+                        src="/icons/gophers.png"
+                        alt=""
+                        className="opacity-20 mb-4"
+                        style={{ width: "48px", height: "56px" }}
+                      />
+                      <p
+                        className="text-[#9ca5a9] text-[14px] max-w-md leading-relaxed"
+                        style={{ fontFamily: "var(--font-geist-sans), 'Geist', sans-serif" }}
+                      >
+                        Ask the brain anything, capture a thought, or drop a file to ingest.
+                      </p>
+                    </div>
+                  ) : (
+                    <>
+                      {activeSession?.messages.map((msg) => (
+                        <div
+                          key={msg.id}
+                          className={`flex w-full ${msg.role === "user" ? "justify-end" : "justify-start"}`}
+                        >
+                          {msg.role === "user" ? (
+                            /* User messages: right-aligned, white card, rounded-8 */
+                            <div
+                              className="bg-white rounded-[8px] p-[12px]"
+                              style={{ maxWidth: "593px" }}
+                            >
+                              <p
+                                className="text-[14px] text-black leading-[18px]"
+                                style={{ fontFamily: "var(--font-geist-sans), 'Geist', sans-serif" }}
+                              >
+                                {msg.content}
+                              </p>
+                            </div>
+                          ) : (
+                            /* Brain messages: left-aligned, plain text */
+                            <div style={{ maxWidth: "617px", width: "100%" }}>
+                              <div
+                                className="text-[14px] text-[#1e252a] leading-[16px]"
+                                style={{ fontFamily: "var(--font-geist-sans), 'Geist', sans-serif" }}
+                                dangerouslySetInnerHTML={{
+                                  __html: msg.content
+                                    .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+                                    .split("\n\n").join("<br/><br/>")
+                                    .split("\n").join("<br/>"),
+                                }}
+                              />
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                      {thinking && (
+                        <div className="flex justify-start w-full">
+                          <div className="flex gap-1 py-2">
+                            <span className="w-2 h-2 bg-[#9ca5a9] rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
+                            <span className="w-2 h-2 bg-[#9ca5a9] rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
+                            <span className="w-2 h-2 bg-[#9ca5a9] rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
+                          </div>
+                        </div>
+                      )}
+                      <div ref={messagesEndRef} />
+                    </>
+                  )}
+                </div>
+
+                {/* ── Bottom: Input + Action pills ── */}
+                <div className="flex flex-col gap-[15px] items-start w-full">
+                  {/* Input bar */}
+                  <div
+                    className="flex items-center justify-between bg-white rounded-[12px] shadow-[0px_0px_6px_0px_rgba(0,0,0,0.18)] px-[14px] py-[18px] w-full"
+                    style={{
+                      border: "0.5px solid #a9d8ff",
+                      height: "48px",
+                    }}
+                  >
+                    <div className="flex flex-1 items-center pl-[12px]">
+                      <input
+                        type="text"
+                        value={input}
+                        onChange={(e) => setInput(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" && !e.shiftKey) {
+                            e.preventDefault();
+                            handleSend();
+                          }
+                        }}
+                        placeholder="Ask MiM Brain anything about the business...."
+                        className="flex-1 text-[14px] text-black placeholder:text-[#b0b8bb] focus:outline-none bg-transparent leading-[24px]"
+                        style={{ fontFamily: "var(--font-geist-sans), 'Geist', sans-serif" }}
+                      />
+                    </div>
+                    <div className="flex gap-[24px] items-center w-[143px] h-[21px]">
+                      <img src="/icons/calendar-plus.svg" alt="" className="w-[16px] h-[16px] shrink-0" />
+                      <img
+                        src="/icons/paperclip.svg"
+                        alt=""
+                        className="w-[16px] h-[16px] shrink-0 cursor-pointer"
+                        onClick={() => fileInputRef.current?.click()}
+                      />
+                      <img src="/icons/mic.svg" alt="" className="w-[16px] h-[16px] shrink-0" />
+                      <img
+                        src="/icons/arrow-up-circle.svg"
+                        alt=""
+                        className="w-[16px] h-[16px] shrink-0 cursor-pointer"
+                        onClick={handleSend}
+                      />
+                    </div>
+                  </div>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    multiple
+                    className="hidden"
+                    onChange={(e) => handleFileUpload(e.target.files)}
+                  />
+
+                  {/* Action pills */}
+                  <div className="flex gap-[15px] items-center relative">
+                    {/* Launch a Gopher */}
+                    <div className="relative">
+                      <button
+                        onClick={() => setShowGopherMenu(!showGopherMenu)}
+                        className="flex gap-[6px] items-center px-[12px] py-[4px] rounded-[16px]"
+                        style={{
+                          backgroundColor: "#ecfaff",
+                          border: "1px solid #b9e6ff",
+                        }}
+                      >
+                        <img
+                          src="/icons/gophers.png"
+                          alt=""
+                          className="shrink-0"
+                          style={{ width: "18px", height: "20px" }}
+                        />
+                        <span
+                          className="text-[12px] font-semibold text-[#1e252a] leading-[18px] tracking-[-0.24px] whitespace-nowrap"
+                          style={{ fontFamily: "var(--font-geist-sans), 'Geist', sans-serif" }}
+                        >
+                          Launch a Gopher
+                        </span>
+                      </button>
+                      {showGopherMenu && (
+                        <div className="absolute bottom-full mb-2 left-0 bg-white rounded-[8px] shadow-[0px_0px_20px_0px_rgba(0,0,0,0.15)] p-[6px] min-w-[200px] z-50">
+                          {[
+                            { name: "Scan Gmail", endpoint: "/api/agents/gmail-scanner", icon: "📧" },
+                            { name: "Daily Briefing", endpoint: "/api/agents/daily-briefing", icon: "📊" },
+                            { name: "Weekly Synthesis", endpoint: "/api/agents/synthesis", icon: "🧠" },
+                            { name: "Monthly Report", endpoint: "/api/agents/monthly-report", icon: "📋" },
+                          ].map((g) => (
+                            <button
+                              key={g.name}
+                              onClick={() => launchGopher(g.name, g.endpoint)}
+                              className="flex items-center gap-[8px] w-full px-[8px] py-[6px] rounded-[4px] hover:bg-[#f6f5f5] transition-colors text-left"
+                            >
+                              <span className="text-[14px]">{g.icon}</span>
+                              <span
+                                className="text-[12px] font-medium text-[#1e252a]"
+                                style={{ fontFamily: "var(--font-geist-sans), 'Geist', sans-serif" }}
+                              >
+                                {g.name}
+                              </span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Add To Knowledge */}
+                    <button
+                      onClick={addToKnowledge}
+                      className="flex gap-[6px] items-center px-[12px] py-[4px] rounded-[16px]"
+                      style={{
+                        backgroundColor: "#f2e9fa",
+                        border: "1px solid #e8d7ff",
+                      }}
+                    >
+                      <img src="/icons/brain.svg" alt="" className="w-[20px] h-[20px] shrink-0" />
+                      <span
+                        className="text-[12px] font-semibold text-[#1e252a] leading-[18px] tracking-[-0.24px] whitespace-nowrap"
+                        style={{ fontFamily: "var(--font-geist-sans), 'Geist', sans-serif" }}
+                      >
+                        Add To Knowledge
+                      </span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );

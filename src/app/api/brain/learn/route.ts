@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { synthesizeRulesFromCorrections } from "@/lib/behavioral-rules";
 
 /**
  * POST /api/brain/learn
@@ -233,6 +234,17 @@ export async function POST(request: NextRequest) {
         });
 
       learned.push("Correction stored as institutional memory in knowledge_base");
+    }
+
+    // ── 6. Synthesize permanent behavioral rules from accumulated patterns ──
+    try {
+      const newRulesCount = await synthesizeRulesFromCorrections(sb);
+      if (newRulesCount > 0) {
+        learned.push(`${newRulesCount} new permanent behavioral rule(s) synthesized from correction patterns`);
+      }
+    } catch (synthErr) {
+      // Don't fail the whole request if synthesis fails
+      console.error("[brain/learn] Rule synthesis error:", synthErr);
     }
 
     return NextResponse.json({
