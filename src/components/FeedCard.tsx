@@ -151,6 +151,9 @@ export default function FeedCard({ card, onAction, onDismiss }: FeedCardProps) {
   const isDecision = card.card_type === "decision";
   const isAction = card.card_type === "action";
   const isSignalOrIntel = card.card_type === "signal" || card.card_type === "intelligence";
+  const isBriefing = card.card_type === "briefing";
+  // Signal/Briefing use MiMbrain source pill (no gopher+gmail)
+  const usesBrainSource = isSignalOrIntel || isBriefing || card.card_type === "reflection" || card.card_type === "snapshot";
   const isActed = card.status === "acted";
   const isResolved = isActed && !!card.ceo_action;
   const resolvedDo = isResolved && card.ceo_action === "do";
@@ -343,62 +346,66 @@ export default function FeedCard({ card, onAction, onDismiss }: FeedCardProps) {
               </span>
             </div>
 
-            {/* Source pill */}
+            {/* Source pill — per Figma: Decision/Action cards show gopher+gmail/slack;
+                Signal/Briefing/etc show MiMbrain icon + time only */}
             <div
               className="flex gap-[6px] items-center px-[12px] py-[3px] rounded-[4px] min-w-0"
               style={{ border: "1px solid rgba(208, 213, 221, 0.6)" }}
             >
               {/* Red dot — high priority only, per Figma Dot.svg */}
-              {(card.priority === "high" || card.priority === "critical") && (
+              {!usesBrainSource && (card.priority === "high" || card.priority === "critical") && (
                 <img src="/icons/dot-priority.svg" alt="" className="w-[6px] h-[6px] shrink-0" />
               )}
 
-              {/* Gopher avatar — using SVG from UI Designs */}
-              <img
-                src="/icons/gopher.svg"
-                alt=""
-                className="w-[18px] h-[20px] shrink-0"
-              />
+              {usesBrainSource ? (
+                /* MiMbrain icon for Signal/Briefing/etc — per Figma 40:610 */
+                <img
+                  src="/icons/MiMbrain Icon.png"
+                  alt=""
+                  className="shrink-0"
+                  style={{ width: "18px", height: "13px", opacity: 0.6 }}
+                />
+              ) : (
+                /* Gopher avatar for Decision/Action — per Figma 37:735 */
+                <img
+                  src="/icons/gopher.svg"
+                  alt=""
+                  className="w-[18px] h-[20px] shrink-0"
+                />
+              )}
 
               {/* Time + source text */}
               <span
                 className="text-[12px] text-[#6e7b80] leading-[18px] text-center whitespace-nowrap truncate"
                 style={{ fontFamily: "var(--font-inter), 'Inter', sans-serif" }}
               >
-                {timeAgo} Ago from{" "}
-                <span className="font-bold text-[#1e252a]">{sourceLabel(card.source_type)}</span>
+                {timeAgo} Ago
+                {!usesBrainSource && (
+                  <>
+                    {" from "}
+                    <span className="font-bold text-[#1e252a]">{sourceLabel(card.source_type)}</span>
+                  </>
+                )}
               </span>
 
-              {/* Source icon — Gmail M for email, Slack for slack */}
-              {sourceLabel(card.source_type) === "Slack" ? (
-                <img
-                  src="/icons/slack.svg"
-                  alt=""
-                  className="w-[20px] h-[20px] shrink-0"
-                />
-              ) : (
-                <img
-                  src="/icons/gmail.svg"
-                  alt=""
-                  className="w-[20px] h-[20px] shrink-0"
-                />
-              )}
+              {/* Source icon — only for Decision/Action cards */}
+              {!usesBrainSource && (
+                <>
+                  {sourceLabel(card.source_type) === "Slack" ? (
+                    <img src="/icons/slack.svg" alt="" className="w-[20px] h-[20px] shrink-0" />
+                  ) : (
+                    <img src="/icons/gmail.svg" alt="" className="w-[20px] h-[20px] shrink-0" />
+                  )}
 
-              {/* External link — per Figma: 16x16, links back to source */}
-              {sourceUrl(card) ? (
-                <a href={sourceUrl(card)!} target="_blank" rel="noopener noreferrer" className="shrink-0">
-                  <img
-                    src="/icons/external-link-figma.svg"
-                    alt="View source"
-                    className="w-[16px] h-[16px]"
-                  />
-                </a>
-              ) : (
-                <img
-                  src="/icons/external-link-figma.svg"
-                  alt=""
-                  className="w-[16px] h-[16px] shrink-0"
-                />
+                  {/* External link — per Figma: 16x16, links back to source */}
+                  {sourceUrl(card) ? (
+                    <a href={sourceUrl(card)!} target="_blank" rel="noopener noreferrer" className="shrink-0">
+                      <img src="/icons/external-link-figma.svg" alt="View source" className="w-[16px] h-[16px]" />
+                    </a>
+                  ) : (
+                    <img src="/icons/external-link-figma.svg" alt="" className="w-[16px] h-[16px] shrink-0" />
+                  )}
+                </>
               )}
             </div>
           </div>
@@ -456,8 +463,59 @@ export default function FeedCard({ card, onAction, onDismiss }: FeedCardProps) {
             </div>
           )}
 
-          {/* Signal/Intelligence/Briefing/Snapshot/Reflection: Do / Hold / No */}
-          {!isDecision && !isAction && !isActed && (
+          {/* Signal/Intelligence: Create Task / Dismiss — per Figma 40:610 */}
+          {isSignalOrIntel && !isActed && (
+            <div className="flex gap-[20px] items-start px-[6px] shrink-0">
+              <button
+                onClick={() => handleAction("do")}
+                disabled={acting}
+                className="text-[12px] font-medium text-[#344054] leading-[18px] text-center whitespace-nowrap hover:text-emerald-700 transition-colors disabled:opacity-40"
+                style={{ fontFamily: "-apple-system, 'SF Pro Display', system-ui, sans-serif" }}
+              >
+                Create Task
+              </button>
+              <button
+                onClick={() => handleDismiss()}
+                disabled={acting}
+                className="text-[12px] font-medium text-[#344054] leading-[18px] text-center whitespace-nowrap hover:text-slate-500 transition-colors disabled:opacity-40"
+                style={{ fontFamily: "-apple-system, 'SF Pro Display', system-ui, sans-serif" }}
+              >
+                Dismiss
+              </button>
+            </div>
+          )}
+
+          {/* Briefing: Share / Schedule / Dig In — per Figma 40:1106 */}
+          {isBriefing && !isActed && (
+            <div className="flex gap-[20px] items-start px-[6px] shrink-0">
+              <button
+                onClick={() => handleAction("do")}
+                disabled={acting}
+                className="text-[12px] font-medium text-[#344054] leading-[18px] text-center whitespace-nowrap hover:text-emerald-700 transition-colors disabled:opacity-40"
+                style={{ fontFamily: "-apple-system, 'SF Pro Display', system-ui, sans-serif" }}
+              >
+                Share
+              </button>
+              <button
+                onClick={handleHoldClick}
+                disabled={acting}
+                className="text-[12px] font-medium text-[#344054] leading-[18px] text-center whitespace-nowrap hover:text-amber-700 transition-colors disabled:opacity-40"
+                style={{ fontFamily: "-apple-system, 'SF Pro Display', system-ui, sans-serif" }}
+              >
+                Schedule
+              </button>
+              <button
+                onClick={() => setExpanded(!expanded)}
+                className="text-[12px] font-medium text-[#344054] leading-[18px] text-center whitespace-nowrap hover:text-blue-700 transition-colors"
+                style={{ fontFamily: "-apple-system, 'SF Pro Display', system-ui, sans-serif" }}
+              >
+                Dig In
+              </button>
+            </div>
+          )}
+
+          {/* Snapshot/Reflection: Do / Hold / No */}
+          {!isDecision && !isAction && !isSignalOrIntel && !isBriefing && !isActed && (
             <div className="flex gap-[20px] items-start px-[6px] shrink-0">
               <button
                 onClick={() => handleAction("do")}
@@ -566,7 +624,7 @@ export default function FeedCard({ card, onAction, onDismiss }: FeedCardProps) {
               className="text-[12px] font-medium text-[#1e252a] leading-[14px] text-center whitespace-nowrap"
               style={{ fontFamily: "var(--font-geist-sans), 'Geist', sans-serif" }}
             >
-              {expanded ? "Less" : "More About This"}
+              {expanded ? "Less" : isBriefing ? "See Full Briefing" : "More About This"}
             </span>
             <div
               className="flex items-center justify-center"
@@ -596,7 +654,7 @@ export default function FeedCard({ card, onAction, onDismiss }: FeedCardProps) {
                     letterSpacing: "1.2px",
                   }}
                 >
-                  motion reasoning
+                  {isSignalOrIntel ? "background" : "motion reasoning"}
                 </p>
                 <p
                   className="text-[12px] text-[#0c111d] leading-[16px]"
