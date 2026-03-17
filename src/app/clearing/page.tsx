@@ -12,7 +12,7 @@
  *   - Bottom: Input bar with icons + "Launch a Gopher" + "Add To Knowledge" pills
  */
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 
 /* eslint-disable @next/next/no-img-element */
 
@@ -37,39 +37,114 @@ interface ClearingSession {
 // ─── Component ──────────────────────────────────────────────────────────────
 
 export default function ClearingPage() {
-  const [sessions, setSessions] = useState<ClearingSession[]>([
-    {
-      id: "default",
-      title: "Thought Stream",
-      messages: [],
-      created_at: new Date(),
-      status: "active",
-    },
-  ]);
-  const [activeSessionId, setActiveSessionId] = useState("default");
+  const [sessions, setSessions] = useState<ClearingSession[]>([]);
+  const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [input, setInput] = useState("");
   const [thinking, setThinking] = useState(false);
   const [dragOver, setDragOver] = useState(false);
+  const [loadingSessions, setLoadingSessions] = useState(true);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  // ── Load sessions from DB on mount ──
+  useEffect(() => {
+    async function loadSessions() {
+      try {
+        const res = await fetch("/api/clearing/sessions");
+        const data = await res.json();
+        if (data.success && data.sessions?.length > 0) {
+          const loaded: ClearingSession[] = data.sessions.map(
+            (s: { id: string; title: string; status: string; created_at: string; messages: Array<{ id: string; role: string; content: string; message_type: string; created_at: string }> }) => ({
+              id: s.id,
+              title: s.title || "Thought Stream",
+              status: s.status,
+              created_at: new Date(s.created_at),
+              messages: (s.messages || []).map(
+                (m: { id: string; role: string; content: string; message_type: string; created_at: string }) => ({
+                  id: m.id,
+                  role: m.role as "user" | "brain",
+                  content: m.content,
+                  type: m.message_type as ClearingMessage["type"],
+                  timestamp: new Date(m.created_at),
+                })
+              ),
+            })
+          );
+          setSessions(loaded);
+          setActiveSessionId(loaded[0].id);
+        } else {
+          // No sessions — create one
+          await createSessionInDB("Thought Stream");
+        }
+      } catch {
+        // API failed — create a local fallback session
+        const fallbackId = crypto.randomUUID();
+        setSessions([{ id: fallbackId, title: "Thought Stream", messages: [], created_at: new Date(), status: "active" }]);
+        setActiveSessionId(fallbackId);
+      } finally {
+        setLoadingSessions(false);
+      }
+    }
+    loadSessions();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const activeSession = sessions.find((s) => s.id === activeSessionId);
+
+  // ── Persist a message to DB (fire-and-forget) ──
+  async function persistMessage(sessionId: string, role: string, content: string, messageType: string) {
+    try {
+      await fetch("/api/clearing/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ session_id: sessionId, role, content, message_type: messageType }),
+      });
+    } catch {
+      // Silent — don't break UX if persistence fails
+    }
+  }
+
+  // ── Create session in DB ──
+  async function createSessionInDB(title: string): Promise<string | null> {
+    try {
+      const res = await fetch("/api/clearing/sessions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title }),
+      });
+      const data = await res.json();
+      if (data.success && data.session) {
+        const newSession: ClearingSession = {
+          id: data.session.id,
+          title: data.session.title || title,
+          messages: [],
+          created_at: new Date(data.session.created_at),
+          status: "active",
+        };
+        setSessions((prev) => [newSession, ...prev]);
+        setActiveSessionId(newSession.id);
+        return newSession.id;
+      }
+    } catch {
+      // Fall through
+    }
+    return null;
+  }
 
   const addMessage = useCallback(
     (msg: Omit<ClearingMessage, "id" | "timestamp">) => {
+      const newMsg = { ...msg, id: crypto.randomUUID(), timestamp: new Date() };
       setSessions((prev) =>
         prev.map((s) =>
           s.id === activeSessionId
-            ? {
-                ...s,
-                messages: [
-                  ...s.messages,
-                  { ...msg, id: crypto.randomUUID(), timestamp: new Date() },
-                ],
-              }
+            ? { ...s, messages: [...s.messages, newMsg] }
             : s
         )
       );
+      // Persist to DB
+      if (activeSessionId) {
+        persistMessage(activeSessionId, msg.role, msg.content, msg.type);
+      }
       setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
     },
     [activeSessionId]
@@ -77,7 +152,7 @@ export default function ClearingPage() {
 
   // ── Send thought or query to brain ──
   async function handleSend() {
-    if (!input.trim()) return;
+    if (!input.trim() || !activeSessionId) return;
 
     const text = input.trim();
     setInput("");
@@ -93,6 +168,20 @@ export default function ClearingPage() {
       content: text,
       type: isQuery ? "query" : "thought",
     });
+
+    // Auto-title session from first message
+    if (activeSession && activeSession.messages.length === 0) {
+      const autoTitle = text.slice(0, 40) + (text.length > 40 ? "..." : "");
+      setSessions((prev) =>
+        prev.map((s) => (s.id === activeSessionId ? { ...s, title: autoTitle } : s))
+      );
+      // Persist title update
+      fetch("/api/clearing/sessions", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: activeSessionId, title: autoTitle }),
+      }).catch(() => {});
+    }
 
     if (isQuery) {
       setThinking(true);
@@ -187,19 +276,40 @@ export default function ClearingPage() {
   }
 
   // ── New session ──
-  function newSession() {
-    const id = crypto.randomUUID();
-    setSessions((prev) => [
-      ...prev,
-      {
-        id,
-        title: `Session ${prev.length + 1}`,
-        messages: [],
-        created_at: new Date(),
-        status: "active",
-      },
-    ]);
-    setActiveSessionId(id);
+  async function newSession() {
+    const title = `Session ${sessions.length + 1}`;
+    const dbId = await createSessionInDB(title);
+    if (!dbId) {
+      // Fallback to local
+      const id = crypto.randomUUID();
+      setSessions((prev) => [
+        { id, title, messages: [], created_at: new Date(), status: "active" },
+        ...prev,
+      ]);
+      setActiveSessionId(id);
+    }
+  }
+
+  // ── Dissolve session ──
+  async function dissolveSession(sessionId: string) {
+    try {
+      await fetch("/api/clearing/sessions", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: sessionId, status: "dissolved" }),
+      });
+    } catch {
+      // Silent
+    }
+    setSessions((prev) => prev.filter((s) => s.id !== sessionId));
+    if (activeSessionId === sessionId) {
+      const remaining = sessions.filter((s) => s.id !== sessionId && s.status === "active");
+      if (remaining.length > 0) {
+        setActiveSessionId(remaining[0].id);
+      } else {
+        newSession();
+      }
+    }
   }
 
   // ── Drag & drop ──
@@ -220,6 +330,7 @@ export default function ClearingPage() {
 
   // ── Last conversation time ──
   function lastConversationText(): string {
+    if (loadingSessions) return "Loading...";
     if (!activeSession || activeSession.messages.length === 0) return "No conversations yet";
     const last = activeSession.messages[activeSession.messages.length - 1];
     const diffMs = Date.now() - last.timestamp.getTime();
@@ -387,24 +498,38 @@ export default function ClearingPage() {
 
                 {/* Session list */}
                 <div className="flex flex-col gap-[12px] items-start pl-[6px]">
-                  {activeSessions.map((s) => (
-                    <button
-                      key={s.id}
-                      onClick={() => setActiveSessionId(s.id)}
-                      className="text-left w-[229px]"
-                      style={{
-                        fontFamily: "var(--font-geist-sans), 'Geist', sans-serif",
-                        fontSize: "14px",
-                        fontWeight: s.id === activeSessionId ? 500 : 400,
-                        lineHeight: "16px",
-                        color: "#1e252a",
-                      }}
-                    >
-                      {s.title}
-                      {s.messages.length > 0 && (
-                        <span className="text-[#9ca5a9]"> ({s.messages.length})</span>
+                  {loadingSessions ? (
+                    <span className="text-[12px] text-[#9ca5a9]" style={{ fontFamily: "var(--font-geist-sans), 'Geist', sans-serif" }}>
+                      Loading conversations...
+                    </span>
+                  ) : activeSessions.map((s) => (
+                    <div key={s.id} className="flex items-center justify-between w-[229px] group">
+                      <button
+                        onClick={() => setActiveSessionId(s.id)}
+                        className="text-left flex-1"
+                        style={{
+                          fontFamily: "var(--font-geist-sans), 'Geist', sans-serif",
+                          fontSize: "14px",
+                          fontWeight: s.id === activeSessionId ? 500 : 400,
+                          lineHeight: "16px",
+                          color: "#1e252a",
+                        }}
+                      >
+                        {s.title}
+                        {s.messages.length > 0 && (
+                          <span className="text-[#9ca5a9]"> ({s.messages.length})</span>
+                        )}
+                      </button>
+                      {activeSessions.length > 1 && (
+                        <button
+                          onClick={() => dissolveSession(s.id)}
+                          className="opacity-0 group-hover:opacity-100 transition-opacity text-[#9ca5a9] hover:text-[#627c9e] text-[12px] ml-2 shrink-0"
+                          title="Dissolve"
+                        >
+                          ×
+                        </button>
                       )}
-                    </button>
+                    </div>
                   ))}
                   {/* New conversation button */}
                   <button
