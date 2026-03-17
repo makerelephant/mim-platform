@@ -567,10 +567,12 @@ export default function FeedCard({ card, onAction, onDismiss }: FeedCardProps) {
             ══════════════════════════════════════════════════════════════════ */}
         <div className="flex flex-col items-start w-full">
           <h2
-            className="text-[18px] font-semibold text-[#1e252a] leading-[22px]"
+            className="text-[18px] font-semibold leading-[22px]"
             style={{
               fontFamily: "var(--font-geist-sans), 'Geist', sans-serif",
               letterSpacing: "-0.36px",
+              // Per Figma: Signal/Intelligence titles are muted #9CA5A9, all others are dark #1E252A
+              color: isSignalOrIntel ? "#9CA5A9" : "#1E252A",
             }}
           >
             {card.title}
@@ -647,15 +649,18 @@ export default function FeedCard({ card, onAction, onDismiss }: FeedCardProps) {
             {/* Motion Reasoning section */}
             {card.reasoning && (
               <div className="flex flex-col gap-[6px] items-start">
-                <p
-                  className="text-[12px] font-bold text-[#bba14f] leading-[16px] uppercase whitespace-nowrap"
-                  style={{
-                    fontFamily: "var(--font-inter), 'Inter', sans-serif",
-                    letterSpacing: "1.2px",
-                  }}
-                >
-                  {isSignalOrIntel ? "background" : "motion reasoning"}
-                </p>
+                {/* Section label — Signal: "BACKGROUND" in gold, Decision/Action: "MOTION REASONING", Briefing: none */}
+                {!isBriefing && (
+                  <p
+                    className="text-[12px] font-bold text-[#bba14f] leading-[16px] uppercase whitespace-nowrap"
+                    style={{
+                      fontFamily: "var(--font-inter), 'Inter', sans-serif",
+                      letterSpacing: "1.2px",
+                    }}
+                  >
+                    {isSignalOrIntel ? "background" : "motion reasoning"}
+                  </p>
+                )}
                 <p
                   className="text-[12px] text-[#0c111d] leading-[16px]"
                   style={{ fontFamily: "var(--font-geist-sans), 'Geist', sans-serif" }}
