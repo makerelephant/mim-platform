@@ -110,80 +110,88 @@ export default function MotionFeedPage() {
   return (
     <div className="min-h-full" style={{ backgroundImage: "url('/icons/background.png')", backgroundSize: "cover", backgroundPosition: "center", backgroundRepeat: "no-repeat" }}>
       {/* ── Feed container ── */}
-      <div className="mx-auto py-6 space-y-4" style={{ width: "500px" }}>
+      <div className="mx-auto py-6 flex flex-col gap-[24px] items-center" style={{ width: "499px" }}>
 
         {/* ══════════════════════════════════════════════════════════════════
-            HEADER — Avatar + Name + Title + Scanner
-            ══════════════════════════════════════════════════════════════════ */}
-        <div className="flex flex-col gap-[6px] mb-[8px]">
-          {/* Avatar + Name */}
-          <div className="flex items-center gap-[10px]">
-            <img
-              src="/icons/mark-avatar.png"
-              alt="Mark Slater"
-              className="w-[36px] h-[36px] rounded-full object-cover"
-            />
-            <span
-              className="text-[14px] font-medium text-[#6e7b80] leading-[18px]"
-              style={{ fontFamily: "var(--font-geist-sans), 'Geist', sans-serif" }}
-            >
-              Mark Slater, CEO.
-            </span>
-          </div>
-
-          {/* Title + Updated + Refresh */}
-          <div className="flex items-center gap-[8px]">
-            <h1
-              className="text-[22px] font-bold text-[#1e252a] leading-[28px]"
-              style={{
-                fontFamily: "var(--font-geist-sans), 'Geist', sans-serif",
-                letterSpacing: "-0.44px",
-              }}
-            >
-              Important Conversations
-            </h1>
-            {lastUpdated && (
-              <span
-                className="text-[11px] text-[#9ca3af] leading-[14px]"
-                style={{ fontFamily: "var(--font-geist-sans), 'Geist', sans-serif" }}
-              >
-                ...updated {updatedAgoText()}
-              </span>
-            )}
-            <button
-              onClick={handleScan}
-              disabled={scanning}
-              className="ml-auto shrink-0"
-              title="Run Gmail scanner"
-            >
-              <img
-                src="/icons/refresh-2.svg"
-                alt="Refresh"
-                className={`w-[20px] h-[20px] ${scanning ? "animate-spin" : ""}`}
-                style={{ filter: "invert(45%) sepia(80%) saturate(400%) hue-rotate(175deg) brightness(95%)" }}
-              />
-            </button>
-          </div>
-        </div>
-
-        {/* ══════════════════════════════════════════════════════════════════
-            SEARCH BAR — "Ask Anything about the business."
+            CHAT HEADER — Card container per Figma (node 9:3665)
+            bg: rgba(255,244,224,0.2), p-12, rounded-12, shadow
             ══════════════════════════════════════════════════════════════════ */}
         <div
-          className="flex items-center gap-[8px] px-[16px] py-[10px] rounded-[12px] bg-white mb-[8px]"
-          style={{ border: "1px solid rgba(208, 213, 221, 0.4)" }}
+          className="flex flex-col gap-[12px] items-start p-[12px] rounded-[12px] shadow-[0px_0px_60px_0px_rgba(0,0,0,0.12)] w-full"
+          style={{ backgroundColor: "rgba(255,244,224,0.2)" }}
         >
-          <span
-            className="flex-1 text-[13px] text-[#9ca3af] leading-[18px]"
-            style={{ fontFamily: "var(--font-geist-sans), 'Geist', sans-serif" }}
+          {/* Avatar + Name */}
+          <div className="flex flex-col gap-[12px] items-start w-full">
+            <div className="flex gap-[6px] items-end pr-[6px] w-full">
+              <img
+                src="/icons/mark-avatar.png"
+                alt="Mark Slater"
+                className="w-[34px] h-[34px] rounded-full object-cover shrink-0"
+              />
+              <span
+                className="text-[18px] font-medium text-[#9ca5a9] leading-[20px] text-center whitespace-nowrap"
+                style={{
+                  fontFamily: "var(--font-geist-sans), 'Geist', sans-serif",
+                  letterSpacing: "-0.36px",
+                }}
+              >
+                Mark Slater, CEO.
+              </span>
+            </div>
+
+            {/* Title + Updated + Refresh */}
+            <div className="flex items-start justify-between pr-[6px] w-full">
+              <div className="flex gap-[6px] items-center">
+                <span
+                  className="text-[18px] font-semibold text-[#1e252a] leading-[20px] text-center whitespace-nowrap"
+                  style={{
+                    fontFamily: "var(--font-geist-sans), 'Geist', sans-serif",
+                    letterSpacing: "-0.36px",
+                  }}
+                >
+                  Important Conversations{" "}
+                </span>
+                <div className="flex items-end h-full pb-[2px]">
+                  <span
+                    className="text-[10px] font-medium text-[#9ca5a9] leading-[10px] text-center whitespace-nowrap"
+                    style={{ fontFamily: "var(--font-geist-sans), 'Geist', sans-serif" }}
+                  >
+                    ...updated {updatedAgoText() || "just now"}
+                  </span>
+                </div>
+              </div>
+              <button
+                onClick={handleScan}
+                disabled={scanning}
+                className="shrink-0"
+                title="Run Gmail scanner"
+              >
+                <img
+                  src="/icons/refresh-2.svg"
+                  alt="Refresh"
+                  className={`w-[20px] h-[20px] ${scanning ? "animate-spin" : ""}`}
+                />
+              </button>
+            </div>
+          </div>
+
+          {/* Search Input */}
+          <div
+            className="flex items-start justify-between overflow-hidden px-[14px] py-[10px] rounded-[12px] bg-white w-full"
+            style={{ border: "1px solid #e9e9e9" }}
           >
-            Ask Anything about the business.
-          </span>
-          <div className="flex items-center gap-[12px]">
-            <img src="/icons/calendar-plus.svg" alt="" className="w-[18px] h-[18px] opacity-40" />
-            <img src="/icons/paperclip.svg" alt="" className="w-[18px] h-[18px] opacity-40" />
-            <img src="/icons/mic.svg" alt="" className="w-[18px] h-[18px] opacity-40" />
-            <img src="/icons/arrow-up-circle.svg" alt="" className="w-[18px] h-[18px] opacity-40" />
+            <span
+              className="text-[12px] font-medium text-[#b0b8bb] leading-[24px] whitespace-nowrap"
+              style={{ fontFamily: "var(--font-geist-sans), 'Geist', sans-serif" }}
+            >
+              Ask Anything about the business.
+            </span>
+            <div className="flex gap-[24px] items-end h-[21px] w-[143px]">
+              <img src="/icons/calendar-plus.svg" alt="" className="w-[16px] h-[16px] shrink-0" />
+              <img src="/icons/paperclip.svg" alt="" className="w-[16px] h-[16px] shrink-0" />
+              <img src="/icons/mic.svg" alt="" className="w-[16px] h-[16px] shrink-0" />
+              <img src="/icons/arrow-up-circle.svg" alt="" className="w-[16px] h-[16px] shrink-0" />
+            </div>
           </div>
         </div>
 

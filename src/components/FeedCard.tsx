@@ -34,15 +34,16 @@ const CARD_TYPE_OPTIONS = [
 ] as const;
 
 // Card type badge config — colors per Figma design system
-// Only Decision card is designed in Figma — all types use same badge styling until designed
-const CARD_TYPE_BADGES: Record<string, { bg: string; label: string; icon: string }> = {
-  decision:     { bg: "#d8e5dd", label: "Decision",     icon: "/icons/gauge.svg" },
-  action:       { bg: "#d8e5dd", label: "Action",       icon: "/icons/gauge.svg" },
-  signal:       { bg: "#d8e5dd", label: "Signal",       icon: "/icons/gauge.svg" },
-  intelligence: { bg: "#d8e5dd", label: "Intelligence", icon: "/icons/gauge.svg" },
-  briefing:     { bg: "#d8e5dd", label: "Briefing",     icon: "/icons/gauge.svg" },
-  reflection:   { bg: "#d8e5dd", label: "Reflection",   icon: "/icons/gauge.svg" },
-  snapshot:     { bg: "#d8e5dd", label: "Snapshot",     icon: "/icons/gauge.svg" },
+// Decision: #d8e5dd bg, black text, gauge icon, gap 10px
+// Action: #289bff bg, white text, rocket icon, gap 6px
+const CARD_TYPE_BADGES: Record<string, { bg: string; textColor: string; label: string; icon: string; gap: string }> = {
+  decision:     { bg: "#d8e5dd", textColor: "black",  label: "Decision",     icon: "/icons/gauge.svg",  gap: "10px" },
+  action:       { bg: "#289bff", textColor: "white",  label: "Action",       icon: "/icons/rocket.svg", gap: "6px" },
+  signal:       { bg: "#d8e5dd", textColor: "black",  label: "Signal",       icon: "/icons/gauge.svg",  gap: "10px" },
+  intelligence: { bg: "#d8e5dd", textColor: "black",  label: "Intelligence", icon: "/icons/gauge.svg",  gap: "10px" },
+  briefing:     { bg: "#d8e5dd", textColor: "black",  label: "Briefing",     icon: "/icons/gauge.svg",  gap: "10px" },
+  reflection:   { bg: "#d8e5dd", textColor: "black",  label: "Reflection",   icon: "/icons/gauge.svg",  gap: "10px" },
+  snapshot:     { bg: "#d8e5dd", textColor: "black",  label: "Snapshot",     icon: "/icons/gauge.svg",  gap: "10px" },
 };
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -320,8 +321,8 @@ export default function FeedCard({ card, onAction, onDismiss }: FeedCardProps) {
           <div className="flex gap-[12px] items-center min-w-0 flex-1">
             {/* Card type badge */}
             <div
-              className="flex gap-[10px] items-center justify-center px-[12px] py-[6px] rounded-[4px] shrink-0"
-              style={{ backgroundColor: badge.bg }}
+              className="flex items-center justify-center px-[12px] py-[6px] rounded-[4px] shrink-0"
+              style={{ backgroundColor: badge.bg, gap: badge.gap }}
             >
               <img
                 src={badge.icon}
@@ -329,8 +330,11 @@ export default function FeedCard({ card, onAction, onDismiss }: FeedCardProps) {
                 className="w-[16px] h-[16px] shrink-0"
               />
               <span
-                className="text-[12px] font-medium text-black leading-normal whitespace-nowrap"
-                style={{ fontFamily: "var(--font-geist-sans), 'Geist', sans-serif" }}
+                className="text-[12px] font-medium leading-normal whitespace-nowrap"
+                style={{
+                  fontFamily: "var(--font-geist-sans), 'Geist', sans-serif",
+                  color: badge.textColor,
+                }}
               >
                 {badge.label}
               </span>
@@ -488,7 +492,7 @@ export default function FeedCard({ card, onAction, onDismiss }: FeedCardProps) {
                   fontFamily: "-apple-system, 'SF Pro Display', system-ui, sans-serif",
                   color: card.ceo_action === "do" ? "#16a34a" :
                          card.ceo_action === "no" ? "#ef4444" :
-                         "#e8845f",
+                         "#ffb20a",
                 }}
               >
                 {card.ceo_action === "do" ? "Done" : card.ceo_action === "no" ? "Declined" : "Hold"}
