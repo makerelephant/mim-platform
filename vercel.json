@@ -15,7 +15,7 @@
     },
     {
       "path": "/api/feed/resurface",
-      "schedule": "0 14 * * *"
+      "schedule": "0 */4 * * *"
     },
     {
       "path": "/api/agents/synthesis",
