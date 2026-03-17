@@ -4,7 +4,7 @@ import { createClient } from "@supabase/supabase-js";
 /**
  * Feed Resurface Cron
  *
- * Runs periodically (configured in vercel.json as daily at 14:00 UTC).
+ * Runs every 4 hours (configured in vercel.json).
  * Finds cards with status="acted", ceo_action="not_now", and resurface_at <= now.
  * Sets them back to "unread" so they reappear in the feed.
  */
