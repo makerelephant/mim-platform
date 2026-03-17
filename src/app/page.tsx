@@ -18,12 +18,16 @@ export default function MotionFeedPage() {
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [searching, setSearching] = useState(false);
+  const [activeFilter, setActiveFilter] = useState<string | null>(null);
   const limit = 30;
 
   // ── Load feed cards ──
-  const loadCards = useCallback(async (newOffset: number, append: boolean) => {
+  const loadCards = useCallback(async (newOffset: number, append: boolean, filterType?: string | null) => {
     try {
-      const res = await fetch(`/api/feed?status=unread,read,acted&limit=${limit}&offset=${newOffset}`);
+      const typeParam = filterType !== undefined ? filterType : activeFilter;
+      let feedUrl = `/api/feed?status=unread,read,acted&limit=${limit}&offset=${newOffset}`;
+      if (typeParam) feedUrl += `&card_type=${typeParam}`;
+      const res = await fetch(feedUrl);
       const data = await res.json();
       if (data.cards) {
         setCards((prev) => append ? [...prev, ...data.cards] : data.cards);
@@ -34,7 +38,7 @@ export default function MotionFeedPage() {
     } catch (err) {
       console.error("Feed load error:", err);
     }
-  }, []);
+  }, [activeFilter]);
 
   useEffect(() => {
     async function init() {
@@ -67,6 +71,14 @@ export default function MotionFeedPage() {
     } finally {
       setScanning(false);
     }
+  }
+
+  // ── Filter by card type ──
+  async function handleFilter(type: string | null) {
+    setActiveFilter(type);
+    setLoading(true);
+    await loadCards(0, false, type);
+    setLoading(false);
   }
 
   // ── Search / Snapshot ──
@@ -234,6 +246,32 @@ export default function MotionFeedPage() {
               />
             </div>
           </div>
+        </div>
+
+        {/* ── Filter pills ── */}
+        <div className="flex gap-[8px] items-center w-full overflow-x-auto">
+          {[
+            { key: null, label: "All" },
+            { key: "decision", label: "Decisions" },
+            { key: "action", label: "Actions" },
+            { key: "signal", label: "Signals" },
+            { key: "intelligence", label: "Intel" },
+            { key: "briefing", label: "Briefings" },
+          ].map((f) => (
+            <button
+              key={f.key || "all"}
+              onClick={() => handleFilter(f.key)}
+              className="px-[12px] py-[4px] rounded-[14px] text-[11px] font-medium whitespace-nowrap transition-colors"
+              style={{
+                fontFamily: "var(--font-geist-sans), 'Geist', sans-serif",
+                backgroundColor: activeFilter === f.key ? "#3e4c60" : "rgba(255,255,255,0.6)",
+                color: activeFilter === f.key ? "#ffffff" : "#6e7b80",
+                border: activeFilter === f.key ? "none" : "1px solid #e0e0e0",
+              }}
+            >
+              {f.label}
+            </button>
+          ))}
         </div>
 
         {/* ══════════════════════════════════════════════════════════════════
