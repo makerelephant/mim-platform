@@ -25,13 +25,13 @@ export async function GET() {
     const now = new Date().toISOString();
     const toResurface: string[] = [];
 
-    // Method 1: Use resurface_at column (preferred, fast)
+    // Find all cards where resurface_at has passed and status is not dismissed.
+    // This catches both "acted" (not_now) cards and any other held status.
     const { data: columnCards, error: colError } = await sb
       .schema("brain")
       .from("feed_cards")
       .select("id")
-      .eq("status", "acted")
-      .eq("ceo_action", "not_now")
+      .neq("status", "dismissed")
       .not("resurface_at", "is", null)
       .lte("resurface_at", now);
 
@@ -41,7 +41,7 @@ export async function GET() {
       }
     }
 
-    // Method 2: Fallback — parse ceo_action_note JSON for older cards without resurface_at column
+    // Fallback — parse ceo_action_note JSON for older cards without resurface_at column
     const { data: jsonCards, error: jsonError } = await sb
       .schema("brain")
       .from("feed_cards")

@@ -10,8 +10,16 @@
       "schedule": "0 12 * * *"
     },
     {
+      "path": "/api/brain/autonomy",
+      "schedule": "0 13 * * *"
+    },
+    {
       "path": "/api/feed/resurface",
       "schedule": "0 14 * * *"
+    },
+    {
+      "path": "/api/agents/synthesis",
+      "schedule": "0 8 * * 0"
     }
   ]
 }

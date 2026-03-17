@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import Anthropic from "@anthropic-ai/sdk";
 import { embedText } from "@/lib/embeddings";
+import { emitFeedCard } from "@/lib/feed-card-emitter";
 
 export const maxDuration = 120;
 
@@ -28,6 +29,8 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const question = body.question?.trim();
     const contextDays = body.context_days ?? 30;
+    const persist = body.persist !== false; // default: persist to feed
+    const scope = body.scope ?? "feed"; // "feed" or "clearing"
 
     if (!question) {
       return NextResponse.json(
@@ -157,6 +160,62 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // ── 4b. Derived insights ──
+    try {
+      // Query active insights that match the question's entities or categories
+      const entityIds = entities.map((e) => e.id);
+      const matchingWords = words.filter((w: string) => w.length > 3);
+
+      const { data: allInsights } = await sb
+        .schema("brain")
+        .from("derived_insights")
+        .select("id, insight_type, description, confidence, taxonomy_categories, entity_ids, scope, created_at")
+        .eq("status", "active")
+        .order("confidence", { ascending: false })
+        .limit(10);
+
+      if (allInsights && allInsights.length > 0) {
+        // Filter for relevance: entity overlap, category keyword match, or high-confidence general insights
+        const relevantInsights = allInsights.filter((insight: { entity_ids: string[] | null; taxonomy_categories: string[] | null; description: string; confidence: number }) => {
+          // Check entity overlap
+          if (insight.entity_ids && entityIds.length > 0) {
+            const overlap = insight.entity_ids.filter((eid: string) => entityIds.includes(eid));
+            if (overlap.length > 0) return true;
+          }
+          // Check category keyword match
+          if (insight.taxonomy_categories && matchingWords.length > 0) {
+            for (const cat of insight.taxonomy_categories) {
+              for (const word of matchingWords) {
+                if (cat.toLowerCase().includes(word.toLowerCase())) return true;
+              }
+            }
+          }
+          // Check description keyword match
+          for (const word of matchingWords) {
+            if (insight.description.toLowerCase().includes(word.toLowerCase())) return true;
+          }
+          // Include high-confidence general insights
+          if (insight.confidence >= 0.8) return true;
+          return false;
+        });
+
+        if (relevantInsights.length > 0) {
+          contextParts.push("## Derived Insights (Brain Intelligence)\n");
+          for (const insight of relevantInsights.slice(0, 5)) {
+            const conf = Math.round(insight.confidence * 100);
+            const date = new Date(insight.created_at).toLocaleDateString();
+            contextParts.push(
+              `- **[${insight.insight_type}]** ${insight.description} (${conf}% confidence, ${date})`,
+            );
+          }
+          contextParts.push("");
+          sourceNotes.push(`${relevantInsights.length} derived insights`);
+        }
+      }
+    } catch (insightErr) {
+      console.warn("Derived insights query failed (table may not exist yet):", insightErr);
+    }
+
     // ── 5. Recent activity ──
     const cutoff = new Date();
     cutoff.setDate(cutoff.getDate() - contextDays);
@@ -261,10 +320,67 @@ Guidelines:
       });
     } catch { /* ignore logging errors */ }
 
+    // ── 8. Persist as feed card (if scope is "feed") ──
+    let card_id: string | null = null;
+    if (persist && scope === "feed") {
+      try {
+        const card = await emitFeedCard(sb, {
+          card_type: "intelligence",
+          title: question,
+          body: answer,
+          source_type: "brain_query",
+          priority: "medium",
+          metadata: {
+            sources: sourceNotes,
+            context_length: context.length,
+            query_timestamp: new Date().toISOString(),
+          },
+        });
+        card_id = card?.id ?? null;
+      } catch (emitErr) {
+        console.error("Failed to persist brain query as feed card:", emitErr);
+      }
+    }
+
+    // ── 8b. Persist clearing conversation (if scope is "clearing") ──
+    let clearing_message_id: string | null = null;
+    if (persist && scope === "clearing") {
+      const sessionId = body.session_id;
+      if (sessionId) {
+        try {
+          // Insert question message
+          await sb.schema("brain").from("clearing_messages").insert({
+            session_id: sessionId,
+            role: "user",
+            content: question,
+            message_type: "query",
+          });
+          // Insert brain response
+          const { data: respMsg } = await sb
+            .schema("brain")
+            .from("clearing_messages")
+            .insert({
+              session_id: sessionId,
+              role: "brain",
+              content: answer,
+              message_type: "response",
+              metadata: { sources: sourceNotes },
+            })
+            .select("id")
+            .single();
+          clearing_message_id = respMsg?.id ?? null;
+        } catch (clearingErr) {
+          console.error("Failed to persist clearing messages:", clearingErr);
+        }
+      }
+    }
+
     return NextResponse.json({
       success: true,
       answer,
       sources: sourceNotes,
+      card_id,
+      clearing_message_id,
     });
   } catch (err) {
     console.error("ask_brain error:", err);

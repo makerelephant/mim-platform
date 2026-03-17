@@ -13,9 +13,11 @@ import { buildEntityDossier } from "./entity-dossier";
 import { computeFeedbackForEntities } from "./feedback-engine";
 import { loadTaxonomy, matchTaxonomyCategory, buildTaxonomyPromptSection, enforcePriorityRules } from "./taxonomy-loader";
 import { loadStandingOrders, buildStandingOrdersPromptSection, loadRecentCorrections, buildCorrectionsPromptSection } from "./instruction-loader";
+import { loadBehavioralRules, buildBehavioralRulesPromptSection } from "./behavioral-rules";
 import { writeProvenance, recomputeKCSForEntities } from "./entity-intelligence";
 import { buildAcumenPromptSection } from "./harness-loader";
 import { emitFeedCard, inferCardType, logIngestion } from "./feed-card-emitter";
+import { chunkText, embedBatch } from "./embeddings";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -763,6 +765,14 @@ export async function runGmailScanner(
       addLog(`Injected ${corrections.length} CEO correction(s) into classifier prompt`);
     }
 
+    // ── Inject permanent behavioral rules (synthesized from repeated corrections) ──
+    const behavioralRules = await loadBehavioralRules(sb);
+    if (behavioralRules.length > 0) {
+      const behavioralRulesSection = buildBehavioralRulesPromptSection(behavioralRules);
+      agentSystemPrompt += "\n" + behavioralRulesSection;
+      addLog(`Injected ${behavioralRules.length} permanent behavioral rule(s) into classifier prompt`);
+    }
+
     const userEmails = new Set(userEmailsList.map((e) => e.toLowerCase().trim()));
 
     // ── Brain email config (for knowledge ingestion routing) ──
@@ -781,16 +791,33 @@ export async function runGmailScanner(
     const orgContext = await loadOrgContext(sb);
     addLog(`Loaded org context (${orgContext.length} chars)`);
 
-    // ── Fetch recent messages ──
+    // ── Fetch recent messages (paginated, up to 500) ──
     const afterTs = Math.floor((Date.now() - scanHours * 60 * 60 * 1000) / 1000);
     const query = `after:${afterTs}`;
-    const listResult = await gmail.users.messages.list({
-      userId: "me",
-      q: query,
-      maxResults: 100,
-    });
+    const MAX_MESSAGES_PER_SCAN = 500;
+    const messages: Array<{ id?: string | null; threadId?: string | null }> = [];
+    let pageToken: string | undefined = undefined;
 
-    const messages = listResult.data.messages || [];
+    do {
+      const listParams: { userId: string; q: string; maxResults: number; pageToken?: string } = {
+        userId: "me",
+        q: query,
+        maxResults: 100,
+      };
+      if (pageToken) listParams.pageToken = pageToken;
+      const listResult = await gmail.users.messages.list(listParams);
+
+      const pageMessages = listResult.data.messages || [];
+      messages.push(...pageMessages);
+      pageToken = listResult.data.nextPageToken ?? undefined;
+      addLog(`Fetched page of ${pageMessages.length} messages (total so far: ${messages.length})`);
+    } while (pageToken && messages.length < MAX_MESSAGES_PER_SCAN);
+
+    // Trim to cap in case the last page pushed us over
+    if (messages.length > MAX_MESSAGES_PER_SCAN) {
+      messages.length = MAX_MESSAGES_PER_SCAN;
+    }
+
     addLog(`Found ${messages.length} messages in the last ${scanHours} hours`);
 
     let recordsProcessed = 0;
@@ -1054,7 +1081,7 @@ export async function runGmailScanner(
 
             // Still create correspondence entry so it's tracked
             if (skipEntityId) {
-              await sb.schema('brain').from("correspondence").insert({
+              const { data: skipCorrRow } = await sb.schema('brain').from("correspondence").insert({
                 entity_type: skipEntityType,
                 entity_id: skipEntityId,
                 channel: "gmail",
@@ -1069,7 +1096,27 @@ export async function runGmailScanner(
                   gmail_message_id: msgId,
                   source_message_id: msgId,
                 },
-              });
+              }).select("id").single();
+
+              // ── Embed thread-skip correspondence for semantic search ──
+              if (skipCorrRow?.id && (details.body || "").length > 50) {
+                try {
+                  const emailContent = `From: ${details.from}\nSubject: ${details.subject}\n\n${details.body || ""}`;
+                  const chunks = chunkText(emailContent, 500);
+                  if (chunks.length > 0) {
+                    const vectors = await embedBatch(chunks);
+                    if (vectors.length === chunks.length) {
+                      const rows = chunks.map((content, i) => ({
+                        correspondence_id: skipCorrRow.id,
+                        chunk_index: i,
+                        content,
+                        embedding: JSON.stringify(vectors[i]),
+                      }));
+                      await sb.schema('brain').from("correspondence_chunks").insert(rows);
+                    }
+                  }
+                } catch { /* non-critical — don't block thread-skip processing */ }
+              }
             }
 
             recordsUpdated++;
@@ -1354,7 +1401,7 @@ export async function runGmailScanner(
 
       // ── Log correspondence ──
       if (entityId) {
-        await sb.schema('brain').from("correspondence").insert({
+        const { data: corrRow } = await sb.schema('brain').from("correspondence").insert({
           entity_type: entityType,
           entity_id: entityId,
           channel: "gmail",
@@ -1369,7 +1416,30 @@ export async function runGmailScanner(
             gmail_message_id: msgId,
             source_message_id: msgId,
           },
-        });
+        }).select("id").single();
+
+        // ── Embed correspondence for semantic search ──
+        if (corrRow?.id && (details.body || "").length > 50) {
+          try {
+            const emailContent = `From: ${details.from}\nTo: ${details.to || ""}\nSubject: ${details.subject}\n\n${details.body || ""}`;
+            const chunks = chunkText(emailContent, 500);
+            if (chunks.length > 0) {
+              const vectors = await embedBatch(chunks);
+              if (vectors.length === chunks.length) {
+                const rows = chunks.map((content, i) => ({
+                  correspondence_id: corrRow.id,
+                  chunk_index: i,
+                  content,
+                  embedding: JSON.stringify(vectors[i]),
+                }));
+                await sb.schema('brain').from("correspondence_chunks").insert(rows);
+                addLog(`  Embedded ${chunks.length} chunk(s) for correspondence`);
+              }
+            }
+          } catch (e) {
+            addLog(`  Correspondence embedding failed: ${e instanceof Error ? e.message : String(e)}`);
+          }
+        }
       }
 
       // ── Create tasks (Phase 1C: enforced priority, 1E: pending_review, 1F: taxonomy_category) ──

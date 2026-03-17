@@ -118,14 +118,16 @@ export async function PATCH(request: NextRequest) {
       // Store structured correction in dedicated column + note
       updates.ceo_correction = correction;
       updates.ceo_action_note = JSON.stringify(correction);
+    }
 
-      // For hold with resurface, set dedicated resurface_at column
-      if (correction.resurface_hours && ceo_action === "not_now") {
-        const resurfaceAt = new Date(
-          Date.now() + correction.resurface_hours * 60 * 60 * 1000
-        ).toISOString();
-        updates.resurface_at = resurfaceAt;
-      }
+    // For hold (not_now), always set resurface_at so the resurface cron picks it up.
+    // Default to 24 hours from now if no resurface_hours specified in the correction.
+    if (ceo_action === "not_now") {
+      const hours = correction?.resurface_hours || 24;
+      const resurfaceAt = new Date(
+        Date.now() + hours * 60 * 60 * 1000
+      ).toISOString();
+      updates.resurface_at = resurfaceAt;
     }
 
     const { data, error } = await sb

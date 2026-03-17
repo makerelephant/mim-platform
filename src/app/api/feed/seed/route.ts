@@ -7,11 +7,12 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-  { db: { schema: "brain" } }
-);
+function getSupabase() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!url || !key) throw new Error("Missing Supabase config");
+  return createClient(url, key, { db: { schema: "brain" } });
+}
 
 const SAMPLE_CARDS = [
   {
@@ -90,6 +91,7 @@ const SAMPLE_CARDS = [
 
 export async function GET() {
   try {
+    const supabase = getSupabase();
     const { data, error } = await supabase
       .from("feed_cards")
       .insert(SAMPLE_CARDS)
