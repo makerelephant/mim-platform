@@ -16,8 +16,7 @@ import { loadStandingOrders, buildStandingOrdersPromptSection, loadRecentCorrect
 import { loadBehavioralRules, buildBehavioralRulesPromptSection } from "./behavioral-rules";
 import { writeProvenance, recomputeKCSForEntities } from "./entity-intelligence";
 import { buildAcumenPromptSection } from "./harness-loader";
-import { emitFeedCard, inferCardType, logIngestion } from "./feed-card-emitter";
-import { chunkText, embedBatch } from "./embeddings";
+import { emitFeedCard, inferCardType, logIngestion, embedCorrespondence } from "./feed-card-emitter";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -1079,7 +1078,7 @@ export async function runGmailScanner(
               },
             });
 
-            // Still create correspondence entry so it's tracked
+            // Still create correspondence entry so it's tracked + embed for RAG
             if (skipEntityId) {
               const { data: skipCorrRow } = await sb.schema('brain').from("correspondence").insert({
                 entity_type: skipEntityType,
@@ -1098,24 +1097,9 @@ export async function runGmailScanner(
                 },
               }).select("id").single();
 
-              // ── Embed thread-skip correspondence for semantic search ──
-              if (skipCorrRow?.id && (details.body || "").length > 50) {
-                try {
-                  const emailContent = `From: ${details.from}\nSubject: ${details.subject}\n\n${details.body || ""}`;
-                  const chunks = chunkText(emailContent, 500);
-                  if (chunks.length > 0) {
-                    const vectors = await embedBatch(chunks);
-                    if (vectors.length === chunks.length) {
-                      const rows = chunks.map((content, i) => ({
-                        correspondence_id: skipCorrRow.id,
-                        chunk_index: i,
-                        content,
-                        embedding: JSON.stringify(vectors[i]),
-                      }));
-                      await sb.schema('brain').from("correspondence_chunks").insert(rows);
-                    }
-                  }
-                } catch { /* non-critical — don't block thread-skip processing */ }
+              if (skipCorrRow?.id && details.body) {
+                const embeddableText = `Subject: ${details.subject}\nFrom: ${details.from}\n\n${details.body}`;
+                await embedCorrespondence(sb, skipCorrRow.id, embeddableText, addLog);
               }
             }
 
@@ -1399,7 +1383,7 @@ export async function runGmailScanner(
         addLog(`  Feed card emission failed: ${e instanceof Error ? e.message : String(e)}`);
       }
 
-      // ── Log correspondence ──
+      // ── Log correspondence + embed for RAG ──
       if (entityId) {
         const { data: corrRow } = await sb.schema('brain').from("correspondence").insert({
           entity_type: entityType,
@@ -1418,27 +1402,10 @@ export async function runGmailScanner(
           },
         }).select("id").single();
 
-        // ── Embed correspondence for semantic search ──
-        if (corrRow?.id && (details.body || "").length > 50) {
-          try {
-            const emailContent = `From: ${details.from}\nTo: ${details.to || ""}\nSubject: ${details.subject}\n\n${details.body || ""}`;
-            const chunks = chunkText(emailContent, 500);
-            if (chunks.length > 0) {
-              const vectors = await embedBatch(chunks);
-              if (vectors.length === chunks.length) {
-                const rows = chunks.map((content, i) => ({
-                  correspondence_id: corrRow.id,
-                  chunk_index: i,
-                  content,
-                  embedding: JSON.stringify(vectors[i]),
-                }));
-                await sb.schema('brain').from("correspondence_chunks").insert(rows);
-                addLog(`  Embedded ${chunks.length} chunk(s) for correspondence`);
-              }
-            }
-          } catch (e) {
-            addLog(`  Correspondence embedding failed: ${e instanceof Error ? e.message : String(e)}`);
-          }
+        // Embed full email content for vector search
+        if (corrRow?.id) {
+          const embeddableText = `Subject: ${details.subject}\nFrom: ${details.from}\nTo: ${details.to || ""}\n\n${details.body}`;
+          await embedCorrespondence(sb, corrRow.id, embeddableText, addLog);
         }
       }
 

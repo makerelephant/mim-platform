@@ -9,6 +9,7 @@
  */
 
 import { SupabaseClient } from "@supabase/supabase-js";
+import { chunkText, embedBatch, estimateTokens } from "./embeddings";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -295,4 +296,76 @@ export async function logIngestion(
   }
 
   return data?.id || null;
+}
+
+// ─── Correspondence Embedding ────────────────────────────────────────────
+
+/**
+ * Chunk and embed correspondence content into brain.correspondence_chunks.
+ * Call this after inserting a row into brain.correspondence.
+ *
+ * @param sb - Supabase client
+ * @param correspondenceId - UUID of the correspondence row
+ * @param content - Full text to embed (subject + body combined)
+ * @param log - Optional logger
+ * @returns Number of chunks inserted, or 0 on failure/skip
+ */
+export async function embedCorrespondence(
+  sb: SupabaseClient,
+  correspondenceId: string,
+  content: string,
+  log?: (msg: string) => void,
+): Promise<number> {
+  const addLog = log || (() => {});
+
+  if (!content || content.trim().length < 20) {
+    return 0; // Too short to be useful
+  }
+
+  try {
+    // Check if already embedded
+    const { data: existing } = await sb
+      .schema("brain")
+      .from("correspondence_chunks")
+      .select("id")
+      .eq("correspondence_id", correspondenceId)
+      .limit(1);
+
+    if (existing && existing.length > 0) {
+      return 0; // Already embedded
+    }
+
+    const chunks = chunkText(content, 500);
+    if (chunks.length === 0) return 0;
+
+    const embeddings = await embedBatch(chunks);
+    if (embeddings.length === 0) {
+      addLog(`  Correspondence embedding skipped (no API key or error)`);
+      return 0;
+    }
+
+    const rows = chunks.map((chunk, idx) => ({
+      correspondence_id: correspondenceId,
+      chunk_index: idx,
+      content: chunk,
+      token_count: estimateTokens(chunk),
+      embedding: JSON.stringify(embeddings[idx]),
+    }));
+
+    const { error } = await sb
+      .schema("brain")
+      .from("correspondence_chunks")
+      .insert(rows);
+
+    if (error) {
+      addLog(`  Correspondence chunk insert failed: ${error.message}`);
+      return 0;
+    }
+
+    addLog(`  Embedded correspondence ${correspondenceId} (${chunks.length} chunks)`);
+    return chunks.length;
+  } catch (err) {
+    addLog(`  Correspondence embedding error: ${err instanceof Error ? err.message : String(err)}`);
+    return 0;
+  }
 }
