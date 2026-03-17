@@ -21,7 +21,7 @@ export default function MotionFeedPage() {
   // ── Load feed cards ──
   const loadCards = useCallback(async (newOffset: number, append: boolean) => {
     try {
-      const res = await fetch(`/api/feed?status=unread,read&limit=${limit}&offset=${newOffset}`);
+      const res = await fetch(`/api/feed?status=unread,read,acted&limit=${limit}&offset=${newOffset}`);
       const data = await res.json();
       if (data.cards) {
         setCards((prev) => append ? [...prev, ...data.cards] : data.cards);

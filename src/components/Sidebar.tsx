@@ -1,17 +1,18 @@
 "use client";
 
 /**
- * MiMbrain Sidebar — Motion Design
- * src/components/Sidebar.tsx
+ * MiMbrain Sidebar — Pixel-perfect Figma match (node 30:419)
  *
- * Minimal floating nav: avatar, 4 nav items, MiMBrain icon, tagline.
- * Matches Figma node 5:3848.
+ * 175px outer container, 163px white card with rounded-12, heavy shadow.
+ * Nav items: Motion/Clearing/Engine/Me at 14px Geist Medium.
+ * Active state: #3e4c60 pill at 60% opacity, rounded-tr-18/br-18.
+ * Bottom: Glossary + Technical Docs links, MiMbrain icon, copyright.
  */
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-/* ── Navigation ───────────────────────────────────────────────────────────── */
+/* eslint-disable @next/next/no-img-element */
 
 interface NavItem {
   href: string;
@@ -25,83 +26,149 @@ const NAV_ITEMS: NavItem[] = [
   { href: "/me",       label: "Me" },
 ];
 
-/* ── Sidebar ──────────────────────────────────────────────────────────────── */
-
 export function Sidebar() {
   const pathname = usePathname();
 
   function isActive(item: NavItem): boolean {
     if (item.href === "/") return pathname === "/";
-    return pathname.startsWith(item.href);
+    return pathname === item.href || pathname.startsWith(item.href + "/");
   }
 
   return (
-    <aside className="flex flex-col items-center justify-between w-[200px] shrink-0 py-8 px-5">
+    <aside
+      className="shrink-0 relative"
+      style={{ width: "175px", paddingTop: "100px", paddingLeft: "37px" }}
+    >
+      {/* ── White card container — 163px wide, 410px tall ── */}
+      <div
+        className="relative bg-white rounded-[12px]"
+        style={{
+          width: "163px",
+          height: "410px",
+          marginLeft: "6px",
+          boxShadow: "0px 0px 200px 0px rgba(0,0,0,0.3)",
+        }}
+      >
+        {/* ── Navigation items — top-left ── */}
+        <div
+          className="absolute flex flex-col items-start"
+          style={{ left: "11px", top: "16px", width: "137px" }}
+        >
+          <div className="flex flex-col gap-[2px] items-start pl-[6px] w-full">
+            {NAV_ITEMS.map((item) => {
+              const active = isActive(item);
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className="relative block w-full"
+                >
+                  {/* Active pill background */}
+                  {active && (
+                    <div
+                      className="absolute rounded-tr-[18px] rounded-br-[18px]"
+                      style={{
+                        backgroundColor: "#3e4c60",
+                        opacity: 0.6,
+                        height: "18px",
+                        width: "137px",
+                        left: "-6px",
+                        top: "0px",
+                      }}
+                    />
+                  )}
+                  <span
+                    className="relative block capitalize whitespace-nowrap"
+                    style={{
+                      fontFamily: "var(--font-geist-sans), 'Geist', sans-serif",
+                      fontSize: "14px",
+                      fontWeight: 500,
+                      lineHeight: "18px",
+                      letterSpacing: "-0.42px",
+                      color: active ? "white" : "#1e252a",
+                    }}
+                  >
+                    {item.label}
+                  </span>
+                </Link>
+              );
+            })}
+          </div>
+        </div>
 
-      {/* ── Floating card ── */}
-      <div className="w-full bg-white rounded-2xl shadow-[0px_2px_8px_0px_rgba(0,0,0,0.08)] flex flex-col items-start justify-between py-6 px-5 flex-1">
-
-        {/* ── Avatar ── */}
-        <div className="shrink-0">
-          <div className="w-12 h-12 rounded-full overflow-hidden shadow-[0px_2px_4px_0px_rgba(0,0,0,0.25)]">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
+        {/* ── Glossary + Technical Docs links ── */}
+        <div
+          className="absolute flex flex-col gap-[2px] items-start"
+          style={{ left: "11px", top: "299px", width: "142px" }}
+        >
+          {/* Glossary */}
+          <div className="flex items-end justify-between w-full">
+            <span
+              className="whitespace-nowrap"
+              style={{
+                fontFamily: "var(--font-geist-sans), 'Geist', sans-serif",
+                fontSize: "10px",
+                fontWeight: 500,
+                lineHeight: "12px",
+                color: "#9ca5a9",
+              }}
+            >
+              Glossary
+            </span>
             <img
-              src="/icons/mark-avatar.png"
-              alt="Mark Slater"
-              width={48}
-              height={48}
-              className="w-full h-full object-cover"
+              src="/icons/arrow-right.svg"
+              alt=""
+              className="shrink-0"
+              style={{ width: "9px", height: "9px" }}
+            />
+          </div>
+          {/* Technical Docs */}
+          <div className="flex items-end justify-between w-full">
+            <span
+              className="whitespace-nowrap"
+              style={{
+                fontFamily: "var(--font-geist-sans), 'Geist', sans-serif",
+                fontSize: "10px",
+                fontWeight: 500,
+                lineHeight: "12px",
+                color: "#9ca5a9",
+              }}
+            >
+              Technical Docs
+            </span>
+            <img
+              src="/icons/arrow-right.svg"
+              alt=""
+              className="shrink-0"
+              style={{ width: "9px", height: "9px" }}
             />
           </div>
         </div>
 
-        {/* ── Nav Items ── */}
-        <nav className="flex flex-col items-start gap-[18px] w-full">
-          {NAV_ITEMS.map((item) => {
-            const active = isActive(item);
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`
-                  relative text-[20px] font-semibold capitalize tracking-[-0.6px] leading-6 transition-colors
-                  ${active
-                    ? "text-[#1e252a]"
-                    : "text-[#1e252a]/60 hover:text-[#1e252a]/80"
-                  }
-                `}
-                style={{ fontFamily: "var(--font-geist-sans), 'Geist', sans-serif" }}
-              >
-                {/* Active pill indicator */}
-                {active && (
-                  <span className="absolute -left-5 top-1/2 -translate-y-1/2 w-[calc(100%+40px)] h-[30px] bg-white rounded-r-[18px] rounded-br-[18px] shadow-[0px_1px_3px_0px_rgba(0,0,0,0.06)] -z-10" />
-                )}
-                {item.label}
-              </Link>
-            );
-          })}
-        </nav>
-
-        {/* ── MiMBrain Icon ── */}
-        <div className="shrink-0">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
+        {/* ── MiMbrain icon + Copyright ── */}
+        <div
+          className="absolute flex flex-col gap-[12px] items-start"
+          style={{ left: "17px", top: "346px", width: "142px" }}
+        >
           <img
             src="/icons/MiMbrain Icon.png"
             alt="MiMBrain"
-            width={36}
-            height={26}
-            className="opacity-80"
+            style={{ width: "36px", height: "25.63px" }}
           />
+          <p
+            style={{
+              fontFamily: "var(--font-geist-sans), 'Geist', sans-serif",
+              fontSize: "10px",
+              fontWeight: 500,
+              lineHeight: "20px",
+              color: "#3e4c60",
+              letterSpacing: "0px",
+            }}
+          >
+            © 2026 Made In Motion PBC
+          </p>
         </div>
       </div>
-
-      {/* ── Tagline ── */}
-      <p
-        className="text-[18px] font-[800] text-[#3e4c60] opacity-40 tracking-[-0.9px] text-center mt-6 whitespace-nowrap"
-        style={{ fontFamily: "'SF Pro Text', var(--font-geist-sans), sans-serif" }}
-      >
-        Every  Step Together.
-      </p>
     </aside>
   );
 }
