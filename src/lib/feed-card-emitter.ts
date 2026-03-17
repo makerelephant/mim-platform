@@ -198,6 +198,12 @@ export async function emitFeedCard(
 ): Promise<FeedCard | null> {
   const addLog = log || (() => {});
 
+  // Guard: skip cards with empty or missing titles (e.g. signature-only emails)
+  if (!input.title || input.title.trim().length === 0) {
+    addLog("  Skipped feed card — empty title (likely signature/template email)");
+    return null;
+  }
+
   // Thread consolidation: update existing card if same thread
   const threadId = (input.metadata as Record<string, unknown>)?.thread_id as string | undefined;
   if (threadId) {
