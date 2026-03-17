@@ -62,9 +62,15 @@
 
 ## Near-Term Efforts (Operational Phase)
 
-26. **Training Velocity** — T1-T4 workstream. Run scanner daily, CEO reviews cards, accuracy accumulates, categories earn autonomy. Infrastructure built — needs consistent use. Bulk import available to accelerate.
+26. **Decision Card UI (Figma Pixel-Perfect)** — ✅ COMPLETE. FeedCard.tsx rewritten to match Figma Decision Card design exactly. 500px fixed width, 12px padding, 12px border radius, drop shadow (60px blur, 6px spread). Card type badges, source pills (gopher + Gmail/Slack icon + external link), entity dotted underlines linking to detail pages, "More About This" expansion, MOTION REASONING section, natural sentence metadata ("This Fundraising conversation includes both Walt Doyle and David Brown"). Resolved states (Do/Hold/No) with opacity and background changes.
 
-27. **Parallel Entity Intelligence Layer** — New brain-schema tables for entity provenance, derived insights, enrichment queue. The knowledge layer that makes entities smarter over time.
+27. **Motion Page Header & Scanner Trigger** — ✅ COMPLETE. Avatar + "Mark Slater, CEO." + "Important Conversations" title + "updated X ago" timestamp + blue refresh spinner icon that triggers POST /api/agents/gmail-scanner. Search bar with placeholder icons. Scanner populates feed on demand.
+
+28. **Cherry-Pick Backend from busy-black** — ✅ COMPLETE. SQL migrations step-19 through step-23 (cleanup duplicates, fresh reimport, entity intelligence, derived insights, clearing conversations). New API routes: synthesis agent, brain ask/KCS, clearing sessions/messages. Behavioral rules engine. Enhanced gmail-scanner with paginated fetch (up to 500) and correspondence embedding.
+
+29. **Parallel Entity Intelligence Layer** — ✅ COMPLETE (schema). brain.entity_provenance, brain.enrichment_queue, brain.derived_insights tables created. Intelligence columns added to core.organizations and core.contacts (confidence_score, knowledge_completeness_score, enrichment_priority, enrichment_gaps). SQL migrations run in Supabase.
+
+30. **Training Velocity** — T1-T4 workstream. Run scanner daily, CEO reviews cards, accuracy accumulates, categories earn autonomy. Infrastructure built — needs consistent use. Bulk import available to accelerate.
 
 ---
 
@@ -108,4 +114,4 @@
 
 ---
 
-*Last updated: 2026-03-15*
+*Last updated: 2026-03-17*
