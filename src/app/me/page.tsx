@@ -208,6 +208,7 @@ export default function MePage() {
               </h3>
               <div className="flex flex-col gap-[8px]">
                 <QuickAction label="Run Gmail Scanner" href="/api/agents/gmail-scanner" icon="📧" />
+                <QuickAction label="Run Slack Scanner" href="/api/agents/slack-scanner" icon="💬" />
                 <QuickAction label="Generate Daily Briefing" href="/api/agents/daily-briefing" icon="📊" />
                 <QuickAction label="Run Weekly Synthesis" href="/api/agents/synthesis" icon="🧠" />
                 <QuickAction label="Generate Monthly Report" href="/api/agents/monthly-report" icon="📋" />

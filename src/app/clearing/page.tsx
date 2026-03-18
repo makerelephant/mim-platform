@@ -701,6 +701,7 @@ export default function ClearingPage() {
               <div className="absolute bottom-full mb-2 left-0 bg-white rounded-[8px] shadow-[0px_0px_20px_0px_rgba(0,0,0,0.15)] p-[6px] min-w-[200px] z-50">
                 {[
                   { name: "Scan Gmail", endpoint: "/api/agents/gmail-scanner", icon: "📧" },
+                  { name: "Scan Slack", endpoint: "/api/agents/slack-scanner", icon: "💬" },
                   { name: "Daily Briefing", endpoint: "/api/agents/daily-briefing", icon: "📊" },
                   { name: "Weekly Synthesis", endpoint: "/api/agents/synthesis", icon: "🧠" },
                   { name: "Monthly Report", endpoint: "/api/agents/monthly-report", icon: "📋" },
