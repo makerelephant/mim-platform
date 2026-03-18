@@ -29,10 +29,12 @@ import {
 
 /* ── Supabase client ── */
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL || "",
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "",
-);
+function getSupabase() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+  );
+}
 
 /* ── Types ── */
 
@@ -159,7 +161,7 @@ export default function KnowledgePage() {
   const fetchEntries = useCallback(async () => {
     setLoading(true);
     try {
-      let query = supabase
+      let query = getSupabase()
         .from("knowledge_base")
         .select("id, title, source_type, source_ref, file_type, file_size_bytes, summary, taxonomy_categories, entity_ids, tags, uploaded_by, processed, processed_at, error, content_text, created_at, metadata")
         .order("created_at", { ascending: false })
@@ -296,7 +298,7 @@ export default function KnowledgePage() {
 
   const handleDelete = async (id: string) => {
     if (!confirm("Delete this knowledge entry? This cannot be undone.")) return;
-    await supabase.from("knowledge_base").delete().eq("id", id);
+    await getSupabase().from("knowledge_base").delete().eq("id", id);
     setEntries((prev) => prev.filter((e) => e.id !== id));
   };
 
