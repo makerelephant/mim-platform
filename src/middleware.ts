@@ -30,6 +30,22 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // ── Page Authentication ──
+  // Protect all pages except /login and static assets
+  const isLoginPage = pathname === '/login';
+  const isStaticAsset = pathname.startsWith('/_next') || pathname.startsWith('/icons') || pathname.startsWith('/favicon');
+  if (!isLoginPage && !isStaticAsset) {
+    const apiToken = process.env.API_AUTH_TOKEN;
+    if (apiToken) {
+      const cookieToken = request.cookies.get('mim-auth')?.value;
+      if (cookieToken !== apiToken) {
+        const loginUrl = request.nextUrl.clone();
+        loginUrl.pathname = '/login';
+        return NextResponse.redirect(loginUrl);
+      }
+    }
+  }
+
   // ── Route Redirects ──
   if (ROUTE_REDIRECTS[pathname]) {
     const url = request.nextUrl.clone();
@@ -66,14 +82,7 @@ export function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    // API routes — auth check
-    '/api/:path*',
-    // Legacy route redirects
-    '/investors/:path*',
-    '/soccer-orgs/:path*',
-    '/channel-partners/:path*',
-    '/all-orgs/:path*',
-    '/investor-contacts/:path*',
-    '/market-map/:path*',
+    // All routes except Next.js internals and static files
+    '/((?!_next/static|_next/image|favicon.ico|icons/).*)',
   ],
 };

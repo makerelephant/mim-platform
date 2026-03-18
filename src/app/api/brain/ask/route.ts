@@ -41,6 +41,76 @@ export async function POST(request: NextRequest) {
 
     const contextParts: string[] = [];
     const sourceNotes: string[] = [];
+    const sessionId = body.session_id;
+
+    // ── 0. Session-aware: fetch recently ingested documents from this clearing session ──
+    if (scope === "clearing" && sessionId) {
+      try {
+        // Find ingestion messages in this session to identify what was just uploaded
+        const { data: sessionMessages } = await sb
+          .schema("brain")
+          .from("clearing_messages")
+          .select("content, message_type, created_at")
+          .eq("session_id", sessionId)
+          .eq("message_type", "ingestion")
+          .order("created_at", { ascending: false })
+          .limit(10);
+
+        // Extract document titles from ingestion messages (format: "Ingesting: filename (size)")
+        const recentDocTitles: string[] = [];
+        for (const msg of sessionMessages || []) {
+          const match = msg.content?.match(/^Ingesting:\s*(.+?)\s*\(/);
+          if (match) recentDocTitles.push(match[1].trim());
+        }
+
+        // Also check for "Absorbed" messages from brain responses
+        const { data: brainMessages } = await sb
+          .schema("brain")
+          .from("clearing_messages")
+          .select("content, message_type, created_at")
+          .eq("session_id", sessionId)
+          .eq("role", "brain")
+          .order("created_at", { ascending: false })
+          .limit(10);
+
+        for (const msg of brainMessages || []) {
+          const match = msg.content?.match(/^Absorbed\s+(.+?)\.\s/);
+          if (match && !recentDocTitles.includes(match[1].trim())) {
+            recentDocTitles.push(match[1].trim());
+          }
+        }
+
+        // Fetch full content of recently ingested documents
+        if (recentDocTitles.length > 0) {
+          const { data: recentDocs } = await sb
+            .from("knowledge_base")
+            .select("id, title, content_text, summary, taxonomy_categories, tags")
+            .eq("processed", true)
+            .in("title", recentDocTitles)
+            .order("processed_at", { ascending: false })
+            .limit(5);
+
+          if (recentDocs && recentDocs.length > 0) {
+            contextParts.push("## Documents Uploaded In This Session (HIGHEST PRIORITY)\n");
+            for (const doc of recentDocs) {
+              contextParts.push(`**${doc.title}**`);
+              if (doc.summary) contextParts.push(`Summary: ${doc.summary}`);
+              // Include substantial content — up to 6000 chars for session docs
+              if (doc.content_text) {
+                contextParts.push(doc.content_text.slice(0, 6000));
+                if (doc.content_text.length > 6000) {
+                  contextParts.push(`... [${Math.round(doc.content_text.length / 4)} total tokens — showing first 6000 chars]`);
+                }
+              }
+              contextParts.push("");
+            }
+            sourceNotes.push(`${recentDocs.length} session document(s)`);
+          }
+        }
+      } catch (sessionErr) {
+        console.warn("Session document lookup failed (non-fatal):", sessionErr);
+      }
+    }
 
     // ── 1. Entity resolution ──
     const entities = await resolveEntities(sb, question);
@@ -297,15 +367,18 @@ export async function POST(request: NextRequest) {
     const response = await anthropic.messages.create({
       model: "claude-sonnet-4-6",
       max_tokens: 1500,
-      system: `You are MiM Brain, the intelligence system for Made in Motion (MiM), a sports merchandise company.
+      system: `You are the intelligence system for In Motion, a youth sports technology company.
 CEO Mark Slater is asking you a question. Use ONLY the provided context to answer.
 
-Guidelines:
-- Be concise and direct — executive briefing style
-- Use bullet points and bold text for readability
-- Cite sources when making claims
-- If the context doesn't fully answer the question, say so clearly
-- Never make up information not in the context`,
+CRITICAL RULES:
+- Answer ONLY about what the user asked. Do not pivot to other topics.
+- If the context contains documents uploaded in this session, PRIORITIZE those above all other context.
+- If the user asks about a specific document or page, answer from that document's content ONLY.
+- If you cannot find the specific information requested, say "I don't have that specific information in my context" — do NOT substitute with unrelated data.
+- NEVER talk about email alerts, signal cards, suppression rules, or system diagnostics unless explicitly asked.
+- Be concise and direct — executive briefing style.
+- Use bullet points and bold text for readability.
+- Never make up information not in the context.`,
       messages: [
         {
           role: "user",

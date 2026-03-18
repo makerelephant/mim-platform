@@ -121,7 +121,42 @@ export function processTextInput(text: string): ProcessedDocument {
 async function extractPdf(buffer: Buffer): Promise<string> {
   try {
     const pdfParse = (await import("pdf-parse")).default;
-    const result = await pdfParse(buffer);
+    // Use pagerender to preserve page boundaries
+    const result = await pdfParse(buffer, {
+      pagerender: function(pageData: { getTextContent: () => Promise<{ items: Array<{ str: string }> }> }) {
+        return pageData.getTextContent().then(function(textContent: { items: Array<{ str: string }> }) {
+          return textContent.items.map((item: { str: string }) => item.str).join(' ');
+        });
+      }
+    });
+
+    // If pdf-parse provides per-page text via numpages, add page markers
+    if (result.numpages && result.numpages > 1) {
+      // pdf-parse concatenates all pages — re-parse with page markers
+      try {
+        const pages: string[] = [];
+        let pageNum = 0;
+        const markedResult = await pdfParse(buffer, {
+          pagerender: function(pageData: { getTextContent: () => Promise<{ items: Array<{ str: string }> }> }) {
+            pageNum++;
+            const currentPage = pageNum;
+            return pageData.getTextContent().then(function(textContent: { items: Array<{ str: string }> }) {
+              const text = textContent.items.map((item: { str: string }) => item.str).join(' ').trim();
+              if (text) {
+                pages.push(`[PAGE ${currentPage}]\n${text}`);
+              }
+              return text;
+            });
+          }
+        });
+        if (pages.length > 0) {
+          return pages.join('\n\n');
+        }
+      } catch {
+        // Fall through to standard result
+      }
+    }
+
     return result.text || "";
   } catch (e) {
     console.error("PDF extraction failed:", e);
