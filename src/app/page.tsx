@@ -34,7 +34,7 @@ export default function MotionFeedPage() {
   const loadCards = useCallback(async (newOffset: number, append: boolean, filterType?: string | null) => {
     try {
       const typeParam = filterType !== undefined ? filterType : activeFilter;
-      let feedUrl = `/api/feed?status=unread,read,acted&limit=${limit}&offset=${newOffset}`;
+      let feedUrl = `/api/feed?status=unread,read&limit=${limit}&offset=${newOffset}`;
       if (typeParam) feedUrl += `&card_type=${typeParam}`;
       const res = await fetch(feedUrl);
       const data = await res.json();
@@ -135,7 +135,8 @@ export default function MotionFeedPage() {
     });
     const data = await res.json();
     if (data.card) {
-      setCards((prev) => prev.map((c) => (c.id === id ? { ...c, ...data.card } : c)));
+      // Remove actioned card from feed immediately
+      setCards((prev) => prev.filter((c) => c.id !== id));
     }
   }
 
