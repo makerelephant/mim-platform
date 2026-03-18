@@ -110,6 +110,8 @@
 
 34. **Long-Form Content & Research Publishing** — Brain-generated research papers, weekly industry newsletters, daily content bites. Customer-facing platform where orgs see relevant content and KPI insights.
 
+35. **Prompt Surface Layer** — All agent prompts (daily briefing, weekly synthesis, monthly report, Gmail scanner classifier) are currently embedded inside their API route files. Extract into a dedicated `src/lib/prompts/` directory and surface them as editable fields in the Engine Room so the CEO can modify report scope, tone, and instructions without touching code. This is the mechanism that makes the brain's instructions legible and adjustable.
+
 ---
 
 ## Longer-Term Efforts
@@ -134,4 +136,4 @@
 
 ---
 
-*Last updated: 2026-03-17 (v4) — efforts 29, 33-40 completed this session*
+*Last updated: 2026-03-17 (v5) — effort 35 added (Prompt Surface Layer)*
