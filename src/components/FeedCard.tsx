@@ -325,10 +325,10 @@ export default function FeedCard({ card, onAction, onDismiss }: FeedCardProps) {
         <div className="flex items-center justify-between w-full">
           {/* ── Left: Badge + Source ── */}
           <div className="flex gap-[12px] items-center min-w-0 flex-1">
-            {/* Card type badge */}
+            {/* Card type badge — 26px tall */}
             <div
-              className="flex items-center justify-center px-[12px] py-[6px] rounded-[4px] shrink-0"
-              style={{ backgroundColor: badge.bg, gap: badge.gap }}
+              className="flex items-center justify-center px-[12px] rounded-[4px] shrink-0"
+              style={{ backgroundColor: badge.bg, gap: badge.gap, height: "26px" }}
             >
               <img
                 src={badge.icon}

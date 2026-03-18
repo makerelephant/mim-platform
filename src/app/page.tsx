@@ -283,8 +283,25 @@ export default function MotionFeedPage() {
           </div>
         ) : scanning ? (
           <div className="flex flex-col items-center justify-center py-20 gap-3">
-            <Loader2 className="w-6 h-6 text-blue-400 animate-spin" />
+            {/* Half-width progress line animation */}
+            <div className="w-1/2 max-w-[300px] h-[3px] bg-[#e2e8f0] rounded-full overflow-hidden">
+              <div
+                className="h-full rounded-full"
+                style={{
+                  background: "linear-gradient(90deg, #3b82f6, #2563eb)",
+                  animation: "scanProgress 1.8s ease-in-out infinite",
+                  width: "40%",
+                }}
+              />
+            </div>
             <p className="text-sm text-slate-400">Scanning emails...</p>
+            <style>{`
+              @keyframes scanProgress {
+                0% { transform: translateX(-100%); }
+                50% { transform: translateX(200%); }
+                100% { transform: translateX(-100%); }
+              }
+            `}</style>
           </div>
         ) : cards.length === 0 ? (
           <div className="text-center py-20">
