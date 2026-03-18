@@ -315,7 +315,7 @@ export default function FeedCard({ card, onAction, onDismiss }: FeedCardProps) {
 
   return (
     <div
-      className={`flex flex-col gap-[6px] p-[12px] rounded-[12px] ${cardShadow} transition-all w-[500px] overflow-hidden ${cardOpacity}`}
+      className={`flex flex-col gap-[6px] p-[12px] rounded-[12px] ${cardShadow} transition-all w-full overflow-hidden ${cardOpacity}`}
       style={{ backgroundColor: cardBg }}
     >
       {/* ══════════════════════════════════════════════════════════════════
