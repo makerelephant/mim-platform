@@ -15,11 +15,20 @@ export default function MotionFeedPage() {
   const [offset, setOffset] = useState(0);
   const [loadingMore, setLoadingMore] = useState(false);
   const [scanning, setScanning] = useState(false);
+  const [scanStage, setScanStage] = useState(0);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [searching, setSearching] = useState(false);
   const [activeFilter, setActiveFilter] = useState<string | null>(null);
   const limit = 12;
+  const scanStages = [
+    "Connecting to Gmail...",
+    "Fetching new messages...",
+    "Classifying with Acumen...",
+    "Resolving entities...",
+    "Generating feed cards...",
+    "Updating feed...",
+  ];
 
   // ── Load feed cards ──
   const loadCards = useCallback(async (newOffset: number, append: boolean, filterType?: string | null) => {
@@ -55,21 +64,32 @@ export default function MotionFeedPage() {
     setLoadingMore(false);
   }
 
-  // ── Run scanner ──
+  // ── Run scanner with progress stages ──
   async function handleScan() {
     setScanning(true);
+    setScanStage(0);
+
+    // Cycle through visual stages while the scan runs
+    const stageInterval = setInterval(() => {
+      setScanStage((prev) => (prev < scanStages.length - 1 ? prev + 1 : prev));
+    }, 4000);
+
     try {
       await fetch("/api/agents/gmail-scanner", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ scanHours: 168 }),
       });
+      // Show final stage briefly
+      setScanStage(scanStages.length - 1);
       // Reload feed after scan
       await loadCards(0, false);
     } catch (err) {
       console.error("Scanner error:", err);
     } finally {
+      clearInterval(stageInterval);
       setScanning(false);
+      setScanStage(0);
     }
   }
 
@@ -282,9 +302,38 @@ export default function MotionFeedPage() {
             <Loader2 className="w-6 h-6 text-slate-400 animate-spin" />
           </div>
         ) : scanning ? (
-          <div className="flex flex-col items-center justify-center py-20 gap-3">
-            <Loader2 className="w-6 h-6 text-blue-400 animate-spin" />
-            <p className="text-sm text-slate-400">Scanning emails...</p>
+          <div className="flex flex-col items-center justify-center py-16 gap-6 w-full">
+            {/* Progress bar */}
+            <div className="w-full rounded-full overflow-hidden" style={{ height: "3px", backgroundColor: "rgba(169,216,255,0.3)" }}>
+              <div
+                className="h-full rounded-full transition-all duration-1000 ease-out"
+                style={{
+                  width: `${((scanStage + 1) / scanStages.length) * 100}%`,
+                  backgroundColor: "#a9d8ff",
+                }}
+              />
+            </div>
+            {/* Stage dots */}
+            <div className="flex gap-[6px] items-center">
+              {scanStages.map((_, i) => (
+                <div
+                  key={i}
+                  className="rounded-full transition-all duration-500"
+                  style={{
+                    width: i === scanStage ? "8px" : "4px",
+                    height: i === scanStage ? "8px" : "4px",
+                    backgroundColor: i <= scanStage ? "#627c9e" : "#d0d5dd",
+                  }}
+                />
+              ))}
+            </div>
+            {/* Current stage text */}
+            <p
+              className="text-[13px] font-medium text-[#627c9e] transition-opacity duration-300"
+              style={{ fontFamily: "var(--font-geist-sans), 'Geist', sans-serif" }}
+            >
+              {scanStages[scanStage]}
+            </p>
           </div>
         ) : cards.length === 0 ? (
           <div className="text-center py-20">
