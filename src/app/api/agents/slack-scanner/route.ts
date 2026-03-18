@@ -44,3 +44,8 @@ export async function POST(request: Request) {
     );
   }
 }
+
+// Allow GET for trigger buttons (Me page, Gopher launcher)
+export async function GET() {
+  return POST(new Request("https://localhost", { method: "POST", body: JSON.stringify({ scanHours: 24 }) }));
+}
