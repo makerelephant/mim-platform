@@ -1,6 +1,6 @@
-# MiM Brain — Architecture v2
+# In Motion — Architecture v2
 > **Author:** Mark Slater, Co-founder & CEO — Made in Motion PBC
-> **Status:** Active strategic document.
+> **Status:** Active strategic document. North star for all technical decisions.
 > **Last updated:** 2026-03-18
 
 ---
@@ -9,7 +9,7 @@
 
 Within 12 months, AI will be 1,000 times smarter than any human. Entire layers of business operations will cease to require human management. Organizations that still depend on humans for operational tasks will be at a structural disadvantage.
 
-MiM Brain is the instantiation of this conviction: an autonomous business intelligence system that becomes the de facto Chief Operating Officer of Made in Motion. It processes every type of business data, learns from every interaction, and compounds its intelligence over time.
+**In Motion** is the instantiation of this conviction: an autonomous business intelligence system that becomes the de facto Chief Operating Officer of Made in Motion. It processes every type of business data, learns from every interaction, and compounds its intelligence over time.
 
 **Success criteria:** MiM Brain performs operational tasks 1,000x better than a human — not because it's "smarter" in the general sense, but because it has perfect recall, tireless attention, and compounding institutional knowledge that no employee could replicate.
 
@@ -71,7 +71,7 @@ The current system is a **communication processing pipeline with query capabilit
 
 | Layer | What It Does | Status |
 |-------|-------------|--------|
-| **Scanners** | Gmail + Slack ingestion, pre-filtering, entity resolution, Claude classification, task creation | Production |
+| **Gophers** | Gmail + Slack ingestion, pre-filtering, entity resolution, Claude classification, task creation. Assistant prefill enforces JSON. Noise filter suppresses P3/S3. | Production |
 | **Taxonomy** | 14 categories loaded from DB, injected into classifier prompts, priority enforcement | Production |
 | **Approval Queue** | CEO review flow — pending_review → approve/dismiss, draft replies | Built (orphaned from UI) |
 | **Feedback Engine** | Tracks CEO signals (starred, completed, ignored), computes usefulness scores per entity | Production |
@@ -80,18 +80,18 @@ The current system is a **communication processing pipeline with query capabilit
 | **Report Generator** | Pre-scan → 8 data streams → Claude synthesis → PDF export, with instruction injection | Production |
 | **MCP Server** | 28 tools across 9 domains, stdio transport, ask_brain synthesis | Built, untested in production |
 | **Instruction Engine** | Standing orders, report inclusions, entity watches — loaded into scanner + report prompts | Built |
-| **RAG Foundation** | Embeddings lib, vector search RPCs, backfill script | Built, DB tables may not exist yet |
+| **RAG Foundation** | Embeddings lib (OpenAI text-embedding-3-small), `brain.knowledge_chunks` + `brain.correspondence_chunks` with pgvector, `search_knowledge` + `search_correspondence` RPCs, backfill script | Built and operational. `OPENAI_API_KEY` set. |
 
 ### 1.2 What's Missing
 
-The system **stores and retrieves** but does not **learn, adapt, or act autonomously**:
+The system can ingest, classify, and surface — but the deeper intelligence layers are not yet operational:
 
-- **No entity intelligence model.** Organizations and contacts are flat CRM records. No confidence scoring, no provenance tracking, no enrichment gap awareness. The system doesn't know what it doesn't know.
-- **No derived intelligence.** After processing 10,000 emails, the system has no accumulated insights beyond raw classification logs. It doesn't extract patterns, trends, or predictions.
-- **No behavioral adaptation.** The classifier uses the same prompt template and taxonomy on its first email and its ten-thousandth. CEO corrections don't change future behavior. The system doesn't improve with use.
-- **No autonomous action.** Every scanner runs on a trigger (API call or cron). The system never decides on its own that an entity needs enrichment, a follow-up is overdue, or a pattern deserves attention.
+- **No entity intelligence model.** Organisations and contacts are flat CRM records. No confidence scoring, no provenance tracking, no enrichment gap awareness. The system doesn't know what it doesn't know.
+- **No derived intelligence.** After processing thousands of emails, the system has accumulated classification logs but no synthesised patterns, trends, or predictions. The synthesis agent exists but doesn't run on schedule.
+- **Behavioral adaptation is partial.** `brain.behavioral_rules` table and adaptation agent exist. CEO corrections feed the learning pipeline. But learned rules are not yet injected into Gopher prompts — the loop is not closed.
+- **No autonomous action.** Every Gopher runs on a trigger (API call or cron). The system never decides on its own that an entity needs enrichment or a follow-up is overdue.
 - **No asset processing.** Images (logos), videos, and non-text media cannot be ingested, understood, or mapped to entities.
-- **No harness.** The brain's operating model (how it processes data, what it prioritizes, how it resolves conflicts) lives in hardcoded prompt templates, not in structured documents the system can read and reason against.
+- **Unified classifier not built.** Current Gophers use the legacy single-judgment classifier. The attention class system (P0/P1/P2/P3, S0/S1/S2/S3) is fully specified in `docs/technical/specs/unified-classifier-spec.md` but not yet implemented in the scanner prompts.
 
 ### 1.3 The Gap
 

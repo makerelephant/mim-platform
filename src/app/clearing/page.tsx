@@ -208,45 +208,84 @@ export default function ClearingPage() {
   }
 
   // ── File ingestion ──
-  async function handleFileUpload(files: FileList | null) {
+  async function handleFileUpload(files: FileList | File[] | null) {
     if (!files || files.length === 0) return;
 
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i];
+    // Snapshot files immediately — FileList from drag events can be cleared
+    const fileArray = Array.from(files);
+
+    for (const file of fileArray) {
       addMessage({
         role: "user",
-        content: `Ingesting: ${file.name}`,
+        content: `Ingesting: ${file.name} (${(file.size / 1024 / 1024).toFixed(1)} MB)`,
         type: "ingestion",
       });
 
       setThinking(true);
       try {
-        const formData = new FormData();
-        formData.append("file", file);
-        formData.append("source_type", "clearing");
-        formData.append("uploaded_by", "ceo");
-        formData.append("tags", JSON.stringify(["clearing", "ingestion"]));
+        let ingestBody: BodyInit;
+        let ingestHeaders: Record<string, string> = {};
+
+        if (file.size > 4 * 1024 * 1024) {
+          // ── Large file (> 4 MB): upload direct to Supabase Storage ──
+          // Vercel serverless has a 4.5 MB request body limit.
+          // Bypass it by uploading to Supabase Storage, then triggering ingest
+          // with the storage path (tiny JSON request).
+
+          // Step 1: Get signed upload URL
+          const urlRes = await fetch("/api/brain/upload-url", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ filename: file.name }),
+          });
+          if (!urlRes.ok) {
+            const err = await urlRes.json().catch(() => ({ error: `HTTP ${urlRes.status}` }));
+            throw new Error(`Could not get upload URL: ${err.error}`);
+          }
+          const { signed_url, storage_path } = await urlRes.json();
+
+          // Step 2: PUT directly to Supabase Storage (no Vercel size limit)
+          const uploadRes = await fetch(signed_url, {
+            method: "PUT",
+            body: file,
+            headers: { "Content-Type": file.type || "application/octet-stream" },
+          });
+          if (!uploadRes.ok) {
+            throw new Error(`Storage upload failed: HTTP ${uploadRes.status}`);
+          }
+
+          // Step 3: Trigger ingest via storage path
+          ingestBody = JSON.stringify({
+            storage_path,
+            title: file.name,
+            source_type: "clearing",
+            uploaded_by: "ceo",
+            tags: ["clearing", "ingestion"],
+          });
+          ingestHeaders = { "Content-Type": "application/json" };
+        } else {
+          // ── Small file (≤ 4 MB): direct multipart upload ──
+          const formData = new FormData();
+          formData.append("file", file);
+          formData.append("source_type", "clearing");
+          formData.append("uploaded_by", "ceo");
+          formData.append("tags", JSON.stringify(["clearing", "ingestion"]));
+          ingestBody = formData;
+        }
 
         const res = await fetch("/api/brain/ingest", {
           method: "POST",
-          body: formData,
+          headers: ingestHeaders,
+          body: ingestBody,
         });
 
-        // Always try to parse JSON — if the response isn't JSON (e.g. a Vercel
-        // 504 timeout HTML page), surface the HTTP status so it's diagnosable.
         let data: { success: boolean; summary?: string; error?: string } | null = null;
         try {
           data = await res.json();
         } catch {
           addMessage({
             role: "brain",
-            content: `Failed to ingest ${file.name} — server returned HTTP ${res.status}. ${
-              res.status === 504
-                ? "The file took too long to process (PDF timeout). Try a smaller file or a plain text/docx version."
-                : res.status === 413
-                  ? "File is too large for the server to accept."
-                  : "Unexpected server error — check Vercel logs."
-            }`,
+            content: `Failed to ingest ${file.name} — server returned HTTP ${res.status}.`,
             type: "response",
           });
           continue;
@@ -256,7 +295,8 @@ export default function ClearingPage() {
           role: "brain",
           content: data?.success
             ? `Absorbed ${file.name}. ${data.summary || ""}`
-            : `Failed to process ${file.name}: ${data?.error || "Unknown error"}`,
+            : (data as unknown as { message?: string })?.message
+              || `Failed to process ${file.name}: ${data?.error || "Unknown error"}`,
           type: "response",
         });
       } catch (err) {
@@ -362,7 +402,8 @@ export default function ClearingPage() {
   function handleDrop(e: React.DragEvent) {
     e.preventDefault();
     setDragOver(false);
-    handleFileUpload(e.dataTransfer.files);
+    // Snapshot files synchronously — dataTransfer is cleared after event returns
+    handleFileUpload(Array.from(e.dataTransfer.files));
   }
 
   const activeSessions = sessions.filter((s) => s.status === "active");

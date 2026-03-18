@@ -21,7 +21,7 @@ interface NavItem {
 
 const NAV_ITEMS: NavItem[] = [
   { href: "/",         label: "Motion" },
-  { href: "/clearing", label: "Clearing" },
+  { href: "/clearing", label: "Canvas" },
   { href: "/engine",   label: "Engine" },
   { href: "/me",       label: "Me" },
 ];

@@ -208,10 +208,10 @@ export default function MePage() {
               </h3>
               <div className="flex flex-col gap-[8px]">
                 <QuickAction label="Run Gmail Scanner" href="/api/agents/gmail-scanner" icon="📧" />
-                <QuickAction label="Run Slack Scanner" href="/api/agents/slack-scanner" icon="💬" />
                 <QuickAction label="Generate Daily Briefing" href="/api/agents/daily-briefing" icon="📊" />
                 <QuickAction label="Run Weekly Synthesis" href="/api/agents/synthesis" icon="🧠" />
                 <QuickAction label="Generate Monthly Report" href="/api/agents/monthly-report" icon="📋" />
+                <LinkAction label="Bulk Data Import Gopher" href="/engine/import" icon="📥" />
               </div>
             </div>
           </>
@@ -251,6 +251,24 @@ function ActionStat({ label, count, total, color }: { label: string; count: numb
         {label} ({pct}%)
       </div>
     </div>
+  );
+}
+
+function LinkAction({ label, href, icon }: { label: string; href: string; icon: string }) {
+  return (
+    <a
+      href={href}
+      className="flex items-center gap-[8px] px-[12px] py-[8px] rounded-[8px] hover:bg-[#f6f5f5] transition-colors text-left"
+    >
+      <span className="text-[16px]">{icon}</span>
+      <span
+        className="text-[12px] font-medium text-[#1e252a] flex-1"
+        style={{ fontFamily: "var(--font-geist-sans), 'Geist', sans-serif" }}
+      >
+        {label}
+      </span>
+      <span className="text-[10px] text-[#9ca5a9]" style={{ fontFamily: "var(--font-geist-sans), 'Geist', sans-serif" }}>→</span>
+    </a>
   );
 }
 

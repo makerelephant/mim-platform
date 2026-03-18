@@ -1,13 +1,11 @@
-# Unified Classifier Spec
+# Unified Classifier Spec — In Motion Attention & Enrichment Engine
 > **Author:** Mark Slater, Co-founder & CEO — Made in Motion PBC
-> **Status:** Active strategic document.
+> **Status:** Active strategic document. Solutions for deficits 1 and 2 in progress.
 > **Last updated:** 2026-03-18
 
-## MiMBrain Attention & Enrichment Engine
+**Scope:** Gmail Gopher + Slack Gopher (unified pipeline)
 
-**Status:** Draft — March 2026
-**Scope:** Gmail Scanner + Slack Scanner (unified pipeline)
-**Author:** Mark Slater + Claude
+> **Note on provenance:** This document consolidates and supersedes `docs/intel/intelligence-deficit-analysis.md`. The 10 intelligence quality metrics from that document are now fully incorporated in Section 2 of this spec. The deficit analysis should be treated as archived reference material. This document is the governing spec.
 
 ---
 

@@ -1,19 +1,42 @@
-# MiM Brain Intelligence Layer — Architecture Spec
+# Brain Intelligence Layer — Architecture Spec
 > **Author:** Mark Slater, Co-founder & CEO — Made in Motion PBC
-> **Status:** Active strategic document.
+> **Status:** Active strategic document. Solutions for deficits 1 and 2 in progress.
 > **Last updated:** 2026-03-18
+
+---
+
+## 0. Intelligence Deficit Context
+
+This spec addresses the structural gaps in the brain's intelligence layer. It must be read alongside `docs/technical/specs/unified-classifier-spec.md` which governs the attention classification and signal quality layer.
+
+**The 10 measurement deficits** (from `docs/intel/intelligence-deficit-analysis.md`, now superseded by the unified classifier spec) identify where the brain falls short as a reliable intelligence system:
+
+| # | Deficit | This Spec | Classifier Spec |
+|---|---------|-----------|-----------------|
+| 1 | Signal-to-noise ratio unmeasured | Indirect (better retrieval → less noise) | ✅ Primary |
+| 2 | Priority calibration unmeasured | Indirect | ✅ Primary |
+| 3 | Summary quality unmeasured | Indirect (RAG improves summaries) | ✅ Primary |
+| 4 | Action recommendation quality unmeasured | Indirect | ✅ Primary |
+| 5 | Entity resolution accuracy | ✅ Primary (cross-source intelligence) | Supporting |
+| 6 | Timeliness / relevance decay | Indirect | Supporting |
+| 7 | False negatives (missing important things) | ✅ Primary (RAG + standing orders) | Supporting |
+| 8 | Card type accuracy | Indirect | ✅ Primary |
+| 9 | Deduplication quality | Supporting | Supporting |
+| 10 | Confidence calibration | Supporting | ✅ Primary |
+
+**The bottom line:** The classifier spec fixes how the brain decides what matters. This spec fixes whether the brain knows enough to be useful when it answers.
 
 ---
 
 ## 1. Problem Statement
 
-The CEO needs to feed strategic documents into the MiM Brain and interact with it conversationally:
+The CEO needs to feed strategic documents into In Motion and interact with it conversationally:
 
 - *"Summarize this document and include it in the next weekly report"*
 - *"What's the status of our Adidas partnership based on everything you know?"*
 - *"Flag any emails about term sheets as critical and draft a response template"*
 
-**Today, none of this is possible.** The brain is reactive (processes incoming emails/Slack) but has no conversational interface, no semantic retrieval over stored knowledge, and no way to accept or retain instructions.
+**Today, most of this is now possible.** RAG is operational. Clearing/Canvas chat routes all inputs to brain/ask. File ingestion works. What remains: making the retrieval reliable enough for the CEO to trust it, and connecting the instruction engine fully to reports and Gopher prompts.
 
 ---
 
@@ -23,12 +46,15 @@ The CEO needs to feed strategic documents into the MiM Brain and interact with i
 
 | Component | Status | Location |
 |---|---|---|
-| File upload endpoint | Working | `/api/brain/ingest` |
-| Document processor (PDF, DOCX, PPTX, TXT, MD, HTML, CSV) | Working | `src/lib/document-processor.ts` |
-| Text chunking (~500 tokens per chunk) | Working | `document-processor.ts` → `content_chunks` JSONB |
-| Claude classification (summary, tags, taxonomy, entities) | Working | `/api/brain/ingest` |
-| Entity resolution (match mentioned names to orgs/contacts) | Working | `/api/brain/ingest` |
-| Taxonomy category matching | Working | `src/lib/taxonomy-loader.ts` |
+| File upload endpoint | ✅ Working | `/api/brain/ingest` |
+| Document processor (PDF, DOCX, PPTX, TXT, MD, HTML, CSV) | ✅ Working | `src/lib/document-processor.ts` |
+| pdf-parse for text-layer PDFs | ✅ Working | `document-processor.ts` |
+| Claude Vision fallback for image-based PDFs (< 5MB) | ✅ Working | `/api/brain/ingest` |
+| Large file upload (> 4MB via Supabase Storage signed URL) | ✅ Working | `/api/brain/upload-url` |
+| Text chunking (~500 tokens per chunk) | ✅ Working | `document-processor.ts` → `content_chunks` JSONB |
+| Claude classification (summary, tags, taxonomy, entities) | ✅ Working | `/api/brain/ingest` |
+| Entity resolution (match mentioned names to orgs/contacts) | ✅ Working | `/api/brain/ingest` |
+| Taxonomy category matching | ✅ Working | `src/lib/taxonomy-loader.ts` |
 
 **Storage schema** (`knowledge_base` table):
 

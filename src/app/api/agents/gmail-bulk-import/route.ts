@@ -4,6 +4,10 @@ import { runGmailScanner } from "@/lib/gmail-scanner";
 
 export const maxDuration = 120;
 
+export async function GET() {
+  return POST({ json: async () => ({}) } as NextRequest);
+}
+
 /**
  * POST /api/agents/gmail-bulk-import
  *

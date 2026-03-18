@@ -117,7 +117,27 @@ export async function POST(request: NextRequest) {
       entityIds = body.entity_ids || [];
       userTags = body.tags || [];
 
-      if (!text) {
+      // ── Storage path: large file uploaded directly to Supabase Storage ──
+      if (body.storage_path) {
+        const { data: storageFile, error: storageError } = await sb.storage
+          .from("knowledge")
+          .download(body.storage_path);
+
+        if (storageError || !storageFile) {
+          return NextResponse.json(
+            { success: false, error: `Storage download failed: ${storageError?.message}` },
+            { status: 500 },
+          );
+        }
+
+        const arrayBuffer = await storageFile.arrayBuffer();
+        fileBuffer = Buffer.from(arrayBuffer);
+        fileName = body.storage_path.split("/").pop() || "document";
+        const ext = fileName.split(".").pop()?.toLowerCase() || "";
+        fileType = (await import("@/lib/document-processor")).EXTENSION_TO_TYPE[ext] || "txt";
+        if (!title) title = fileName;
+        // Continue to processing below — fileBuffer is now set
+      } else if (!text) {
         return NextResponse.json(
           { success: false, error: "No text/content provided in body" },
           { status: 400 },
@@ -185,6 +205,63 @@ export async function POST(request: NextRequest) {
         contentText = processed.text;
         chunks = processed.chunks;
         fileType = processed.fileType;
+
+        // Detect image-only / vector-graphics PDFs (Keynote/PowerPoint exports
+        // and scanned documents where text is rendered as paths, not characters).
+        // Fall back to Claude Vision for files under 5 MB — Claude reads the
+        // visual content directly. Larger files get a clear error with guidance.
+        if (fileType === "pdf" && contentText.trim().length < 30) {
+          const anthropicKeyForVision = process.env.ANTHROPIC_API_KEY;
+          const fileSizeMb = fileBuffer.length / 1024 / 1024;
+
+          if (anthropicKeyForVision && fileSizeMb < 5) {
+            // Use Claude Vision to extract text from image-based PDF
+            try {
+              const { default: AnthropicVision } = await import("@anthropic-ai/sdk");
+              const anthropicVision = new AnthropicVision({ apiKey: anthropicKeyForVision });
+              const visionResponse = await anthropicVision.messages.create({
+                model: "claude-sonnet-4-5-20250929",
+                max_tokens: 3000,
+                messages: [{
+                  role: "user",
+                  content: [
+                    {
+                      type: "document",
+                      source: {
+                        type: "base64",
+                        media_type: "application/pdf",
+                        data: fileBuffer.toString("base64"),
+                      },
+                    } as { type: "document"; source: { type: "base64"; media_type: "application/pdf"; data: string } },
+                    {
+                      type: "text",
+                      text: "Extract ALL text content from this presentation slide or document. Transcribe every visible piece of text exactly as it appears — headings, body text, bullet points, captions, labels, numbers. If it is a slide, describe its layout and purpose briefly, then list all text. Be exhaustive.",
+                    },
+                  ],
+                }],
+              });
+              const visionText = (visionResponse.content[0] as { type: "text"; text: string }).text.trim();
+              if (visionText.length > 50) {
+                contentText = visionText;
+                chunks = processTextInput(contentText).chunks;
+              }
+            } catch (visionErr) {
+              console.error("Claude Vision PDF extraction failed:", visionErr);
+            }
+          }
+
+          // If Vision also failed or file is too large, return a clear error
+          if (contentText.trim().length < 30) {
+            await sb.from("knowledge_base").delete().eq("id", kbId);
+            return NextResponse.json({
+              success: false,
+              error: "no_text_layer",
+              message: fileSizeMb >= 5
+                ? `This PDF (${fileSizeMb.toFixed(0)} MB) is too large for visual extraction (5 MB limit). Export as a .pptx from Keynote (File → Export To → PowerPoint) and drag that in instead — the text will be fully extractable.`
+                : "Could not extract content from this PDF. Try exporting as .pptx from Keynote or PowerPoint.",
+            }, { status: 422 });
+          }
+        }
       } else if (text) {
         const processed = processTextInput(text);
         contentText = processed.text;
