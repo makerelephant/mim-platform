@@ -149,15 +149,15 @@ export default function MotionFeedPage() {
   return (
     <div className="min-h-full" style={{ backgroundImage: "url('/icons/background.png')", backgroundSize: "cover", backgroundPosition: "center", backgroundRepeat: "no-repeat" }}>
       {/* ── Feed container ── */}
-      <div className="mx-auto py-6 flex flex-col gap-[24px] items-center" style={{ width: "499px" }}>
+      <div className="mx-auto py-6 flex flex-col gap-[24px] items-center" style={{ width: "550px" }}>
 
         {/* ══════════════════════════════════════════════════════════════════
             CHAT HEADER — Card container per Figma (node 9:3665)
             bg: rgba(255,244,224,0.2), p-12, rounded-12, shadow
             ══════════════════════════════════════════════════════════════════ */}
         <div
-          className="flex flex-col gap-[12px] items-start p-[12px] rounded-[12px] shadow-[0px_0px_60px_0px_rgba(0,0,0,0.12)] w-full"
-          style={{ backgroundColor: "rgba(255,244,224,0.2)" }}
+          className="flex flex-col gap-[12px] items-start p-[12px] rounded-[12px] shadow-[0px_0px_40px_0px_rgba(0,0,0,0.08)] w-full"
+          style={{ backgroundColor: "rgba(236,250,255,0.6)" }}
         >
           {/* Avatar + Name */}
           <div className="flex flex-col gap-[12px] items-start w-full">
@@ -168,10 +168,10 @@ export default function MotionFeedPage() {
                 className="w-[34px] h-[34px] rounded-full object-cover shrink-0"
               />
               <span
-                className="text-[18px] font-medium text-[#9ca5a9] leading-[20px] text-center whitespace-nowrap"
+                className="text-[16px] font-medium text-[#3e4c60] leading-[20px] text-center whitespace-nowrap"
                 style={{
                   fontFamily: "var(--font-geist-sans), 'Geist', sans-serif",
-                  letterSpacing: "-0.36px",
+                  letterSpacing: "-0.32px",
                 }}
               >
                 Mark Slater, CEO.
