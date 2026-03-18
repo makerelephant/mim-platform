@@ -662,9 +662,9 @@ export default function FeedCard({ card, onAction, onDismiss }: FeedCardProps) {
             </a>
           )}
 
-          {/* Body text — markdown for snapshot/briefing, plain for others */}
+          {/* Body text — markdown for snapshot/briefing/reflection, plain for others */}
           {card.body && (
-            (card.card_type === "snapshot" || card.card_type === "briefing") ? (
+            (card.card_type === "snapshot" || card.card_type === "briefing" || card.card_type === "reflection") ? (
               <div
                 className="text-[12px] text-[#0c111d] leading-[16px] w-full"
                 style={{ fontFamily: "var(--font-geist-sans), 'Geist', sans-serif" }}
@@ -747,7 +747,7 @@ export default function FeedCard({ card, onAction, onDismiss }: FeedCardProps) {
                     {isSignalOrIntel ? "background" : "motion reasoning"}
                   </p>
                 )}
-                {(card.card_type === "snapshot" || card.card_type === "briefing") ? (
+                {(card.card_type === "snapshot" || card.card_type === "briefing" || card.card_type === "reflection") ? (
                   <div
                     className="text-[12px] text-[#0c111d] leading-[16px]"
                     style={{ fontFamily: "var(--font-geist-sans), 'Geist', sans-serif" }}
