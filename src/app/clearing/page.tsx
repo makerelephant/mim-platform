@@ -410,376 +410,327 @@ export default function ClearingPage() {
         </div>
       )}
 
-      <div className="mx-auto flex flex-col items-center" style={{ maxWidth: "960px" }}>
-        {/* ══════════════════════════════════════════════════════════════════
-            CHAT HEADER — Same pattern as Motion but "A Thinking Space"
-            ══════════════════════════════════════════════════════════════════ */}
-        <div
-          className="flex flex-col gap-[6px] items-start p-[12px] rounded-[12px] shadow-[0px_0px_60px_0px_rgba(0,0,0,0.12)] w-[526px] mt-[47px]"
-          style={{ backgroundColor: "rgba(255,244,224,0.2)" }}
-        >
-          {/* Avatar + Name */}
-          <div className="flex flex-col gap-[12px] items-start w-full">
-            <div className="flex gap-[6px] items-end pr-[6px] w-full">
-              <img
-                src="/icons/mark-avatar.png"
-                alt="Mark Slater"
-                className="w-[34px] h-[34px] rounded-full object-cover shrink-0"
-              />
-              <span
-                className="text-[18px] font-medium text-[#9ca5a9] leading-[20px] text-center whitespace-nowrap"
-                style={{
-                  fontFamily: "var(--font-geist-sans), 'Geist', sans-serif",
-                  letterSpacing: "-0.36px",
-                }}
-              >
-                Mark Slater, CEO
-              </span>
-            </div>
-
-            {/* Title */}
-            <div className="flex items-start justify-between pr-[6px] w-full">
-              <span
-                className="text-[18px] font-semibold text-[#1e252a] leading-[20px] text-center whitespace-nowrap"
-                style={{
-                  fontFamily: "var(--font-geist-sans), 'Geist', sans-serif",
-                  letterSpacing: "-0.36px",
-                }}
-              >
-                A Thinking Space
-              </span>
-            </div>
-          </div>
-
-          {/* Subtitle */}
-          <p
-            className="text-[12px] font-medium leading-[14px] w-full"
-            style={{
-              fontFamily: "var(--font-geist-sans), 'Geist', sans-serif",
-              color: "#627c9e",
-            }}
+      {/* ══════════════════════════════════════════════════════════════════
+          HEADER — Centered, 548px, same as Motion per Figma 61:413
+          ══════════════════════════════════════════════════════════════════ */}
+      <div
+        className="mx-auto flex flex-col gap-[12px] items-start p-[12px] rounded-[12px] shadow-[0px_0px_40px_0px_rgba(0,0,0,0.08)]"
+        style={{ backgroundColor: "rgba(236,250,255,0.6)", width: "548px", marginTop: "52px" }}
+      >
+        <div className="flex gap-[6px] items-end pr-[6px] w-full">
+          <img
+            src="/icons/mark-avatar.png"
+            alt="Mark Slater"
+            className="w-[34px] h-[34px] rounded-full object-cover shrink-0"
+          />
+          <span
+            className="text-[16px] font-medium text-[#3e4c60] leading-[20px] text-center whitespace-nowrap"
+            style={{ fontFamily: "var(--font-geist-sans), 'Geist', sans-serif", letterSpacing: "-0.32px" }}
           >
-            Where thoughtful reflection and calm decision making can occur free from the clutter...
-          </p>
+            Mark Slater, CEO.
+          </span>
+        </div>
+        <div className="flex items-start justify-between pr-[6px] w-full">
+          <div className="flex gap-[6px] items-center">
+            <span
+              className="text-[18px] font-semibold text-[#1e252a] leading-[20px] text-center whitespace-nowrap"
+              style={{ fontFamily: "var(--font-geist-sans), 'Geist', sans-serif", letterSpacing: "-0.36px" }}
+            >
+              Important Conversations{" "}
+            </span>
+            <span
+              className="text-[10px] font-medium text-[#9ca5a9] leading-[10px] whitespace-nowrap self-end pb-[2px]"
+              style={{ fontFamily: "var(--font-geist-sans), 'Geist', sans-serif" }}
+            >
+              {lastConversationText().replace("Last Conversation was ", "...updated ")}
+            </span>
+          </div>
+          <img src="/icons/refresh-2.svg" alt="" className="w-[20px] h-[20px] shrink-0" />
+        </div>
+        <p
+          className="text-[12px] font-medium leading-[14px] w-full"
+          style={{ fontFamily: "var(--font-geist-sans), 'Geist', sans-serif", color: "#627c9e" }}
+        >
+          My personal and company execution feed. no more email bitches...
+        </p>
+      </div>
+
+      {/* ══════════════════════════════════════════════════════════════════
+          CONVERSATIONS PANEL — Separate floating card per Figma 61:510
+          180px wide, positioned left of main chat area
+          ══════════════════════════════════════════════════════════════════ */}
+      <div
+        className="absolute rounded-[12px]"
+        style={{
+          left: "232px",
+          top: "189px",
+          width: "180px",
+          background: "rgba(0,0,0,0)",
+          boxShadow: "0px 0px 40px 0px rgba(0,0,0,0.08)",
+        }}
+      >
+        {/* Header */}
+        <div
+          className="flex items-center justify-between p-[6px] rounded-tl-[12px] rounded-tr-[12px]"
+          style={{ borderBottom: "0.5px solid #c7d2e5" }}
+        >
+          <span
+            className="text-[12px] font-medium text-[#1e252a] leading-[14px] tracking-[-0.12px] whitespace-nowrap"
+            style={{ fontFamily: "var(--font-geist-sans), 'Geist', sans-serif" }}
+          >
+            Conversations
+          </span>
+          <button onClick={newSession}>
+            <img src="/icons/more-horizontal.svg" alt="" className="w-[24px] h-[24px]" />
+          </button>
         </div>
 
-        {/* ══════════════════════════════════════════════════════════════════
-            MAIN CONTENT AREA — Semi-transparent white card
-            ══════════════════════════════════════════════════════════════════ */}
-        <div
-          className="rounded-[12px] shadow-[0px_0px_60px_0px_rgba(0,0,0,0.12)] mt-[46px] mb-[24px] flex flex-col"
-          style={{
-            backgroundColor: "rgba(255,255,255,0.5)",
-            width: "933px",
-            minHeight: "700px",
-          }}
-        >
-          <div className="flex flex-col gap-[18px] items-start p-[12px] flex-1">
-            {/* ── Top bar: Back + Last Conversation + Share ── */}
-            <div className="flex items-center justify-between w-full h-[30px]">
-              {/* Back button */}
-              <button
-                className="flex gap-[6px] items-center px-[24px] py-[6px] rounded-[16px] mix-blend-multiply"
-                style={{
-                  backgroundColor: "#eef2f5",
-                  border: "1px solid #b0b8bb",
-                }}
-                onClick={() => window.history.back()}
-              >
-                <img src="/icons/arrow-left.svg" alt="" className="w-[16px] h-[16px]" />
-                <span
-                  className="text-[14px] font-semibold text-[#1e252a] leading-[18px] tracking-[-0.28px] whitespace-nowrap"
-                  style={{ fontFamily: "var(--font-inter), 'Inter', sans-serif" }}
-                >
-                  Back
-                </span>
-              </button>
+        {/* Active pill for first item */}
+        <div className="absolute bg-white rounded-tr-[18px] rounded-br-[18px]" style={{ left: "3px", top: "38px", width: "173px", height: "18px" }} />
 
-              {/* Right side: last conversation + share */}
-              <div className="flex gap-[12px] items-center justify-end">
-                <span
-                  className="text-[10px] font-medium text-[#9ca5a9] leading-[10px] whitespace-nowrap"
+        {/* Session list */}
+        <div
+          className="flex flex-col gap-[12px] items-start pt-[8px]"
+          style={{ paddingLeft: "6px", width: "168px" }}
+        >
+          {loadingSessions ? (
+            <span className="text-[12px] text-[#9ca5a9]" style={{ fontFamily: "var(--font-geist-sans), 'Geist', sans-serif" }}>
+              Loading...
+            </span>
+          ) : activeSessions.map((s, idx) => (
+            <div key={s.id} className="flex items-center justify-between w-full group">
+              <button
+                onClick={() => setActiveSessionId(s.id)}
+                className="text-left flex-1 overflow-hidden text-ellipsis"
+                style={{
+                  fontFamily: "var(--font-geist-sans), 'Geist', sans-serif",
+                  fontSize: "12px",
+                  fontWeight: 500,
+                  lineHeight: "16px",
+                  letterSpacing: "-0.24px",
+                  color: s.id === activeSessionId ? "#1e252a" : "#1e252a",
+                  position: "relative",
+                  zIndex: idx === 0 && s.id === activeSessionId ? 1 : 0,
+                }}
+              >
+                {s.title}
+              </button>
+              {activeSessions.length > 1 && (
+                <button
+                  onClick={() => dissolveSession(s.id)}
+                  className="opacity-0 group-hover:opacity-100 transition-opacity text-[#9ca5a9] hover:text-[#627c9e] text-[12px] ml-1 shrink-0"
+                  title="Dissolve"
+                >
+                  ×
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* ══════════════════════════════════════════════════════════════════
+          MAIN CHAT CARD — Centered, 551px, per Figma 61:458
+          bg rgba(255,255,255,0.6), rounded-12, shadow 60px
+          ══════════════════════════════════════════════════════════════════ */}
+      <div
+        className="mx-auto rounded-[12px] flex flex-col"
+        style={{
+          backgroundColor: "rgba(255,255,255,0.6)",
+          width: "551px",
+          height: "838px",
+          marginTop: "24px",
+          boxShadow: "0px 0px 60px 0px rgba(0,0,0,0.12)",
+        }}
+      >
+        <div className="flex flex-col gap-[24px] items-start p-[12px] pt-[16px] flex-1 overflow-hidden">
+          {/* ── Top bar: Last Conversation + Share ── */}
+          <div className="flex items-center justify-between w-full" style={{ width: "524px" }}>
+            <span
+              className="text-[10px] font-medium text-[#9ca5a9] leading-[10px] whitespace-nowrap"
+              style={{ fontFamily: "var(--font-geist-sans), 'Geist', sans-serif" }}
+            >
+              {lastConversationText()}
+            </span>
+            <button className="flex gap-[6px] items-center px-[12px] py-[6px] rounded-[16px] mix-blend-multiply">
+              <img src="/icons/share.svg" alt="" className="w-[16px] h-[16px]" />
+              <span
+                className="text-[14px] font-semibold text-[#1e252a] leading-[18px] tracking-[-0.28px] whitespace-nowrap"
+                style={{ fontFamily: "var(--font-geist-sans), 'Geist', sans-serif" }}
+              >
+                Share
+              </span>
+            </button>
+          </div>
+
+          {/* ── Messages area ── */}
+          <div className="flex-1 overflow-y-auto flex flex-col gap-[16px] w-full" style={{ width: "527px" }}>
+            {activeSession && activeSession.messages.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-full w-full text-center pt-[100px]">
+                <p
+                  className="text-[#9ca5a9] text-[14px] max-w-md leading-relaxed"
                   style={{ fontFamily: "var(--font-geist-sans), 'Geist', sans-serif" }}
                 >
-                  {lastConversationText()}
-                </span>
-                <button className="flex gap-[6px] items-center px-[24px] py-[6px] rounded-[16px] mix-blend-multiply">
-                  <img src="/icons/share.svg" alt="" className="w-[16px] h-[16px]" />
-                  <span
-                    className="text-[14px] font-semibold text-[#1e252a] leading-[18px] tracking-[-0.28px] whitespace-nowrap"
-                    style={{ fontFamily: "var(--font-geist-sans), 'Geist', sans-serif" }}
-                  >
-                    Share
-                  </span>
-                </button>
+                  Ask the brain anything, capture a thought, or drop a file to ingest.
+                </p>
               </div>
-            </div>
-
-            {/* ── Two-column layout: Prior Chats + Messages ── */}
-            <div className="flex gap-[18px] items-start flex-1 w-full">
-              {/* ── Left panel: Prior Conversations ── */}
-              <div
-                className="flex flex-col gap-[24px] items-start pb-[24px] rounded-[8px] shadow-[0px_0px_60px_0px_rgba(0,0,0,0.12)] shrink-0"
-                style={{
-                  width: "257px",
-                  minHeight: "600px",
-                  backgroundColor: "rgba(243,242,237,0.3)",
-                }}
-              >
-                {/* Header */}
-                <div
-                  className="flex items-center justify-between p-[6px] rounded-[4px] shadow-[0px_1px_6px_0px_rgba(0,0,0,0.12)] w-full bg-white"
-                  style={{ height: "28px" }}
-                >
-                  <span
-                    className="text-[12px] font-semibold text-[#1e252a] leading-[14px] tracking-[-0.24px] whitespace-nowrap"
-                    style={{ fontFamily: "var(--font-inter), 'Inter', sans-serif" }}
-                  >
-                    Prior Conversations
-                  </span>
-                  <img src="/icons/more-horizontal.svg" alt="" className="w-[24px] h-[24px]" />
-                </div>
-
-                {/* Session list */}
-                <div className="flex flex-col gap-[12px] items-start pl-[6px]">
-                  {loadingSessions ? (
-                    <span className="text-[12px] text-[#9ca5a9]" style={{ fontFamily: "var(--font-geist-sans), 'Geist', sans-serif" }}>
-                      Loading conversations...
-                    </span>
-                  ) : activeSessions.map((s) => (
-                    <div key={s.id} className="flex items-center justify-between w-[229px] group">
-                      <button
-                        onClick={() => setActiveSessionId(s.id)}
-                        className="text-left flex-1"
-                        style={{
-                          fontFamily: "var(--font-geist-sans), 'Geist', sans-serif",
-                          fontSize: "14px",
-                          fontWeight: s.id === activeSessionId ? 500 : 400,
-                          lineHeight: "16px",
-                          color: "#1e252a",
-                        }}
-                      >
-                        {s.title}
-                        {s.messages.length > 0 && (
-                          <span className="text-[#9ca5a9]"> ({s.messages.length})</span>
-                        )}
-                      </button>
-                      {activeSessions.length > 1 && (
-                        <button
-                          onClick={() => dissolveSession(s.id)}
-                          className="opacity-0 group-hover:opacity-100 transition-opacity text-[#9ca5a9] hover:text-[#627c9e] text-[12px] ml-2 shrink-0"
-                          title="Dissolve"
-                        >
-                          ×
-                        </button>
-                      )}
-                    </div>
-                  ))}
-                  {/* New conversation button */}
-                  <button
-                    onClick={newSession}
-                    className="text-[14px] text-[#627c9e] font-medium"
-                    style={{ fontFamily: "var(--font-geist-sans), 'Geist', sans-serif" }}
-                  >
-                    + New Conversation
-                  </button>
-                </div>
-              </div>
-
-              {/* ── Right panel: Messages ── */}
-              <div className="flex flex-col flex-1 min-h-0" style={{ gap: "18px" }}>
-                {/* Messages area */}
-                <div className="flex-1 overflow-y-auto flex flex-col gap-[24px] items-end pr-[4px]" style={{ minHeight: "400px" }}>
-                  {activeSession && activeSession.messages.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center h-full w-full text-center pt-[100px]">
-                      <img
-                        src="/icons/gophers.png"
-                        alt=""
-                        className="opacity-20 mb-4"
-                        style={{ width: "48px", height: "56px" }}
-                      />
-                      <p
-                        className="text-[#9ca5a9] text-[14px] max-w-md leading-relaxed"
-                        style={{ fontFamily: "var(--font-geist-sans), 'Geist', sans-serif" }}
-                      >
-                        Ask the brain anything, capture a thought, or drop a file to ingest.
-                      </p>
-                    </div>
-                  ) : (
-                    <>
-                      {activeSession?.messages.map((msg) => (
-                        <div
-                          key={msg.id}
-                          className={`flex w-full ${msg.role === "user" ? "justify-end" : "justify-start"}`}
-                        >
-                          {msg.role === "user" ? (
-                            /* User messages: right-aligned, white card, rounded-8 */
-                            <div
-                              className="bg-white rounded-[8px] p-[12px]"
-                              style={{ maxWidth: "593px" }}
-                            >
-                              <p
-                                className="text-[14px] text-black leading-[18px]"
-                                style={{ fontFamily: "var(--font-geist-sans), 'Geist', sans-serif" }}
-                              >
-                                {msg.content}
-                              </p>
-                            </div>
-                          ) : (
-                            /* Brain messages: left-aligned, plain text */
-                            <div style={{ maxWidth: "617px", width: "100%" }}>
-                              <div
-                                className="text-[14px] text-[#1e252a] leading-[16px]"
-                                style={{ fontFamily: "var(--font-geist-sans), 'Geist', sans-serif" }}
-                                dangerouslySetInnerHTML={{
-                                  __html: msg.content
-                                    .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
-                                    .split("\n\n").join("<br/><br/>")
-                                    .split("\n").join("<br/>"),
-                                }}
-                              />
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                      {thinking && (
-                        <div className="flex justify-start w-full">
-                          <div className="flex gap-1 py-2">
-                            <span className="w-2 h-2 bg-[#9ca5a9] rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
-                            <span className="w-2 h-2 bg-[#9ca5a9] rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
-                            <span className="w-2 h-2 bg-[#9ca5a9] rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
-                          </div>
-                        </div>
-                      )}
-                      <div ref={messagesEndRef} />
-                    </>
-                  )}
-                </div>
-
-                {/* ── Bottom: Input + Action pills ── */}
-                <div className="flex flex-col gap-[15px] items-start w-full">
-                  {/* Input bar */}
+            ) : (
+              <>
+                {activeSession?.messages.map((msg) => (
                   <div
-                    className="flex items-center justify-between bg-white rounded-[12px] shadow-[0px_0px_6px_0px_rgba(0,0,0,0.18)] px-[14px] py-[18px] w-full"
-                    style={{
-                      border: "0.5px solid #a9d8ff",
-                      height: "48px",
-                    }}
+                    key={msg.id}
+                    className={`flex w-full ${msg.role === "user" ? "justify-end" : "justify-start"}`}
                   >
-                    <div className="flex flex-1 items-center pl-[12px]">
-                      <input
-                        type="text"
-                        value={input}
-                        onChange={(e) => setInput(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter" && !e.shiftKey) {
-                            e.preventDefault();
-                            handleSend();
-                          }
-                        }}
-                        placeholder="Ask MiM Brain anything about the business...."
-                        className="flex-1 text-[14px] text-black placeholder:text-[#b0b8bb] focus:outline-none bg-transparent leading-[24px]"
-                        style={{ fontFamily: "var(--font-geist-sans), 'Geist', sans-serif" }}
-                      />
-                    </div>
-                    <div className="flex gap-[24px] items-center w-[143px] h-[21px]">
-                      <img src="/icons/calendar-plus.svg" alt="" className="w-[16px] h-[16px] shrink-0" />
-                      <img
-                        src="/icons/paperclip.svg"
-                        alt=""
-                        className="w-[16px] h-[16px] shrink-0 cursor-pointer"
-                        onClick={() => fileInputRef.current?.click()}
-                      />
-                      <img src="/icons/mic.svg" alt="" className="w-[16px] h-[16px] shrink-0" />
-                      <img
-                        src="/icons/arrow-up-circle.svg"
-                        alt=""
-                        className="w-[16px] h-[16px] shrink-0 cursor-pointer"
-                        onClick={handleSend}
-                      />
-                    </div>
-                  </div>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    multiple
-                    className="hidden"
-                    onChange={(e) => handleFileUpload(e.target.files)}
-                  />
-
-                  {/* Action pills */}
-                  <div className="flex gap-[15px] items-center relative">
-                    {/* Launch a Gopher */}
-                    <div className="relative">
-                      <button
-                        onClick={() => setShowGopherMenu(!showGopherMenu)}
-                        className="flex gap-[6px] items-center px-[12px] py-[4px] rounded-[16px]"
-                        style={{
-                          backgroundColor: "#ecfaff",
-                          border: "1px solid #b9e6ff",
-                        }}
+                    {msg.role === "user" ? (
+                      /* User: right-aligned white card, rounded-8, shadow per Figma */
+                      <div
+                        className="bg-white rounded-[8px] p-[12px]"
+                        style={{ maxWidth: "489px", boxShadow: "0px 1px 4px 0px rgba(0,0,0,0.08)" }}
                       >
-                        <img
-                          src="/icons/gophers.png"
-                          alt=""
-                          className="shrink-0"
-                          style={{ width: "18px", height: "20px" }}
-                        />
-                        <span
-                          className="text-[12px] font-semibold text-[#1e252a] leading-[18px] tracking-[-0.24px] whitespace-nowrap"
+                        <p
+                          className="text-[14px] text-black leading-[18px]"
                           style={{ fontFamily: "var(--font-geist-sans), 'Geist', sans-serif" }}
                         >
-                          Launch a Gopher
-                        </span>
-                      </button>
-                      {showGopherMenu && (
-                        <div className="absolute bottom-full mb-2 left-0 bg-white rounded-[8px] shadow-[0px_0px_20px_0px_rgba(0,0,0,0.15)] p-[6px] min-w-[200px] z-50">
-                          {[
-                            { name: "Scan Gmail", endpoint: "/api/agents/gmail-scanner", icon: "📧" },
-                            { name: "Daily Briefing", endpoint: "/api/agents/daily-briefing", icon: "📊" },
-                            { name: "Weekly Synthesis", endpoint: "/api/agents/synthesis", icon: "🧠" },
-                            { name: "Monthly Report", endpoint: "/api/agents/monthly-report", icon: "📋" },
-                          ].map((g) => (
-                            <button
-                              key={g.name}
-                              onClick={() => launchGopher(g.name, g.endpoint)}
-                              className="flex items-center gap-[8px] w-full px-[8px] py-[6px] rounded-[4px] hover:bg-[#f6f5f5] transition-colors text-left"
-                            >
-                              <span className="text-[14px]">{g.icon}</span>
-                              <span
-                                className="text-[12px] font-medium text-[#1e252a]"
-                                style={{ fontFamily: "var(--font-geist-sans), 'Geist', sans-serif" }}
-                              >
-                                {g.name}
-                              </span>
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Add To Knowledge */}
-                    <button
-                      onClick={addToKnowledge}
-                      className="flex gap-[6px] items-center px-[12px] py-[4px] rounded-[16px]"
-                      style={{
-                        backgroundColor: "#f2e9fa",
-                        border: "1px solid #e8d7ff",
-                      }}
-                    >
-                      <img src="/icons/brain.svg" alt="" className="w-[20px] h-[20px] shrink-0" />
-                      <span
-                        className="text-[12px] font-semibold text-[#1e252a] leading-[18px] tracking-[-0.24px] whitespace-nowrap"
-                        style={{ fontFamily: "var(--font-geist-sans), 'Geist', sans-serif" }}
-                      >
-                        Add To Knowledge
-                      </span>
-                    </button>
+                          {msg.content}
+                        </p>
+                      </div>
+                    ) : (
+                      /* Brain: left-aligned plain text, 14px, leading-16 */
+                      <div style={{ width: "100%" }}>
+                        <div
+                          className="text-[14px] text-[#1e252a] leading-[16px]"
+                          style={{ fontFamily: "var(--font-geist-sans), 'Geist', sans-serif" }}
+                          dangerouslySetInnerHTML={{
+                            __html: msg.content
+                              .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+                              .split("\n\n").join("<br/><br/>")
+                              .split("\n").join("<br/>"),
+                          }}
+                        />
+                      </div>
+                    )}
                   </div>
-                </div>
-              </div>
-            </div>
+                ))}
+                {thinking && (
+                  <div className="flex justify-start w-full">
+                    <div className="flex gap-1 py-2">
+                      <span className="w-2 h-2 bg-[#9ca5a9] rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
+                      <span className="w-2 h-2 bg-[#9ca5a9] rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
+                      <span className="w-2 h-2 bg-[#9ca5a9] rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
+                    </div>
+                  </div>
+                )}
+                <div ref={messagesEndRef} />
+              </>
+            )}
           </div>
+        </div>
+      </div>
+
+      {/* ══════════════════════════════════════════════════════════════════
+          INPUT BAR + ACTION PILLS — Centered, 550px, per Figma 61:479
+          ══════════════════════════════════════════════════════════════════ */}
+      <div className="mx-auto" style={{ width: "550px", marginTop: "16px", marginBottom: "24px" }}>
+        {/* Input bar */}
+        <div
+          className="flex items-center justify-between bg-white rounded-[12px] shadow-[0px_0px_6px_0px_rgba(0,0,0,0.18)] px-[14px] py-[18px] w-full"
+          style={{ border: "0.5px solid #a9d8ff", height: "48px" }}
+        >
+          <div className="flex flex-1 items-center pl-[12px]">
+            <input
+              type="text"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSend();
+                }
+              }}
+              placeholder="Ask anything about the business...."
+              className="flex-1 text-[12px] text-black placeholder:text-[#b0b8bb] focus:outline-none bg-transparent leading-[24px]"
+              style={{ fontFamily: "var(--font-geist-sans), 'Geist', sans-serif" }}
+            />
+          </div>
+          <div className="flex gap-[24px] items-center w-[143px] h-[21px]">
+            <img src="/icons/calendar-plus.svg" alt="" className="w-[16px] h-[16px] shrink-0" />
+            <img
+              src="/icons/paperclip.svg"
+              alt=""
+              className="w-[16px] h-[16px] shrink-0 cursor-pointer"
+              onClick={() => fileInputRef.current?.click()}
+            />
+            <img src="/icons/mic.svg" alt="" className="w-[16px] h-[16px] shrink-0" />
+            <img
+              src="/icons/arrow-up-circle.svg"
+              alt=""
+              className="w-[16px] h-[16px] shrink-0 cursor-pointer"
+              onClick={handleSend}
+            />
+          </div>
+        </div>
+        <input
+          ref={fileInputRef}
+          type="file"
+          multiple
+          className="hidden"
+          onChange={(e) => handleFileUpload(e.target.files)}
+        />
+
+        {/* Action pills */}
+        <div className="flex items-center mt-[20px]" style={{ gap: "0px" }}>
+          {/* Launch a Gopher */}
+          <div className="relative">
+            <button
+              onClick={() => setShowGopherMenu(!showGopherMenu)}
+              className="flex gap-[6px] items-center px-[12px] py-[4px] rounded-[16px]"
+              style={{ backgroundColor: "#ecfaff", border: "1px solid #b9e6ff" }}
+            >
+              <img src="/icons/gopher.svg" alt="" className="shrink-0" style={{ width: "18px", height: "20px" }} />
+              <span
+                className="text-[12px] font-semibold text-[#1e252a] leading-[18px] tracking-[-0.24px] whitespace-nowrap"
+                style={{ fontFamily: "var(--font-geist-sans), 'Geist', sans-serif" }}
+              >
+                Launch a Gopher
+              </span>
+            </button>
+            {showGopherMenu && (
+              <div className="absolute bottom-full mb-2 left-0 bg-white rounded-[8px] shadow-[0px_0px_20px_0px_rgba(0,0,0,0.15)] p-[6px] min-w-[200px] z-50">
+                {[
+                  { name: "Scan Gmail", endpoint: "/api/agents/gmail-scanner", icon: "📧" },
+                  { name: "Daily Briefing", endpoint: "/api/agents/daily-briefing", icon: "📊" },
+                  { name: "Weekly Synthesis", endpoint: "/api/agents/synthesis", icon: "🧠" },
+                  { name: "Monthly Report", endpoint: "/api/agents/monthly-report", icon: "📋" },
+                ].map((g) => (
+                  <button
+                    key={g.name}
+                    onClick={() => launchGopher(g.name, g.endpoint)}
+                    className="flex items-center gap-[8px] w-full px-[8px] py-[6px] rounded-[4px] hover:bg-[#f6f5f5] transition-colors text-left"
+                  >
+                    <span className="text-[14px]">{g.icon}</span>
+                    <span className="text-[12px] font-medium text-[#1e252a]" style={{ fontFamily: "var(--font-geist-sans), 'Geist', sans-serif" }}>
+                      {g.name}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Add To Knowledge */}
+          <button
+            onClick={addToKnowledge}
+            className="flex gap-[6px] items-center px-[12px] py-[4px] rounded-[16px]"
+            style={{ backgroundColor: "#f2e9fa", border: "1px solid #e8d7ff", marginLeft: "0px" }}
+          >
+            <img src="/icons/brain.svg" alt="" className="w-[20px] h-[20px] shrink-0" />
+            <span
+              className="text-[12px] font-semibold text-[#1e252a] leading-[18px] tracking-[-0.24px] whitespace-nowrap"
+              style={{ fontFamily: "var(--font-geist-sans), 'Geist', sans-serif" }}
+            >
+              Add To Knowledge
+            </span>
+          </button>
         </div>
       </div>
     </div>
