@@ -302,30 +302,16 @@ export default function MotionFeedPage() {
             <Loader2 className="w-6 h-6 text-slate-400 animate-spin" />
           </div>
         ) : scanning ? (
-          <div className="flex flex-col items-center justify-center py-16 gap-6 w-full">
-            {/* Progress bar */}
-            <div className="w-full rounded-full overflow-hidden" style={{ height: "3px", backgroundColor: "rgba(169,216,255,0.3)" }}>
+          <div className="flex flex-col items-center justify-center py-16 gap-4 w-full">
+            {/* Half-width progress bar — visible blue */}
+            <div className="w-1/2 max-w-[275px] rounded-full overflow-hidden" style={{ height: "3px", backgroundColor: "rgba(59,130,246,0.15)" }}>
               <div
                 className="h-full rounded-full transition-all duration-1000 ease-out"
                 style={{
                   width: `${((scanStage + 1) / scanStages.length) * 100}%`,
-                  backgroundColor: "#a9d8ff",
+                  background: "linear-gradient(90deg, #3b82f6, #2563eb)",
                 }}
               />
-            </div>
-            {/* Stage dots */}
-            <div className="flex gap-[6px] items-center">
-              {scanStages.map((_, i) => (
-                <div
-                  key={i}
-                  className="rounded-full transition-all duration-500"
-                  style={{
-                    width: i === scanStage ? "8px" : "4px",
-                    height: i === scanStage ? "8px" : "4px",
-                    backgroundColor: i <= scanStage ? "#627c9e" : "#d0d5dd",
-                  }}
-                />
-              ))}
             </div>
             {/* Current stage text */}
             <p
