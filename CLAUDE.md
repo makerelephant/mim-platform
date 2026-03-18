@@ -7,7 +7,7 @@
 
 ## What is this project?
 
-**In Motion** is an autonomous business intelligence platform for Made in Motion, a youth sports technology company. It processes business data (emails, messages, documents), classifies it, prioritises it, and recommends actions — with the goal of becoming an autonomous Chief Operating Officer.
+**In Motion** is an autonomous business intelligence platform for Made in Motion PBC, a business engaged in creating innovative new methods and products for the Generative or Agentic Commerce future. The In Motion platform processes business data (emails, messages, documents), classifies it, prioritises it, and recommends actions — with the goal of becoming an autonomous or semi autonomous execution asset to the Chief Operating Officer in phase 1, to the founding team in phase 2, and then finally to the market that the company is seeking to participate in in phase 3.
 
 **We are in Phase 1 (The 1):** One user — the CEO — operating entirely through the feed. Everything else is horizon planning.
 
