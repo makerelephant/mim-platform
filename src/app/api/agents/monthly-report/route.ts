@@ -43,12 +43,14 @@ export async function GET() {
 
     addLog("Gathering 30 days of activity data...");
 
-    // ── 1. Feed cards (last 30 days) ──
+    // ── 1. Feed cards (last 30 days) — external sources only ──
     const { data: feedCards } = await sb
       .schema("brain")
       .from("feed_cards")
       .select("id, card_type, title, priority, status, ceo_action, entity_name, entity_type, acumen_category, source_type, created_at")
       .gte("created_at", cutoffISO)
+      .in("source_type", ["gmail_scanner", "slack_scanner", "sheets_scanner", "news_scanner", "ingestion"])
+      .not("card_type", "in", '("briefing","reflection","snapshot")')
       .order("created_at", { ascending: false })
       .limit(2000);
 
@@ -183,21 +185,22 @@ export async function GET() {
       messages: [
         {
           role: "user",
-          content: `You are writing a monthly executive report for Made in Motion, a youth sports technology company. This report covers the MiMBrain autonomous business intelligence platform's activity over the past 30 days.
+          content: `You are writing a monthly commercial activity report for Made in Motion, a youth sports technology company. This report covers the past 30 days of EXTERNAL business activity — relationships, deals, partnerships, customers, legal matters, finances, product developments, and market signals.
 
-Write a clear, professional report suitable for sharing with investors or the board. Structure:
+CRITICAL: This report is for the CEO and board. It must focus entirely on COMMERCIAL and EXTERNAL business activity. Do NOT mention the MiMBrain platform, AI systems, training progress, classification accuracy, autonomy metrics, or any internal technology activity. That is invisible infrastructure — it does not appear in this report.
 
-1. **Executive Summary** — 2-3 sentences on the most important takeaways
-2. **Platform Activity** — Volume of items processed, breakdown by type and category, engagement rates
-3. **Key Relationships** — Most active entities/contacts and what that means for the business
-4. **Brain Intelligence** — Insights the AI has generated, accuracy trends, learning progress
-5. **Operational Health** — Action rates, pending items, any concerns
-6. **Looking Ahead** — What to watch for next month based on trends
+Write a clear, professional report. Structure:
+
+1. **Executive Summary** — 2-3 sentences on the most important commercial takeaways
+2. **Key Activity** — Volume and nature of external interactions, breakdown by business category, what the business was engaged with
+3. **Key Relationships** — Most active contacts and organisations and what their activity signals for the business
+4. **Commercial Signals** — Patterns, trends, or developments worth noting across deals, partnerships, customers, or market
+5. **Looking Ahead** — What to watch commercially next month based on the trends observed
 
 Data:
 ${JSON.stringify(dataPackage, null, 2)}
 
-Keep it under 800 words. Use markdown formatting. Be specific — use real numbers and entity names from the data. Write in first person plural ("we" = the platform/team).`,
+Keep it under 800 words. Use markdown formatting. Be specific — use real numbers and entity names from the data. Write in first person plural ("we" = Made in Motion).`,
         },
       ],
     });
