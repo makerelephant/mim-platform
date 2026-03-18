@@ -5,6 +5,66 @@ import { formatDistanceToNow } from "date-fns";
 
 /* eslint-disable @next/next/no-img-element */
 
+// ─── Lightweight Markdown Renderer ──────────────────────────────────────────
+
+function renderMarkdown(text: string): React.ReactNode {
+  const lines = text.split("\n");
+  const elements: React.ReactNode[] = [];
+  let listItems: string[] = [];
+  let key = 0;
+
+  function flushList() {
+    if (listItems.length > 0) {
+      elements.push(
+        <ul key={key++} className="list-disc pl-[16px] space-y-[2px]">
+          {listItems.map((item, i) => (
+            <li key={i}>{inlineBold(item)}</li>
+          ))}
+        </ul>
+      );
+      listItems = [];
+    }
+  }
+
+  function inlineBold(s: string): React.ReactNode {
+    const parts = s.split(/\*\*(.*?)\*\*/g);
+    if (parts.length === 1) return s;
+    return parts.map((part, i) =>
+      i % 2 === 1 ? <strong key={i}>{part}</strong> : part
+    );
+  }
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) {
+      flushList();
+      continue;
+    }
+
+    // Headings
+    if (trimmed.startsWith("# ")) {
+      flushList();
+      elements.push(<p key={key++} className="font-semibold text-[14px] text-[#1e252a] mt-[8px] mb-[2px]">{inlineBold(trimmed.slice(2))}</p>);
+    } else if (trimmed.startsWith("## ")) {
+      flushList();
+      elements.push(<p key={key++} className="font-semibold text-[13px] text-[#1e252a] mt-[6px] mb-[2px]">{inlineBold(trimmed.slice(3))}</p>);
+    } else if (trimmed.startsWith("### ")) {
+      flushList();
+      elements.push(<p key={key++} className="font-medium text-[12px] text-[#344054] mt-[4px] mb-[1px]">{inlineBold(trimmed.slice(4))}</p>);
+    } else if (trimmed.startsWith("---")) {
+      flushList();
+      elements.push(<hr key={key++} className="border-t border-[#e5e7eb] my-[6px]" />);
+    } else if (trimmed.startsWith("- ") || trimmed.startsWith("* ")) {
+      listItems.push(trimmed.slice(2));
+    } else {
+      flushList();
+      elements.push(<p key={key++} className="mb-[2px]">{inlineBold(trimmed)}</p>);
+    }
+  }
+  flushList();
+  return <>{elements}</>;
+}
+
 // ─── Constants ──────────────────────────────────────────────────────────────
 
 const ACUMEN_CATEGORIES = [
@@ -315,7 +375,7 @@ export default function FeedCard({ card, onAction, onDismiss }: FeedCardProps) {
 
   return (
     <div
-      className={`flex flex-col gap-[6px] p-[12px] rounded-[12px] ${cardShadow} transition-all w-[500px] overflow-hidden ${cardOpacity}`}
+      className={`flex flex-col gap-[6px] p-[12px] rounded-[12px] ${cardShadow} transition-all w-full overflow-hidden ${cardOpacity}`}
       style={{ backgroundColor: cardBg }}
     >
       {/* ══════════════════════════════════════════════════════════════════
@@ -602,14 +662,23 @@ export default function FeedCard({ card, onAction, onDismiss }: FeedCardProps) {
             </a>
           )}
 
-          {/* Body text — same styling for all card types per Figma */}
+          {/* Body text — markdown for snapshot/briefing, plain for others */}
           {card.body && (
-            <p
-              className="text-[12px] text-[#0c111d] leading-[16px] w-full"
-              style={{ fontFamily: "var(--font-geist-sans), 'Geist', sans-serif" }}
-            >
-              {card.body}
-            </p>
+            (card.card_type === "snapshot" || card.card_type === "briefing") ? (
+              <div
+                className="text-[12px] text-[#0c111d] leading-[16px] w-full"
+                style={{ fontFamily: "var(--font-geist-sans), 'Geist', sans-serif" }}
+              >
+                {renderMarkdown(card.body)}
+              </div>
+            ) : (
+              <p
+                className="text-[12px] text-[#0c111d] leading-[16px] w-full"
+                style={{ fontFamily: "var(--font-geist-sans), 'Geist', sans-serif" }}
+              >
+                {card.body}
+              </p>
+            )
           )}
         </div>
 
@@ -678,12 +747,21 @@ export default function FeedCard({ card, onAction, onDismiss }: FeedCardProps) {
                     {isSignalOrIntel ? "background" : "motion reasoning"}
                   </p>
                 )}
-                <p
-                  className="text-[12px] text-[#0c111d] leading-[16px]"
-                  style={{ fontFamily: "var(--font-geist-sans), 'Geist', sans-serif" }}
-                >
-                  {card.reasoning}
-                </p>
+                {(card.card_type === "snapshot" || card.card_type === "briefing") ? (
+                  <div
+                    className="text-[12px] text-[#0c111d] leading-[16px]"
+                    style={{ fontFamily: "var(--font-geist-sans), 'Geist', sans-serif" }}
+                  >
+                    {renderMarkdown(card.reasoning)}
+                  </div>
+                ) : (
+                  <p
+                    className="text-[12px] text-[#0c111d] leading-[16px]"
+                    style={{ fontFamily: "var(--font-geist-sans), 'Geist', sans-serif" }}
+                  >
+                    {card.reasoning}
+                  </p>
+                )}
               </div>
             )}
           </>

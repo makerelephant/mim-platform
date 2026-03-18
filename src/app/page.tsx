@@ -15,11 +15,20 @@ export default function MotionFeedPage() {
   const [offset, setOffset] = useState(0);
   const [loadingMore, setLoadingMore] = useState(false);
   const [scanning, setScanning] = useState(false);
+  const [scanStage, setScanStage] = useState(0);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [searching, setSearching] = useState(false);
   const [activeFilter, setActiveFilter] = useState<string | null>(null);
-  const limit = 30;
+  const limit = 12;
+  const scanStages = [
+    "Connecting to Gmail...",
+    "Fetching new messages...",
+    "Classifying with Acumen...",
+    "Resolving entities...",
+    "Generating feed cards...",
+    "Updating feed...",
+  ];
 
   // ── Load feed cards ──
   const loadCards = useCallback(async (newOffset: number, append: boolean, filterType?: string | null) => {
@@ -55,21 +64,32 @@ export default function MotionFeedPage() {
     setLoadingMore(false);
   }
 
-  // ── Run scanner ──
+  // ── Run scanner with progress stages ──
   async function handleScan() {
     setScanning(true);
+    setScanStage(0);
+
+    // Cycle through visual stages while the scan runs
+    const stageInterval = setInterval(() => {
+      setScanStage((prev) => (prev < scanStages.length - 1 ? prev + 1 : prev));
+    }, 4000);
+
     try {
       await fetch("/api/agents/gmail-scanner", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ scanHours: 168 }),
       });
+      // Show final stage briefly
+      setScanStage(scanStages.length - 1);
       // Reload feed after scan
       await loadCards(0, false);
     } catch (err) {
       console.error("Scanner error:", err);
     } finally {
+      clearInterval(stageInterval);
       setScanning(false);
+      setScanStage(0);
     }
   }
 
@@ -149,15 +169,15 @@ export default function MotionFeedPage() {
   return (
     <div className="min-h-full" style={{ backgroundImage: "url('/icons/background.png')", backgroundSize: "cover", backgroundPosition: "center", backgroundRepeat: "no-repeat" }}>
       {/* ── Feed container ── */}
-      <div className="mx-auto py-6 flex flex-col gap-[24px] items-center" style={{ width: "499px" }}>
+      <div className="mx-auto py-6 flex flex-col gap-[24px] items-center" style={{ width: "550px" }}>
 
         {/* ══════════════════════════════════════════════════════════════════
             CHAT HEADER — Card container per Figma (node 9:3665)
             bg: rgba(255,244,224,0.2), p-12, rounded-12, shadow
             ══════════════════════════════════════════════════════════════════ */}
         <div
-          className="flex flex-col gap-[12px] items-start p-[12px] rounded-[12px] shadow-[0px_0px_60px_0px_rgba(0,0,0,0.12)] w-full"
-          style={{ backgroundColor: "rgba(255,244,224,0.2)" }}
+          className="flex flex-col gap-[12px] items-start p-[12px] rounded-[12px] shadow-[0px_0px_40px_0px_rgba(0,0,0,0.08)] w-full"
+          style={{ backgroundColor: "rgba(236,250,255,0.6)" }}
         >
           {/* Avatar + Name */}
           <div className="flex flex-col gap-[12px] items-start w-full">
@@ -168,10 +188,10 @@ export default function MotionFeedPage() {
                 className="w-[34px] h-[34px] rounded-full object-cover shrink-0"
               />
               <span
-                className="text-[18px] font-medium text-[#9ca5a9] leading-[20px] text-center whitespace-nowrap"
+                className="text-[16px] font-medium text-[#3e4c60] leading-[20px] text-center whitespace-nowrap"
                 style={{
                   fontFamily: "var(--font-geist-sans), 'Geist', sans-serif",
-                  letterSpacing: "-0.36px",
+                  letterSpacing: "-0.32px",
                 }}
               >
                 Mark Slater, CEO.
@@ -282,26 +302,24 @@ export default function MotionFeedPage() {
             <Loader2 className="w-6 h-6 text-slate-400 animate-spin" />
           </div>
         ) : scanning ? (
-          <div className="flex flex-col items-center justify-center py-20 gap-3">
-            {/* Half-width progress line animation */}
-            <div className="w-1/2 max-w-[300px] h-[3px] bg-[#e2e8f0] rounded-full overflow-hidden">
+          <div className="flex flex-col items-center justify-center py-16 gap-4 w-full">
+            {/* Half-width progress bar — visible blue */}
+            <div className="w-1/2 max-w-[275px] rounded-full overflow-hidden" style={{ height: "3px", backgroundColor: "rgba(59,130,246,0.15)" }}>
               <div
-                className="h-full rounded-full"
+                className="h-full rounded-full transition-all duration-1000 ease-out"
                 style={{
+                  width: `${((scanStage + 1) / scanStages.length) * 100}%`,
                   background: "linear-gradient(90deg, #3b82f6, #2563eb)",
-                  animation: "scanProgress 1.8s ease-in-out infinite",
-                  width: "40%",
                 }}
               />
             </div>
-            <p className="text-sm text-slate-400">Scanning emails...</p>
-            <style>{`
-              @keyframes scanProgress {
-                0% { transform: translateX(-100%); }
-                50% { transform: translateX(200%); }
-                100% { transform: translateX(-100%); }
-              }
-            `}</style>
+            {/* Current stage text */}
+            <p
+              className="text-[13px] font-medium text-[#627c9e] transition-opacity duration-300"
+              style={{ fontFamily: "var(--font-geist-sans), 'Geist', sans-serif" }}
+            >
+              {scanStages[scanStage]}
+            </p>
           </div>
         ) : cards.length === 0 ? (
           <div className="text-center py-20">

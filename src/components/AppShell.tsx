@@ -23,16 +23,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     return <>{children}</>;
   }
 
-  // New Motion layout — minimal floating sidebar
+  // New Motion layout — sidebar floats over full-width content
   if (isMotionRoute(pathname)) {
     return (
-      <div className="flex h-screen overflow-hidden bg-[#f6f5f5]">
+      <div className="relative h-screen overflow-hidden bg-[#f6f5f5]">
+        <main className="h-full w-full overflow-y-auto">
+          {children}
+        </main>
         <Suspense>
           <Sidebar />
         </Suspense>
-        <main className="flex-1 overflow-y-auto">
-          {children}
-        </main>
       </div>
     );
   }

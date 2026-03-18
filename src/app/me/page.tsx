@@ -71,11 +71,11 @@ export default function MePage() {
         backgroundRepeat: "no-repeat",
       }}
     >
-      <div className="mx-auto py-6 flex flex-col gap-[24px] items-center" style={{ width: "499px" }}>
+      <div className="mx-auto py-6 flex flex-col gap-[24px] items-center" style={{ width: "550px" }}>
         {/* Header card */}
         <div
-          className="flex flex-col gap-[12px] items-start p-[12px] rounded-[12px] shadow-[0px_0px_60px_0px_rgba(0,0,0,0.12)] w-full"
-          style={{ backgroundColor: "rgba(255,244,224,0.2)" }}
+          className="flex flex-col gap-[12px] items-start p-[12px] rounded-[12px] shadow-[0px_0px_40px_0px_rgba(0,0,0,0.08)] w-full"
+          style={{ backgroundColor: "rgba(236,250,255,0.6)" }}
         >
           <div className="flex gap-[6px] items-end pr-[6px] w-full">
             <img

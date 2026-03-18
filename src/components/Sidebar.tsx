@@ -36,17 +36,17 @@ export function Sidebar() {
 
   return (
     <aside
-      className="shrink-0 relative"
-      style={{ width: "175px", paddingTop: "100px", paddingLeft: "37px" }}
+      className="fixed z-50"
+      style={{ left: "47px", top: "50%", transform: "translateY(-50%)" }}
     >
-      {/* ── White card container — 163px wide, 410px tall ── */}
+      {/* ── White card container — 169px wide, 410px tall ── */}
       <div
-        className="relative bg-white rounded-[12px]"
+        className="relative rounded-[12px]"
         style={{
-          width: "163px",
+          width: "169px",
           height: "410px",
-          marginLeft: "6px",
-          boxShadow: "0px 0px 200px 0px rgba(0,0,0,0.3)",
+          background: "rgba(255,255,255,0)",
+          boxShadow: "0px 0px 40px 0px rgba(0,0,0,0.08)",
         }}
       >
         {/* ── Navigation items — top-left ── */}
@@ -81,10 +81,10 @@ export function Sidebar() {
                     className="relative block capitalize whitespace-nowrap"
                     style={{
                       fontFamily: "var(--font-geist-sans), 'Geist', sans-serif",
-                      fontSize: "14px",
+                      fontSize: "12px",
                       fontWeight: 500,
                       lineHeight: "18px",
-                      letterSpacing: "-0.42px",
+                      letterSpacing: "-0.36px",
                       color: active ? "white" : "#1e252a",
                     }}
                   >
