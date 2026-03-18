@@ -44,6 +44,7 @@ export default function ClearingPage() {
   const [dragOver, setDragOver] = useState(false);
   const [loadingSessions, setLoadingSessions] = useState(true);
   const [showGopherMenu, setShowGopherMenu] = useState(false);
+  const [showConversations, setShowConversations] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -389,7 +390,7 @@ export default function ClearingPage() {
 
   return (
     <div
-      className="min-h-full relative"
+      className="min-h-full relative px-6"
       style={{
         backgroundImage: "url('/icons/chat-background.png')",
         backgroundSize: "cover",
@@ -411,11 +412,11 @@ export default function ClearingPage() {
       )}
 
       {/* ══════════════════════════════════════════════════════════════════
-          HEADER — Centered, 548px, same as Motion per Figma 61:413
+          HEADER — Centered, max 548px, same as Motion per Figma 61:413
           ══════════════════════════════════════════════════════════════════ */}
       <div
-        className="mx-auto flex flex-col gap-[12px] items-start p-[12px] rounded-[12px] shadow-[0px_0px_40px_0px_rgba(0,0,0,0.08)]"
-        style={{ backgroundColor: "rgba(236,250,255,0.6)", width: "548px", marginTop: "52px" }}
+        className="mx-auto flex flex-col gap-[12px] items-start p-[12px] rounded-[12px] shadow-[0px_0px_40px_0px_rgba(0,0,0,0.08)] w-full"
+        style={{ backgroundColor: "rgba(236,250,255,0.6)", maxWidth: "548px", marginTop: "52px" }}
       >
         <div className="flex gap-[6px] items-end pr-[6px] w-full">
           <img
@@ -455,103 +456,48 @@ export default function ClearingPage() {
         </p>
       </div>
 
-      {/* ══════════════════════════════════════════════════════════════════
-          CONVERSATIONS PANEL — Separate floating card per Figma 61:510
-          180px wide, positioned left of main chat area
-          ══════════════════════════════════════════════════════════════════ */}
-      <div
-        className="absolute rounded-[12px]"
-        style={{
-          left: "232px",
-          top: "189px",
-          width: "180px",
-          background: "rgba(0,0,0,0)",
-          boxShadow: "0px 0px 40px 0px rgba(0,0,0,0.08)",
-        }}
-      >
-        {/* Header */}
-        <div
-          className="flex items-center justify-between p-[6px] rounded-tl-[12px] rounded-tr-[12px]"
-          style={{ borderBottom: "0.5px solid #c7d2e5" }}
-        >
-          <span
-            className="text-[12px] font-medium text-[#1e252a] leading-[14px] tracking-[-0.12px] whitespace-nowrap"
-            style={{ fontFamily: "var(--font-geist-sans), 'Geist', sans-serif" }}
-          >
-            Conversations
-          </span>
-          <button onClick={newSession}>
-            <img src="/icons/more-horizontal.svg" alt="" className="w-[24px] h-[24px]" />
-          </button>
-        </div>
-
-        {/* Active pill for first item */}
-        <div className="absolute bg-white rounded-tr-[18px] rounded-br-[18px]" style={{ left: "3px", top: "38px", width: "173px", height: "18px" }} />
-
-        {/* Session list */}
-        <div
-          className="flex flex-col gap-[12px] items-start pt-[8px]"
-          style={{ paddingLeft: "6px", width: "168px" }}
-        >
-          {loadingSessions ? (
-            <span className="text-[12px] text-[#9ca5a9]" style={{ fontFamily: "var(--font-geist-sans), 'Geist', sans-serif" }}>
-              Loading...
-            </span>
-          ) : activeSessions.map((s, idx) => (
-            <div key={s.id} className="flex items-center justify-between w-full group">
-              <button
-                onClick={() => setActiveSessionId(s.id)}
-                className="text-left flex-1 overflow-hidden text-ellipsis"
-                style={{
-                  fontFamily: "var(--font-geist-sans), 'Geist', sans-serif",
-                  fontSize: "12px",
-                  fontWeight: 500,
-                  lineHeight: "16px",
-                  letterSpacing: "-0.24px",
-                  color: s.id === activeSessionId ? "#1e252a" : "#1e252a",
-                  position: "relative",
-                  zIndex: idx === 0 && s.id === activeSessionId ? 1 : 0,
-                }}
-              >
-                {s.title}
-              </button>
-              {activeSessions.length > 1 && (
-                <button
-                  onClick={() => dissolveSession(s.id)}
-                  className="opacity-0 group-hover:opacity-100 transition-opacity text-[#9ca5a9] hover:text-[#627c9e] text-[12px] ml-1 shrink-0"
-                  title="Dissolve"
-                >
-                  ×
-                </button>
-              )}
-            </div>
-          ))}
-        </div>
-      </div>
+      {/* Conversations panel is now toggled via button in the chat card top bar */}
 
       {/* ══════════════════════════════════════════════════════════════════
-          MAIN CHAT CARD — Centered, 551px, per Figma 61:458
+          MAIN CHAT CARD — Centered, max 551px, responsive
           bg rgba(255,255,255,0.6), rounded-12, shadow 60px
           ══════════════════════════════════════════════════════════════════ */}
       <div
-        className="mx-auto rounded-[12px] flex flex-col"
+        className="mx-auto rounded-[12px] flex flex-col w-full relative"
         style={{
           backgroundColor: "rgba(255,255,255,0.6)",
-          width: "551px",
+          maxWidth: "551px",
           height: "838px",
           marginTop: "24px",
           boxShadow: "0px 0px 60px 0px rgba(0,0,0,0.12)",
         }}
       >
         <div className="flex flex-col gap-[24px] items-start p-[12px] pt-[16px] flex-1 overflow-hidden">
-          {/* ── Top bar: Last Conversation + Share ── */}
-          <div className="flex items-center justify-between w-full" style={{ width: "524px" }}>
-            <span
-              className="text-[10px] font-medium text-[#9ca5a9] leading-[10px] whitespace-nowrap"
-              style={{ fontFamily: "var(--font-geist-sans), 'Geist', sans-serif" }}
-            >
-              {lastConversationText()}
-            </span>
+          {/* ── Top bar: Conversations toggle + Last Conversation + Share ── */}
+          <div className="flex items-center justify-between w-full">
+            <div className="flex gap-[8px] items-center">
+              <button
+                className="flex gap-[6px] items-center px-[12px] py-[5px] rounded-[16px] transition-colors"
+                style={{
+                  backgroundColor: showConversations ? "#dbeafe" : "#eef2f5",
+                  border: showConversations ? "1px solid #93c5fd" : "1px solid #b0b8bb",
+                }}
+                onClick={() => setShowConversations(!showConversations)}
+              >
+                <span
+                  className="text-[11px] font-semibold text-[#1e252a] leading-[14px] tracking-[-0.22px] whitespace-nowrap"
+                  style={{ fontFamily: "var(--font-geist-sans), 'Geist', sans-serif" }}
+                >
+                  {activeSessions.length > 1 ? `Conversations (${activeSessions.length})` : "Conversations"}
+                </span>
+              </button>
+              <span
+                className="text-[10px] font-medium text-[#9ca5a9] leading-[10px] whitespace-nowrap"
+                style={{ fontFamily: "var(--font-geist-sans), 'Geist', sans-serif" }}
+              >
+                {lastConversationText()}
+              </span>
+            </div>
             <button className="flex gap-[6px] items-center px-[12px] py-[6px] rounded-[16px] mix-blend-multiply">
               <img src="/icons/share.svg" alt="" className="w-[16px] h-[16px]" />
               <span
@@ -563,8 +509,65 @@ export default function ClearingPage() {
             </button>
           </div>
 
+          {/* ── Floating Conversations panel (toggled) ── */}
+          {showConversations && (
+            <div
+              className="absolute left-[12px] top-[48px] z-40 flex flex-col gap-[8px] pb-[12px] rounded-[12px] bg-white"
+              style={{ width: "200px", maxHeight: "350px", boxShadow: "0px 0px 40px 0px rgba(0,0,0,0.18)" }}
+            >
+              <div
+                className="flex items-center justify-between p-[6px] rounded-t-[12px]"
+                style={{ borderBottom: "0.5px solid #c7d2e5" }}
+              >
+                <span
+                  className="text-[12px] font-medium text-[#1e252a] leading-[14px] tracking-[-0.12px] whitespace-nowrap"
+                  style={{ fontFamily: "var(--font-geist-sans), 'Geist', sans-serif" }}
+                >
+                  Conversations
+                </span>
+                <button onClick={() => setShowConversations(false)} className="text-[#9ca5a9] hover:text-[#1e252a] text-[14px] px-1">×</button>
+              </div>
+              <div className="flex flex-col gap-[10px] items-start px-[6px] overflow-y-auto flex-1 w-full">
+                {loadingSessions ? (
+                  <span className="text-[12px] text-[#9ca5a9]" style={{ fontFamily: "var(--font-geist-sans), 'Geist', sans-serif" }}>Loading...</span>
+                ) : activeSessions.map((s) => (
+                  <div key={s.id} className="flex items-center justify-between w-full group">
+                    <button
+                      onClick={() => { setActiveSessionId(s.id); setShowConversations(false); }}
+                      className="text-left flex-1 min-w-0"
+                      style={{
+                        fontFamily: "var(--font-geist-sans), 'Geist', sans-serif",
+                        fontSize: "12px",
+                        fontWeight: s.id === activeSessionId ? 600 : 500,
+                        lineHeight: "16px",
+                        letterSpacing: "-0.24px",
+                        color: "#1e252a",
+                      }}
+                    >
+                      <span className="block truncate">{s.title}</span>
+                    </button>
+                    {activeSessions.length > 1 && (
+                      <button
+                        onClick={() => dissolveSession(s.id)}
+                        className="opacity-0 group-hover:opacity-100 transition-opacity text-[#9ca5a9] hover:text-[#627c9e] text-[12px] ml-1 shrink-0"
+                        title="Dissolve"
+                      >×</button>
+                    )}
+                  </div>
+                ))}
+                <button
+                  onClick={() => { newSession(); setShowConversations(false); }}
+                  className="text-[12px] text-[#627c9e] font-medium"
+                  style={{ fontFamily: "var(--font-geist-sans), 'Geist', sans-serif" }}
+                >
+                  + New Conversation
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* ── Messages area ── */}
-          <div className="flex-1 overflow-y-auto flex flex-col gap-[16px] w-full" style={{ width: "527px" }}>
+          <div className="flex-1 overflow-y-auto flex flex-col gap-[16px] w-full">
             {activeSession && activeSession.messages.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full w-full text-center pt-[100px]">
                 <p
@@ -630,7 +633,7 @@ export default function ClearingPage() {
       {/* ══════════════════════════════════════════════════════════════════
           INPUT BAR + ACTION PILLS — Centered, 550px, per Figma 61:479
           ══════════════════════════════════════════════════════════════════ */}
-      <div className="mx-auto" style={{ width: "550px", marginTop: "16px", marginBottom: "24px" }}>
+      <div className="mx-auto w-full" style={{ maxWidth: "550px", marginTop: "16px", marginBottom: "24px" }}>
         {/* Input bar */}
         <div
           className="flex items-center justify-between bg-white rounded-[12px] shadow-[0px_0px_6px_0px_rgba(0,0,0,0.18)] px-[14px] py-[18px] w-full"
