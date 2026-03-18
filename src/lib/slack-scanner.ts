@@ -13,6 +13,7 @@ import { computeFeedbackForEntities } from "./feedback-engine";
 import { loadTaxonomy, matchTaxonomyCategory, buildTaxonomyPromptSection, enforcePriorityRules } from "./taxonomy-loader";
 import { loadStandingOrders, buildStandingOrdersPromptSection } from "./instruction-loader";
 import { recomputeKCSForEntities } from "./entity-intelligence";
+import { emitFeedCard, inferCardType } from "./feed-card-emitter";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -818,6 +819,51 @@ export async function runSlackScanner(
             await sb.schema('brain').from("tasks").insert(taskPayload);
             tasksCreated++;
             addLog(`  Task created [${taskPriority}${taskPriority !== action.priority ? ` ↑ from ${action.priority}` : ""}]: ${action.title.slice(0, 80)}`);
+          }
+
+          // ── Emit feed card ──
+          try {
+            const cardType = inferCardType({
+              acumen_category: taxonomySlug || undefined,
+              priority: enforcedPriority,
+              action_items: result.action_items,
+              summary: result.summary,
+            });
+
+            await emitFeedCard(sb, {
+              card_type: cardType,
+              title: result.summary,
+              body: result.action_items.length > 0
+                ? result.action_items[0].summary || result.summary
+                : result.summary,
+              reasoning: result.action_items[0]?.recommended_action || undefined,
+              source_type: "slack_scanner",
+              source_ref: msgId,
+              acumen_category: taxonomySlug || undefined,
+              priority: enforcedPriority as "critical" | "high" | "medium" | "low",
+              confidence: result.action_items[0]?.goal_relevance_score
+                ? result.action_items[0].goal_relevance_score / 10
+                : undefined,
+              visibility_scope: "personal",
+              entity_id: entityId || undefined,
+              entity_type: entityType || undefined,
+              entity_name: result.primary_entity_name || undefined,
+              metadata: {
+                channel: channel.name,
+                channel_id: channel.id,
+                sender: userProfile.name,
+                sender_email: userProfile.email,
+                slack_ts: msg.ts,
+                thread_ts: msg.thread_ts || null,
+                tags: result.tags,
+                sentiment: result.sentiment,
+                action_recommendation: result.action_items[0]?.recommended_action || null,
+                draft_reply: result.draft_reply || null,
+              },
+              agent_run_id: runId || undefined,
+            }, addLog);
+          } catch (e) {
+            addLog(`  Feed card emission failed: ${e instanceof Error ? e.message : String(e)}`);
           }
 
           // ── Log activity (Phase 1D: enriched metadata for content-aware routing) ──
