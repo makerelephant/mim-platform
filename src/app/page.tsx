@@ -19,7 +19,7 @@ export default function MotionFeedPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [searching, setSearching] = useState(false);
   const [activeFilter, setActiveFilter] = useState<string | null>(null);
-  const limit = 30;
+  const limit = 12;
 
   // ── Load feed cards ──
   const loadCards = useCallback(async (newOffset: number, append: boolean, filterType?: string | null) => {
