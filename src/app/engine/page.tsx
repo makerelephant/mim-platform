@@ -22,9 +22,20 @@ interface AccuracyCategory {
   needs_attention: boolean;
 }
 
+interface PriorityCalibrationRow {
+  priority: string;
+  justified_rate: number | null;
+  target: number;
+  total: number;
+  calibrated: boolean | null;
+}
+
 interface AccuracyData {
   success: boolean;
   total_acted: number;
+  dismissed_count: number;
+  snr: number | null;
+  priority_calibration: PriorityCalibrationRow[] | null;
   overall: {
     accuracy: number | null;
     total: number;
@@ -202,6 +213,82 @@ export default function EngineRoomPage() {
                   <StatCard label="Approved (Do)" value={String(accuracy.overall.approved)} color="text-emerald-600" />
                   <StatCard label="Rejected (No)" value={String(accuracy.overall.rejected)} color="text-red-500" />
                 </div>
+
+                {/* ── Signal-to-Noise Ratio ── */}
+                {accuracy.snr !== null && (
+                  <div className="bg-white rounded-xl shadow-sm p-5">
+                    <div className="flex items-start justify-between mb-3">
+                      <div>
+                        <h3 className="text-sm font-bold text-[#1e252a]">Signal Quality</h3>
+                        <p className="text-xs text-[#94A3B8] mt-0.5">What % of surfaced cards deserved your attention</p>
+                      </div>
+                      <span
+                        className={`text-2xl font-bold ${
+                          accuracy.snr >= 80 ? "text-emerald-600" : accuracy.snr >= 60 ? "text-amber-500" : "text-red-500"
+                        }`}
+                      >
+                        {accuracy.snr}%
+                      </span>
+                    </div>
+                    <div className="h-2 bg-[#f0f0f0] rounded-full overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all ${
+                          accuracy.snr >= 80 ? "bg-emerald-400" : accuracy.snr >= 60 ? "bg-amber-400" : "bg-red-400"
+                        }`}
+                        style={{ width: `${accuracy.snr}%` }}
+                      />
+                    </div>
+                    <div className="flex justify-between mt-2">
+                      <span className="text-[10px] text-[#94A3B8]">
+                        {accuracy.overall.approved + accuracy.overall.held} useful · {accuracy.overall.rejected + (accuracy.dismissed_count ?? 0)} noise
+                      </span>
+                      <span className={`text-[10px] font-medium ${accuracy.snr >= 80 ? "text-emerald-600" : accuracy.snr >= 60 ? "text-amber-500" : "text-red-500"}`}>
+                        {accuracy.snr >= 80 ? "Clean feed" : accuracy.snr >= 60 ? "Noise building" : "Too much noise"}
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                {/* ── Priority Calibration ── */}
+                {accuracy.priority_calibration && accuracy.priority_calibration.some(p => p.total > 0) && (
+                  <div className="bg-white rounded-xl shadow-sm p-5">
+                    <div className="mb-3">
+                      <h3 className="text-sm font-bold text-[#1e252a]">Priority Calibration</h3>
+                      <p className="text-xs text-[#94A3B8] mt-0.5">When the brain says critical, is it actually critical?</p>
+                    </div>
+                    <div className="space-y-3">
+                      {accuracy.priority_calibration.map((row) => {
+                        const hasData = row.total > 0;
+                        const isLow = row.priority === "low";
+                        const good = row.calibrated === true;
+                        const bad = row.calibrated === false;
+                        return (
+                          <div key={row.priority} className="flex items-center gap-3">
+                            <span className="text-xs font-medium text-[#64748B] capitalize w-16">{row.priority}</span>
+                            <div className="flex-1 h-2 bg-[#f0f0f0] rounded-full overflow-hidden">
+                              {hasData && row.justified_rate !== null ? (
+                                <div
+                                  className={`h-full rounded-full ${good ? "bg-emerald-400" : bad ? "bg-red-400" : "bg-amber-400"}`}
+                                  style={{ width: `${row.justified_rate}%` }}
+                                />
+                              ) : null}
+                            </div>
+                            <span className={`text-xs font-semibold w-10 text-right ${good ? "text-emerald-600" : bad ? "text-red-500" : "text-[#94A3B8]"}`}>
+                              {hasData && row.justified_rate !== null ? `${row.justified_rate}%` : "—"}
+                            </span>
+                            <span className="text-[10px] text-[#94A3B8] w-24 text-right">
+                              {hasData ? (
+                                isLow
+                                  ? `target <${row.target}% · ${row.total} cards`
+                                  : `target ≥${row.target}% · ${row.total} cards`
+                              ) : "no data yet"}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
 
                 {/* By card type */}
                 {accuracy.by_type && accuracy.by_type.length > 0 && (

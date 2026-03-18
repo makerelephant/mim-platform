@@ -35,13 +35,27 @@ export async function GET() {
       return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     }
 
+    // Also fetch dismissed cards (external sources only) for SNR computation
+    const { data: dismissedCards } = await sb
+      .schema("brain")
+      .from("feed_cards")
+      .select("id")
+      .eq("status", "dismissed")
+      .in("source_type", ["gmail_scanner", "slack_scanner", "sheets_scanner", "news_scanner", "ingestion"])
+      .not("card_type", "in", '("briefing","reflection","snapshot")');
+
+    const dismissedCount = dismissedCards?.length ?? 0;
+
     if (!actedCards || actedCards.length === 0) {
       return NextResponse.json({
         success: true,
         message: "No acted cards yet — need CEO feedback to compute accuracy.",
         total_acted: 0,
+        dismissed_count: dismissedCount,
         categories: [],
         overall: { accuracy: null, total: 0, approved: 0, rejected: 0, held: 0 },
+        snr: null,
+        priority_calibration: null,
       });
     }
 
@@ -159,9 +173,49 @@ export async function GET() {
       }
     }
 
+    // ── Signal-to-Noise Ratio ──
+    // worth_seeing = do + not_now (held for a reason)
+    // noise        = no + dismissed + should_not_exist Train corrections
+    const worthSeeing = totalApproved + totalHeld;
+    const noiseCount = totalRejected + dismissedCount + corrections.should_not_exist;
+    const snrTotal = worthSeeing + noiseCount;
+    const snr = snrTotal > 0 ? Math.round((worthSeeing / snrTotal) * 100) : null;
+
+    // ── Priority Calibration ──
+    // For each priority level: justified_rate = (do + not_now) / (do + not_now + no)
+    const PRIORITY_LEVELS = ["critical", "high", "medium", "low"] as const;
+    const PRIORITY_TARGETS: Record<string, number> = { critical: 90, high: 65, medium: 35, low: 20 };
+
+    const priorityBuckets: Record<string, { do: number; not_now: number; no: number; total: number }> = {};
+    for (const p of PRIORITY_LEVELS) {
+      priorityBuckets[p] = { do: 0, not_now: 0, no: 0, total: 0 };
+    }
+
+    for (const card of actedCards) {
+      const p = (card.priority || "medium") as string;
+      if (!priorityBuckets[p]) priorityBuckets[p] = { do: 0, not_now: 0, no: 0, total: 0 };
+      priorityBuckets[p].total++;
+      if (card.ceo_action === "do") priorityBuckets[p].do++;
+      else if (card.ceo_action === "not_now") priorityBuckets[p].not_now++;
+      else if (card.ceo_action === "no") priorityBuckets[p].no++;
+    }
+
+    const priorityCalibration = PRIORITY_LEVELS.map((p) => {
+      const b = priorityBuckets[p];
+      const justified = b.do + b.not_now;
+      const rated = justified + b.no;
+      const rate = rated > 0 ? Math.round((justified / rated) * 100) : null;
+      const target = PRIORITY_TARGETS[p];
+      const calibrated = rate !== null ? (p === "low" ? rate <= target : rate >= target) : null;
+      return { priority: p, justified_rate: rate, target, total: b.total, calibrated };
+    });
+
     return NextResponse.json({
       success: true,
       total_acted: actedCards.length,
+      dismissed_count: dismissedCount,
+      snr,
+      priority_calibration: priorityCalibration,
       overall: {
         accuracy: overallAccuracy,
         total: actedCards.length,
