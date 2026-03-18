@@ -34,8 +34,11 @@ export default function MotionFeedPage() {
   const loadCards = useCallback(async (newOffset: number, append: boolean, filterType?: string | null) => {
     try {
       const typeParam = filterType !== undefined ? filterType : activeFilter;
-      let feedUrl = `/api/feed?status=unread,read,acted&limit=${limit}&offset=${newOffset}`;
-      if (typeParam) feedUrl += `&card_type=${typeParam}`;
+      // "done" is a special status filter — shows acted cards only
+      const isDone = typeParam === "done";
+      const statusParam = isDone ? "acted" : "unread,read";
+      let feedUrl = `/api/feed?status=${statusParam}&limit=${limit}&offset=${newOffset}`;
+      if (typeParam && !isDone) feedUrl += `&card_type=${typeParam}`;
       const res = await fetch(feedUrl);
       const data = await res.json();
       if (data.cards) {
@@ -278,6 +281,7 @@ export default function MotionFeedPage() {
             { key: "signal", label: "Signals" },
             { key: "intelligence", label: "Intel" },
             { key: "briefing", label: "Briefings" },
+            { key: "done", label: "Old" },
           ].map((f) => (
             <button
               key={f.key || "all"}
