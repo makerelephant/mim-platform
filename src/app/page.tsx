@@ -34,7 +34,7 @@ export default function MotionFeedPage() {
   const loadCards = useCallback(async (newOffset: number, append: boolean, filterType?: string | null) => {
     try {
       const typeParam = filterType !== undefined ? filterType : activeFilter;
-      let feedUrl = `/api/feed?status=unread,read&limit=${limit}&offset=${newOffset}`;
+      let feedUrl = `/api/feed?status=unread,read,acted&limit=${limit}&offset=${newOffset}`;
       if (typeParam) feedUrl += `&card_type=${typeParam}`;
       const res = await fetch(feedUrl);
       const data = await res.json();
