@@ -69,6 +69,8 @@ export function inferCardType(classification: {
   priority?: string | null;
   action_items?: Array<{ title: string }>;
   summary?: string | null;
+  has_draft_reply?: boolean;
+  source_type?: string | null;
 }): CardType {
   const family = (classification.acumen_family || "").toLowerCase();
   const priority = (classification.priority || "").toLowerCase();
@@ -86,6 +88,11 @@ export function inferCardType(classification: {
   // Families that typically need decisions
   if (["partnership", "fundraising", "legal", "finance"].includes(family)) {
     return "decision";
+  }
+
+  // Slack messages where Claude generated a draft reply → action (a reply is needed)
+  if (classification.has_draft_reply && classification.source_type === "slack_scanner") {
+    return "action";
   }
 
   // Everything else is a signal
@@ -214,33 +221,72 @@ export async function emitFeedCard(
     }
   }
 
+  const cardPayload = {
+    card_type: input.card_type,
+    title: input.title,
+    body: input.body || null,
+    reasoning: input.reasoning || null,
+    source_type: input.source_type,
+    source_ref: input.source_ref || null,
+    acumen_family: input.acumen_family || null,
+    acumen_category: input.acumen_category || null,
+    priority: input.priority || "medium",
+    confidence: input.confidence || null,
+    visibility_scope: input.visibility_scope || "personal",
+    entity_id: input.entity_id || null,
+    entity_type: input.entity_type || null,
+    entity_name: input.entity_name || null,
+    related_entities: input.related_entities || [],
+    metadata: input.metadata || {},
+    expires_at: input.expires_at || null,
+    classification_log_id: input.classification_log_id || null,
+    agent_run_id: input.agent_run_id || null,
+    thread_id: threadId || null,
+    message_count: 1,
+    thread_updated_at: new Date().toISOString(),
+  };
+
+  // If source_ref is present, check for an existing card and update it
+  // (handles re-scans fixing bad classification data from a prior run)
+  if (input.source_ref) {
+    const { data: existing } = await sb
+      .schema("brain")
+      .from("feed_cards")
+      .select("id, status")
+      .eq("source_ref", input.source_ref)
+      .limit(1)
+      .single();
+
+    if (existing) {
+      const { data, error } = await sb
+        .schema("brain")
+        .from("feed_cards")
+        .update({
+          ...cardPayload,
+          // Preserve acted/dismissed status — don't resurface old resolved cards
+          status: existing.status === "acted" || existing.status === "dismissed"
+            ? existing.status
+            : "unread",
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", existing.id)
+        .select()
+        .single();
+
+      if (error) {
+        addLog(`  Feed card update failed: ${error.message}`);
+        return null;
+      }
+
+      addLog(`  Feed card updated: [${input.card_type}] ${input.title.slice(0, 60)}`);
+      return data as FeedCard;
+    }
+  }
+
   const { data, error } = await sb
     .schema("brain")
     .from("feed_cards")
-    .insert({
-      card_type: input.card_type,
-      title: input.title,
-      body: input.body || null,
-      reasoning: input.reasoning || null,
-      source_type: input.source_type,
-      source_ref: input.source_ref || null,
-      acumen_family: input.acumen_family || null,
-      acumen_category: input.acumen_category || null,
-      priority: input.priority || "medium",
-      confidence: input.confidence || null,
-      visibility_scope: input.visibility_scope || "personal",
-      entity_id: input.entity_id || null,
-      entity_type: input.entity_type || null,
-      entity_name: input.entity_name || null,
-      related_entities: input.related_entities || [],
-      metadata: input.metadata || {},
-      expires_at: input.expires_at || null,
-      classification_log_id: input.classification_log_id || null,
-      agent_run_id: input.agent_run_id || null,
-      thread_id: threadId || null,
-      message_count: 1,
-      thread_updated_at: new Date().toISOString(),
-    })
+    .insert(cardPayload)
     .select()
     .single();
 
@@ -349,7 +395,8 @@ export async function embedCorrespondence(
       chunk_index: idx,
       content: chunk,
       token_count: estimateTokens(chunk),
-      embedding: JSON.stringify(embeddings[idx]),
+      // pgvector text format: [n1,n2,...] — no spaces, bracket-wrapped
+      embedding: `[${embeddings[idx].join(",")}]`,
     }));
 
     const { error } = await sb

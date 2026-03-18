@@ -330,7 +330,8 @@ Respond with ONLY a JSON object:
               chunk_index: idx,
               content: chunk,
               token_count: estimateTokens(chunk),
-              embedding: JSON.stringify(embeddings[idx]),
+              // pgvector text format: [n1,n2,...] — no spaces, bracket-wrapped
+              embedding: `[${embeddings[idx].join(",")}]`,
               metadata: {
                 title,
                 source_type: sourceType,

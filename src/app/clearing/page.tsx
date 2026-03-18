@@ -159,16 +159,10 @@ export default function ClearingPage() {
     const text = input.trim();
     setInput("");
 
-    const isQuery = text.endsWith("?") || text.toLowerCase().startsWith("help me") ||
-      text.toLowerCase().startsWith("show me") || text.toLowerCase().startsWith("what") ||
-      text.toLowerCase().startsWith("who") || text.toLowerCase().startsWith("how") ||
-      text.toLowerCase().startsWith("why") || text.toLowerCase().startsWith("prepare") ||
-      text.toLowerCase().startsWith("think through");
-
     addMessage({
       role: "user",
       content: text,
-      type: isQuery ? "query" : "thought",
+      type: "query",
     });
 
     // Auto-title session from first message
@@ -177,7 +171,6 @@ export default function ClearingPage() {
       setSessions((prev) =>
         prev.map((s) => (s.id === activeSessionId ? { ...s, title: autoTitle } : s))
       );
-      // Persist title update
       fetch("/api/clearing/sessions", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -185,50 +178,32 @@ export default function ClearingPage() {
       }).catch(() => {});
     }
 
-    if (isQuery) {
-      setThinking(true);
-      try {
-        const res = await fetch("/api/brain/ask", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ question: text }),
-        });
-        const data = await res.json();
-        addMessage({
-          role: "brain",
-          content: data.answer || data.error || "No response from brain.",
-          type: "response",
-        });
-      } catch {
-        addMessage({
-          role: "brain",
-          content: "Failed to reach the brain. Try again.",
-          type: "response",
-        });
-      } finally {
-        setThinking(false);
-      }
-    } else {
-      try {
-        await fetch("/api/brain/ingest", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            text,
-            title: text.slice(0, 60),
-            source_type: "clearing",
-            uploaded_by: "ceo",
-            tags: ["thought-stream", "clearing"],
-          }),
-        });
-        addMessage({
-          role: "brain",
-          content: "Absorbed. I'll reference this when it's relevant.",
-          type: "response",
-        });
-      } catch {
-        // Silent — thought capture shouldn't feel transactional
-      }
+    setThinking(true);
+    try {
+      const res = await fetch("/api/brain/ask", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          question: text,
+          persist: true,
+          scope: "clearing",
+          session_id: activeSessionId,
+        }),
+      });
+      const data = await res.json();
+      addMessage({
+        role: "brain",
+        content: data.answer || data.error || "No response from brain.",
+        type: "response",
+      });
+    } catch {
+      addMessage({
+        role: "brain",
+        content: "Failed to reach the brain. Try again.",
+        type: "response",
+      });
+    } finally {
+      setThinking(false);
     }
   }
 
@@ -256,19 +231,38 @@ export default function ClearingPage() {
           method: "POST",
           body: formData,
         });
-        const data = await res.json();
+
+        // Always try to parse JSON — if the response isn't JSON (e.g. a Vercel
+        // 504 timeout HTML page), surface the HTTP status so it's diagnosable.
+        let data: { success: boolean; summary?: string; error?: string } | null = null;
+        try {
+          data = await res.json();
+        } catch {
+          addMessage({
+            role: "brain",
+            content: `Failed to ingest ${file.name} — server returned HTTP ${res.status}. ${
+              res.status === 504
+                ? "The file took too long to process (PDF timeout). Try a smaller file or a plain text/docx version."
+                : res.status === 413
+                  ? "File is too large for the server to accept."
+                  : "Unexpected server error — check Vercel logs."
+            }`,
+            type: "response",
+          });
+          continue;
+        }
 
         addMessage({
           role: "brain",
-          content: data.success
+          content: data?.success
             ? `Absorbed ${file.name}. ${data.summary || ""}`
-            : `Failed to process ${file.name}: ${data.error}`,
+            : `Failed to process ${file.name}: ${data?.error || "Unknown error"}`,
           type: "response",
         });
-      } catch {
+      } catch (err) {
         addMessage({
           role: "brain",
-          content: `Failed to ingest ${file.name}. Try again.`,
+          content: `Failed to ingest ${file.name}: ${err instanceof Error ? err.message : "Network error"}`,
           type: "response",
         });
       } finally {

@@ -63,18 +63,30 @@ export async function POST(request: NextRequest) {
       const questionEmbedding = await embedText(question);
       if (questionEmbedding) {
         // Search knowledge chunks via RPC
-        const [{ data: kbVectorResults }, { data: corrVectorResults }] = await Promise.all([
+        // Pass embedding as a JSON string — pgvector text input function parses [n1,n2,...] format
+        const embeddingStr = `[${questionEmbedding.join(",")}]`;
+        const [kbResult, corrResult] = await Promise.all([
           sb.schema("brain").rpc("search_knowledge", {
-            query_embedding: JSON.stringify(questionEmbedding),
-            match_threshold: 0.7,
+            query_embedding: embeddingStr,
+            match_threshold: 0.3,
             match_count: 8,
           }),
           sb.schema("brain").rpc("search_correspondence", {
-            query_embedding: JSON.stringify(questionEmbedding),
-            match_threshold: 0.7,
+            query_embedding: embeddingStr,
+            match_threshold: 0.3,
             match_count: 8,
           }),
         ]);
+
+        if (kbResult.error) {
+          console.error("search_knowledge RPC error:", kbResult.error.message, kbResult.error.details);
+        }
+        if (corrResult.error) {
+          console.error("search_correspondence RPC error:", corrResult.error.message, corrResult.error.details);
+        }
+
+        const kbVectorResults = kbResult.data;
+        const corrVectorResults = corrResult.data;
 
         if (kbVectorResults && kbVectorResults.length > 0) {
           contextParts.push("## Knowledge Base (Vector Search)\n");
@@ -105,7 +117,7 @@ export async function POST(request: NextRequest) {
         }
       }
     } catch (vecErr) {
-      console.warn("Vector search failed (falling back to keyword):", vecErr);
+      console.error("Vector search exception (falling back to keyword):", vecErr);
     }
 
     // ── 3. Knowledge keyword search ──

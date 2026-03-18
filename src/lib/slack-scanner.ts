@@ -140,13 +140,23 @@ Respond with ONLY a JSON object in this exact format:
 }
 
 IMPORTANT:
-- If there are no action items, return an empty array []
 - Task titles should be actionable and specific (e.g., "Follow up with Sequoia on term sheet" not "Follow up")
 - Only extract genuine action items that require the user to do something
 - Skip bot messages, automated notifications, and trivial chatter
 - For threaded conversations, focus on the latest actionable content
 - When you find an org name mentioned in the message that matches the known org list, use that org as the primary entity even if the sender wasn't matched
 - Generate a "draft_reply" — a ready-to-send 2-3 sentence Slack reply when the message warrants a response. Write it as if Mark (the CEO) is replying. Set to null for bot messages, automated notifications, or messages that don't need a reply.
+
+ACTION ITEM EXTRACTION RULES — always extract an action item when:
+- The message @mentions or tags Mark Slater (he was personally addressed — he must respond)
+- A link, document, or resource was shared for Mark to review
+- A question was asked that expects a reply
+- An update was shared that requires acknowledgement or follow-up
+- A new contact, partnership, or opportunity was introduced
+- Someone shared access/credentials that Mark needs to use
+- The message contains a decision that needs input from Mark
+
+For these cases, the minimum action item is "Review and respond to [sender]'s message in #[channel]" at medium priority. Do not return an empty action_items array for any message that was directed at or is relevant to Mark.
 
 For each action item, separate CONTEXT from ACTION:
 - "summary" = the background/situation
@@ -332,7 +342,9 @@ async function classifySlackMessage(
   orgContext: string = "",
   entityDossier: string = "",
   threadContext: string = "",
+  log?: (msg: string) => void,
 ): Promise<ClassificationResult & { prompt_tokens?: number; completion_tokens?: number }> {
+  const addLog = log || (() => {});
   let entityContext: string;
   if (resolvedEntities.length > 0) {
     const lines = resolvedEntities.map(
@@ -353,18 +365,31 @@ async function classifySlackMessage(
   userPrompt += `\n\n---\n\n${msgContent}`;
 
   try {
+    addLog(`  Classifying with model: ${opts.model}, promptLen: ${userPrompt.length}`);
     const response = await anthropic.messages.create({
       model: opts.model,
       max_tokens: opts.maxTokens,
       system: opts.systemPrompt,
-      messages: [{ role: "user", content: userPrompt }],
+      messages: [
+        { role: "user", content: userPrompt },
+        // Prefill assistant turn forces model to start with JSON object
+        { role: "assistant", content: "{" },
+      ],
     });
 
-    let text = (response.content[0] as { type: "text"; text: string }).text.trim();
-    if (text.startsWith("```")) {
-      text = text.split("```")[1];
-      if (text.startsWith("json")) text = text.slice(4);
-      text = text.trim();
+    // Response is the continuation after our "{" prefill — prepend it back
+    let text = "{" + (response.content[0] as { type: "text"; text: string }).text.trim();
+
+    // Strip code fences if present
+    if (text.includes("```")) {
+      const fenceMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/);
+      if (fenceMatch) text = fenceMatch[1].trim();
+    }
+
+    // If still not starting with {, try to extract the first JSON object
+    if (!text.startsWith("{")) {
+      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      if (jsonMatch) text = jsonMatch[0];
     }
 
     const data = JSON.parse(text);
@@ -397,7 +422,10 @@ async function classifySlackMessage(
       prompt_tokens: response.usage?.input_tokens,
       completion_tokens: response.usage?.output_tokens,
     };
-  } catch {
+  } catch (classifyErr) {
+    const errMsg = classifyErr instanceof Error ? classifyErr.message : String(classifyErr);
+    addLog(`  CLASSIFICATION ERROR: ${errMsg}`);
+    console.error("[slack-scanner] classifySlackMessage FAILED:", errMsg);
     const primaryEntity = resolvedEntities[0];
     return {
       primary_silo: primaryEntity?.entity_type || "contacts",
@@ -494,6 +522,17 @@ export async function runSlackScanner(
       agentSystemPrompt += "\n" + standingOrdersSection;
       addLog(`Injected ${standingOrders.length} standing order(s) into classifier prompt`);
     }
+
+    // ── Always-on action extraction rules (appended regardless of DB prompt override) ──
+    agentSystemPrompt += `\n\nACTION EXTRACTION RULES — ALWAYS apply these regardless of other instructions:
+- If the message @mentions or tags Mark Slater directly → create an action item to review and respond
+- If a link, document, Google Doc, or resource is shared → create an action item to review it
+- If a question is asked → create an action item to answer it
+- If access/credentials were shared → create an action item to acknowledge or use them
+- If a new contact, org, or opportunity is mentioned → create an action item to follow up
+- Minimum action item when in doubt: "Review and respond to [sender] in #[channel]" at medium priority
+- The "summary" field must be a specific one-line description of what happened. NEVER return "Message processed" as the summary. Describe the actual content.`;
+    addLog("Injected action extraction rules");
 
     // ── Slack client ──
     const slack = new WebClient(slackToken);
@@ -726,6 +765,7 @@ export async function runSlackScanner(
             orgContext,
             dossierRendered,
             threadContext,
+            addLog,
           );
 
           const entityType = result.primary_silo;
@@ -822,17 +862,34 @@ export async function runSlackScanner(
           }
 
           // ── Emit feed card ──
-          try {
+          // Skip if Claude found nothing worth surfacing — no action items + generic summary = noise
+          const isNoise =
+            result.action_items.length === 0 &&
+            (result.summary === "Message processed" ||
+              result.summary.startsWith("Slack message in #") ||
+              result.summary.trim().length < 15);
+
+          if (isNoise) {
+            addLog(`  Dropped (noise): "${result.summary.slice(0, 60)}" — no action items, skipping feed`);
+          } else try {
             const cardType = inferCardType({
               acumen_category: taxonomySlug || undefined,
               priority: enforcedPriority,
               action_items: result.action_items,
               summary: result.summary,
+              has_draft_reply: !!result.draft_reply,
+              source_type: "slack_scanner",
             });
+
+            // Use first action item title as fallback if summary is generic
+            const genericSummaries = ["message processed", "no action required", "no summary available"];
+            const cardTitle = genericSummaries.includes(result.summary.toLowerCase()) && result.action_items.length > 0
+              ? result.action_items[0].title
+              : result.summary;
 
             await emitFeedCard(sb, {
               card_type: cardType,
-              title: result.summary,
+              title: cardTitle,
               body: result.action_items.length > 0
                 ? result.action_items[0].summary || result.summary
                 : result.summary,
