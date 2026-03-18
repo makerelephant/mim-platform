@@ -43,7 +43,7 @@ interface GatheredData {
   agentActivity: Array<{ actor: string; action: string; metadata: Record<string, unknown> | null; entity_type: string | null; created_at: string }>;
 }
 
-const DEFAULT_MODEL = "claude-sonnet-4-5-20250929";
+const DEFAULT_MODEL = "claude-sonnet-4-6";
 const DEFAULT_MAX_TOKENS = 4000;
 
 // ─── Date Helpers ───────────────────────────────────────────────────────────

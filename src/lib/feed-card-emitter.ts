@@ -61,9 +61,12 @@ export interface FeedCard extends FeedCardInput {
 
 /**
  * Infer card type from classification data.
- * The harness/acumen classification drives what type of card appears in Motion.
+ *
+ * When attention_class is present (unified classifier), it takes precedence.
+ * Legacy path uses acumen_family + priority for backward compatibility.
  */
 export function inferCardType(classification: {
+  attention_class?: string | null;
   acumen_family?: string | null;
   acumen_category?: string | null;
   priority?: string | null;
@@ -72,30 +75,34 @@ export function inferCardType(classification: {
   has_draft_reply?: boolean;
   source_type?: string | null;
 }): CardType {
+  // Unified classifier path — attention_class drives card type
+  if (classification.attention_class) {
+    const ac = classification.attention_class;
+    if (ac === "P0_ceo_now" || ac === "S0_interrupt_now") return "decision";
+    if (ac === "P1_ceo_soon" || ac === "S1_review_soon") return "action";
+    return "signal";
+  }
+
+  // Legacy path
   const family = (classification.acumen_family || "").toLowerCase();
   const priority = (classification.priority || "").toLowerCase();
 
-  // High/critical priority items that need CEO action → decision
   if (priority === "critical" || priority === "high") {
     return "decision";
   }
 
-  // If there are action items → action
   if (classification.action_items && classification.action_items.length > 0) {
     return "action";
   }
 
-  // Families that typically need decisions
   if (["partnership", "fundraising", "legal", "finance"].includes(family)) {
     return "decision";
   }
 
-  // Slack messages where Claude generated a draft reply → action (a reply is needed)
   if (classification.has_draft_reply && classification.source_type === "slack_scanner") {
     return "action";
   }
 
-  // Everything else is a signal
   return "signal";
 }
 

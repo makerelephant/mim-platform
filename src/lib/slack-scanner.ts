@@ -13,7 +13,16 @@ import { computeFeedbackForEntities } from "./feedback-engine";
 import { loadTaxonomy, matchTaxonomyCategory, buildTaxonomyPromptSection, enforcePriorityRules } from "./taxonomy-loader";
 import { loadStandingOrders, buildStandingOrdersPromptSection } from "./instruction-loader";
 import { recomputeKCSForEntities } from "./entity-intelligence";
-import { emitFeedCard, inferCardType } from "./feed-card-emitter";
+import { emitFeedCard } from "./feed-card-emitter";
+import {
+  buildUnifiedClassifierPrompt,
+  parseUnifiedClassification,
+  attentionClassToCardType,
+  attentionClassToPriority,
+  shouldSuppressCard,
+  qualifiesForTaskCreation,
+  UnifiedClassificationResult,
+} from "./unified-classifier";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -34,16 +43,7 @@ interface ActionItem {
   goal_relevance_score?: number;
 }
 
-interface ClassificationResult {
-  primary_silo: string;
-  primary_entity_id: string | null;
-  primary_entity_name: string | null;
-  summary: string;
-  action_items: ActionItem[];
-  tags: string[];
-  sentiment: string;
-  draft_reply: string | null;
-}
+// ClassificationResult now uses UnifiedClassificationResult from unified-classifier.ts
 
 export interface SlackScannerResult {
   success: boolean;
@@ -72,7 +72,7 @@ interface SlackMessage {
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 
-const DEFAULT_MODEL = "claude-sonnet-4-5-20250929";
+const DEFAULT_MODEL = "claude-sonnet-4-6";
 const DEFAULT_MAX_TOKENS = 1200;
 const DEFAULT_SCAN_HOURS = 24;
 
@@ -82,7 +82,9 @@ const DEFAULT_GOALS_90DAY = [
   "Additional $250K in investment raised",
 ];
 
-const CLASSIFIER_SYSTEM_PROMPT = `You are an AI assistant that classifies Slack messages for a sports merchandise company called Made in Motion (MiM).
+const CLASSIFIER_SYSTEM_PROMPT = buildUnifiedClassifierPrompt("slack");
+
+const _LEGACY_CLASSIFIER_SYSTEM_PROMPT = `You are an AI assistant that classifies Slack messages for a sports merchandise company called Made in Motion (MiM).
 
 MiM is a platform that enables youth sports organizations and community groups to create and sell custom branded merchandise through "Drop" links — on-demand, zero-inventory storefronts.
 
@@ -343,7 +345,7 @@ async function classifySlackMessage(
   entityDossier: string = "",
   threadContext: string = "",
   log?: (msg: string) => void,
-): Promise<ClassificationResult & { prompt_tokens?: number; completion_tokens?: number }> {
+): Promise<UnifiedClassificationResult> {
   const addLog = log || (() => {});
   let entityContext: string;
   if (resolvedEntities.length > 0) {
@@ -357,7 +359,6 @@ async function classifySlackMessage(
 
   const msgContent = `Source: Slack\nChannel: #${message.channel}\nFrom: ${message.user}\nMessage:\n${message.text.slice(0, 1500)}`;
 
-  // Build enriched prompt with dossier, thread context, and org context
   let userPrompt = entityContext;
   if (entityDossier) userPrompt += `\n\n${entityDossier}`;
   if (threadContext) userPrompt += `\n\n${threadContext}`;
@@ -372,70 +373,57 @@ async function classifySlackMessage(
       system: opts.systemPrompt,
       messages: [
         { role: "user", content: userPrompt },
-        // Prefill assistant turn forces model to start with JSON object
         { role: "assistant", content: "{" },
       ],
     });
 
-    // Response is the continuation after our "{" prefill — prepend it back
-    let text = "{" + (response.content[0] as { type: "text"; text: string }).text.trim();
+    const rawText = "{" + (response.content[0] as { type: "text"; text: string }).text.trim();
 
-    // Strip code fences if present
-    if (text.includes("```")) {
-      const fenceMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/);
-      if (fenceMatch) text = fenceMatch[1].trim();
-    }
+    const result = parseUnifiedClassification(
+      rawText,
+      "slack",
+      resolvedEntities.map((e) => ({
+        entity_type: e.entity_type,
+        entity_id: e.entity_id,
+        entity_name: e.entity_name,
+      })),
+    );
 
-    // If still not starting with {, try to extract the first JSON object
-    if (!text.startsWith("{")) {
-      const jsonMatch = text.match(/\{[\s\S]*\}/);
-      if (jsonMatch) text = jsonMatch[0];
-    }
-
-    const data = JSON.parse(text);
-
-    const actionItems: ActionItem[] = (data.action_items || []).map((ai: Record<string, unknown>) => {
-      let grs = ai.goal_relevance_score as number | null;
-      if (grs !== null && grs !== undefined) {
-        grs = Math.max(1, Math.min(10, Number(grs)));
-        if (isNaN(grs)) grs = null;
-      }
-      return {
-        title: (ai.title as string) || "Untitled task",
-        summary: ai.summary as string | undefined,
-        recommended_action: ai.recommended_action as string | undefined,
-        priority: (ai.priority as string) || "medium",
-        due_date: ai.due_date as string | undefined,
-        goal_relevance_score: grs ?? undefined,
-      };
-    });
-
-    return {
-      primary_silo: data.primary_silo || "contacts",
-      primary_entity_id: data.primary_entity_id || null,
-      primary_entity_name: data.primary_entity_name || null,
-      summary: data.summary || "Message processed",
-      action_items: actionItems,
-      tags: data.tags || [],
-      sentiment: data.sentiment || "neutral",
-      draft_reply: data.draft_reply || null,
-      prompt_tokens: response.usage?.input_tokens,
-      completion_tokens: response.usage?.output_tokens,
-    };
+    result.prompt_tokens = response.usage?.input_tokens;
+    result.completion_tokens = response.usage?.output_tokens;
+    return result;
   } catch (classifyErr) {
     const errMsg = classifyErr instanceof Error ? classifyErr.message : String(classifyErr);
     addLog(`  CLASSIFICATION ERROR: ${errMsg}`);
     console.error("[slack-scanner] classifySlackMessage FAILED:", errMsg);
     const primaryEntity = resolvedEntities[0];
     return {
+      attention_class: "S2_batch_or_delegate",
+      relevance_score: 30,
+      subtypes: [],
+      channel: "slack",
+      primary_reason: "Classification failed — defaulting to S2",
+      supporting_signals: [],
+      disqualifiers_considered: [],
+      recommended_handling: "Review manually",
+      confidence: 0.1,
+      summary_sentence: `Slack message in #${message.channel}`,
+      entities: [],
+      contains_decision: false,
+      contains_action: false,
+      contains_task: false,
+      decisions: [],
+      actions: [],
+      tasks: [],
+      task_creation_candidates: [],
       primary_silo: primaryEntity?.entity_type || "contacts",
       primary_entity_id: primaryEntity?.entity_id || null,
       primary_entity_name: primaryEntity?.entity_name || null,
-      summary: `Slack message in #${message.channel}`,
-      action_items: [],
       tags: ["unclassified"],
       sentiment: "neutral",
       draft_reply: null,
+      acumen_category: null,
+      action_recommendation: null,
     };
   }
 }
@@ -777,7 +765,7 @@ export async function runSlackScanner(
           const taxonomyCardKey = matchedCategory?.org_type_match?.toLowerCase() ?? null;
           const enforcedPriority = enforcePriorityRules(
             result.tags,
-            result.action_items[0]?.priority ?? "medium",
+            attentionClassToPriority(result.attention_class),
             taxonomy,
           );
 
@@ -798,11 +786,16 @@ export async function runSlackScanner(
               from_email: userProfile.email,
               subject: `Slack: #${channel.name}`,
               classification_result: {
+                attention_class: result.attention_class,
+                relevance_score: result.relevance_score,
                 primary_silo: result.primary_silo,
-                summary: result.summary,
+                summary: result.summary_sentence,
                 sentiment: result.sentiment,
                 tags: result.tags,
-                action_count: result.action_items.length,
+                action_count: result.actions.length,
+                contains_decision: result.contains_decision,
+                contains_action: result.contains_action,
+                task_candidates: result.task_creation_candidates.length,
               },
               pre_filter_result: "passed",
               dossier_summary: dossierRendered ? dossierRendered.slice(0, 500) : null,
@@ -810,6 +803,8 @@ export async function runSlackScanner(
               completion_tokens: result.completion_tokens || null,
               model: agentModel,
               agent_run_id: runId,
+              acumen_category: result.acumen_category || null,
+              importance_level: attentionClassToPriority(result.attention_class),
             });
           } catch { /* ignore logging error */ }
 
@@ -834,73 +829,28 @@ export async function runSlackScanner(
             });
           }
 
-          // ── Create tasks (Phase 1C: enforced priority, 1E: pending_review, 1F: taxonomy_category) ──
-          for (const action of result.action_items) {
-            // Enforce taxonomy priority rules — only escalates, never downgrades
-            const taskPriority = enforcePriorityRules(result.tags, action.priority, taxonomy);
-
-            const taskPayload: Record<string, unknown> = {
-              title: action.title,
-              priority: taskPriority,
-              status: "pending_review",
-              source: "slack-scanner",
-            };
-            if (action.summary) taskPayload.summary = action.summary;
-            if (action.recommended_action) taskPayload.recommended_action = action.recommended_action;
-            if (entityType) taskPayload.entity_type = entityType;
-            if (entityId) taskPayload.entity_id = entityId;
-            if (action.due_date) taskPayload.due_date = action.due_date;
-            if (action.goal_relevance_score != null) taskPayload.goal_relevance_score = action.goal_relevance_score;
-            taskPayload.thread_id = slackThreadId ? `slack_${channel.id}_${slackThreadId}` : null;
-            taskPayload.source_message_id = msgId;
-            if (taxonomySlug) taskPayload.taxonomy_category = taxonomySlug;
-            if (result.draft_reply) taskPayload.draft_reply = result.draft_reply;
-
-            await sb.schema('brain').from("tasks").insert(taskPayload);
-            tasksCreated++;
-            addLog(`  Task created [${taskPriority}${taskPriority !== action.priority ? ` ↑ from ${action.priority}` : ""}]: ${action.title.slice(0, 80)}`);
-          }
+          // ── Suppress S3 cards (noise) ──
+          if (shouldSuppressCard(result.attention_class)) {
+            addLog(`  Suppressed [${result.attention_class}]: "${result.summary_sentence.slice(0, 60)}"`);
+          } else {
 
           // ── Emit feed card ──
-          // Skip if Claude found nothing worth surfacing — no action items + generic summary = noise
-          const isNoise =
-            result.action_items.length === 0 &&
-            (result.summary === "Message processed" ||
-              result.summary.startsWith("Slack message in #") ||
-              result.summary.trim().length < 15);
-
-          if (isNoise) {
-            addLog(`  Dropped (noise): "${result.summary.slice(0, 60)}" — no action items, skipping feed`);
-          } else try {
-            const cardType = inferCardType({
-              acumen_category: taxonomySlug || undefined,
-              priority: enforcedPriority,
-              action_items: result.action_items,
-              summary: result.summary,
-              has_draft_reply: !!result.draft_reply,
-              source_type: "slack_scanner",
-            });
-
-            // Use first action item title as fallback if summary is generic
-            const genericSummaries = ["message processed", "no action required", "no summary available"];
-            const cardTitle = genericSummaries.includes(result.summary.toLowerCase()) && result.action_items.length > 0
-              ? result.action_items[0].title
-              : result.summary;
+          try {
+            const cardType = attentionClassToCardType(result.attention_class);
+            const cardPriority = attentionClassToPriority(result.attention_class);
 
             await emitFeedCard(sb, {
               card_type: cardType,
-              title: cardTitle,
-              body: result.action_items.length > 0
-                ? result.action_items[0].summary || result.summary
-                : result.summary,
-              reasoning: result.action_items[0]?.recommended_action || undefined,
+              title: result.summary_sentence,
+              body: result.actions.length > 0
+                ? result.actions[0].description || result.summary_sentence
+                : result.summary_sentence,
+              reasoning: result.primary_reason || undefined,
               source_type: "slack_scanner",
               source_ref: msgId,
               acumen_category: taxonomySlug || undefined,
-              priority: enforcedPriority as "critical" | "high" | "medium" | "low",
-              confidence: result.action_items[0]?.goal_relevance_score
-                ? result.action_items[0].goal_relevance_score / 10
-                : undefined,
+              priority: cardPriority,
+              confidence: result.confidence || undefined,
               visibility_scope: "personal",
               entity_id: entityId || undefined,
               entity_type: entityType || undefined,
@@ -914,7 +864,9 @@ export async function runSlackScanner(
                 thread_ts: msg.thread_ts || null,
                 tags: result.tags,
                 sentiment: result.sentiment,
-                action_recommendation: result.action_items[0]?.recommended_action || null,
+                attention_class: result.attention_class,
+                relevance_score: result.relevance_score,
+                action_recommendation: result.action_recommendation || null,
                 draft_reply: result.draft_reply || null,
               },
               agent_run_id: runId || undefined,
@@ -923,25 +875,55 @@ export async function runSlackScanner(
             addLog(`  Feed card emission failed: ${e instanceof Error ? e.message : String(e)}`);
           }
 
-          // ── Log activity (Phase 1D: enriched metadata for content-aware routing) ──
+          // ── Create tasks (gated on should_create_task + attention class) ──
+          if (qualifiesForTaskCreation(result.attention_class)) {
+            for (const candidate of result.task_creation_candidates) {
+              if (!candidate.should_create_task) continue;
+
+              const taskPayload: Record<string, unknown> = {
+                title: candidate.proposed_task_title,
+                priority: candidate.priority,
+                status: "pending_review",
+                source: "slack-scanner",
+              };
+              if (candidate.rationale) taskPayload.summary = candidate.rationale;
+              if (candidate.why_tracking_warranted) taskPayload.recommended_action = candidate.why_tracking_warranted;
+              if (entityType) taskPayload.entity_type = entityType;
+              if (entityId) taskPayload.entity_id = entityId;
+              if (candidate.proposed_due_date) taskPayload.due_date = candidate.proposed_due_date;
+              taskPayload.thread_id = slackThreadId ? `slack_${channel.id}_${slackThreadId}` : null;
+              taskPayload.source_message_id = msgId;
+              if (taxonomySlug) taskPayload.taxonomy_category = taxonomySlug;
+              if (result.draft_reply) taskPayload.draft_reply = result.draft_reply;
+
+              await sb.schema('brain').from("tasks").insert(taskPayload);
+              tasksCreated++;
+              addLog(`  Task created [${candidate.priority}]: ${candidate.proposed_task_title.slice(0, 80)}`);
+            }
+          }
+
+          } // end of !shouldSuppressCard block
+
+          // ── Log activity (always, even for suppressed) ──
           await sb.schema('brain').from("activity").insert({
             entity_type: entityType,
             entity_id: entityId,
             action: "slack_scanned",
             actor: "slack-scanner",
             metadata: {
-              summary: result.summary,
+              summary: result.summary_sentence,
+              attention_class: result.attention_class,
+              relevance_score: result.relevance_score,
               channel: channel.name,
               user: userProfile.name,
               tags: result.tags,
               sentiment: result.sentiment,
-              action_count: result.action_items.length,
+              action_count: result.actions.length,
               source_id: msgId,
               taxonomy_slug: taxonomySlug,
               taxonomy_card_key: taxonomyCardKey,
-              priority: enforcedPriority,
-              goal_relevance: result.action_items[0]?.goal_relevance_score ?? null,
-              recommended_action: result.action_items[0]?.recommended_action ?? null,
+              priority: attentionClassToPriority(result.attention_class),
+              recommended_action: result.action_recommendation ?? null,
             },
           });
 
@@ -949,7 +931,7 @@ export async function runSlackScanner(
           const entityLabel = result.primary_entity_name
             ? ` → [${entityType}] ${result.primary_entity_name}`
             : "";
-          addLog(`Processed: #${channel.name} ${userProfile.name}${entityLabel} (${result.action_items.length} tasks)`);
+          addLog(`Processed: #${channel.name} ${userProfile.name}${entityLabel} [${result.attention_class}] (${result.actions.length} actions)`);
         }
       } catch (err) {
         addLog(`Error scanning #${channel.name}: ${err instanceof Error ? err.message : String(err)}`);

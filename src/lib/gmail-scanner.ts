@@ -16,7 +16,16 @@ import { loadStandingOrders, buildStandingOrdersPromptSection, loadRecentCorrect
 import { loadBehavioralRules, buildBehavioralRulesPromptSection } from "./behavioral-rules";
 import { writeProvenance, recomputeKCSForEntities } from "./entity-intelligence";
 import { buildAcumenPromptSection } from "./harness-loader";
-import { emitFeedCard, inferCardType, logIngestion, embedCorrespondence } from "./feed-card-emitter";
+import { emitFeedCard, logIngestion, embedCorrespondence } from "./feed-card-emitter";
+import {
+  buildUnifiedClassifierPrompt,
+  parseUnifiedClassification,
+  attentionClassToCardType,
+  attentionClassToPriority,
+  shouldSuppressCard,
+  qualifiesForTaskCreation,
+  UnifiedClassificationResult,
+} from "./unified-classifier";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -38,20 +47,7 @@ interface ActionItem {
   description?: string;
 }
 
-interface ClassificationResult {
-  primary_silo: string;
-  primary_entity_id: string | null;
-  primary_entity_name: string | null;
-  summary: string;
-  action_items: ActionItem[];
-  tags: string[];
-  sentiment: string;
-  draft_reply: string | null;
-  acumen_category: string | null;
-  importance_level: string | null;
-  acumen_reasoning: string | null;
-  action_recommendation: string | null;
-}
+// ClassificationResult now uses UnifiedClassificationResult from unified-classifier.ts
 
 interface MessageDetails {
   id: string;
@@ -87,7 +83,7 @@ const DEFAULT_USER_EMAILS = [
   "markslater9@gmail.com",
 ];
 
-const DEFAULT_MODEL = "claude-sonnet-4-5-20250929";
+const DEFAULT_MODEL = "claude-sonnet-4-6";
 const DEFAULT_MAX_TOKENS = 1200;
 
 const FREE_EMAIL_DOMAINS = new Set([
@@ -102,7 +98,9 @@ const DEFAULT_GOALS_90DAY = [
   "Additional $250K in investment raised",
 ];
 
-const CLASSIFIER_SYSTEM_PROMPT = `You are an AI assistant that classifies business communications for a sports merchandise company called Made in Motion (MiM).
+const CLASSIFIER_SYSTEM_PROMPT = buildUnifiedClassifierPrompt("email");
+
+const _LEGACY_CLASSIFIER_SYSTEM_PROMPT = `You are an AI assistant that classifies business communications for a sports merchandise company called Made in Motion (MiM).
 
 MiM is a platform that enables youth sports organizations and community groups to create and sell custom branded merchandise through "Drop" links — on-demand, zero-inventory storefronts.
 
@@ -490,7 +488,7 @@ async function classifyMessage(
   orgContext: string = "",
   entityDossier: string = "",
   threadContext: string = "",
-): Promise<ClassificationResult & { prompt_tokens?: number; completion_tokens?: number }> {
+): Promise<UnifiedClassificationResult> {
   // Build entity context
   let entityContext: string;
   if (resolvedEntities.length > 0) {
@@ -516,68 +514,56 @@ async function classifyMessage(
       model: opts.model,
       max_tokens: opts.maxTokens,
       system: opts.systemPrompt,
-      messages: [{ role: "user", content: userPrompt }],
+      messages: [
+        { role: "user", content: userPrompt },
+        { role: "assistant", content: "{" },
+      ],
     });
 
-    let text = (response.content[0] as { type: "text"; text: string }).text.trim();
+    const rawText = "{" + (response.content[0] as { type: "text"; text: string }).text.trim();
 
-    // Handle markdown code fences
-    if (text.startsWith("```")) {
-      text = text.split("```")[1];
-      if (text.startsWith("json")) text = text.slice(4);
-      text = text.trim();
-    }
+    const result = parseUnifiedClassification(
+      rawText,
+      "email",
+      resolvedEntities.map((e) => ({
+        entity_type: e.entity_type,
+        entity_id: e.entity_id,
+        entity_name: e.entity_name,
+      })),
+    );
 
-    const data = JSON.parse(text);
-
-    const actionItems: ActionItem[] = (data.action_items || []).map((ai: Record<string, unknown>) => {
-      let grs = ai.goal_relevance_score as number | null;
-      if (grs !== null && grs !== undefined) {
-        grs = Math.max(1, Math.min(10, Number(grs)));
-        if (isNaN(grs)) grs = null;
-      }
-      return {
-        title: (ai.title as string) || "Untitled task",
-        summary: ai.summary as string | undefined,
-        recommended_action: ai.recommended_action as string | undefined,
-        priority: (ai.priority as string) || "medium",
-        due_date: ai.due_date as string | undefined,
-        goal_relevance_score: grs ?? undefined,
-        description: ai.description as string | undefined,
-      };
-    });
-
-    return {
-      primary_silo: data.primary_silo || "contacts",
-      primary_entity_id: data.primary_entity_id || null,
-      primary_entity_name: data.primary_entity_name || null,
-      summary: data.summary || "Message processed",
-      action_items: actionItems,
-      tags: data.tags || [],
-      sentiment: data.sentiment || "neutral",
-      draft_reply: data.draft_reply || null,
-      acumen_category: data.acumen_category || null,
-      importance_level: data.importance_level || null,
-      acumen_reasoning: data.acumen_reasoning || null,
-      action_recommendation: data.action_recommendation || null,
-      prompt_tokens: response.usage?.input_tokens,
-      completion_tokens: response.usage?.output_tokens,
-    };
+    result.prompt_tokens = response.usage?.input_tokens;
+    result.completion_tokens = response.usage?.output_tokens;
+    return result;
   } catch (e) {
     // Fallback classification
     const primaryEntity = resolvedEntities[0];
     return {
+      attention_class: "P2_delegate_or_batch",
+      relevance_score: 30,
+      subtypes: [],
+      channel: "email",
+      primary_reason: "Classification failed — defaulting to P2",
+      supporting_signals: [],
+      disqualifiers_considered: [],
+      recommended_handling: "Review manually",
+      confidence: 0.1,
+      summary_sentence: `Email: ${message.subject.slice(0, 80)}`,
+      entities: [],
+      contains_decision: false,
+      contains_action: false,
+      contains_task: false,
+      decisions: [],
+      actions: [],
+      tasks: [],
+      task_creation_candidates: [],
       primary_silo: primaryEntity?.entity_type || "contacts",
       primary_entity_id: primaryEntity?.entity_id || null,
       primary_entity_name: primaryEntity?.entity_name || null,
-      summary: `Email: ${message.subject.slice(0, 80)}`,
-      action_items: [],
       tags: ["unclassified"],
       sentiment: "neutral",
       draft_reply: null,
       acumen_category: null,
-      importance_level: null,
-      acumen_reasoning: null,
       action_recommendation: null,
     };
   }
@@ -1172,7 +1158,7 @@ export async function runGmailScanner(
       const taxonomyCardKey = matchedCategory?.org_type_match?.toLowerCase() ?? null;
       const enforcedPriority = enforcePriorityRules(
         result.tags,
-        result.action_items[0]?.priority ?? "medium",
+        attentionClassToPriority(result.attention_class),
         taxonomy,
       );
 
@@ -1299,11 +1285,16 @@ export async function runGmailScanner(
           from_email: fromEmail,
           subject: details.subject,
           classification_result: {
+            attention_class: result.attention_class,
+            relevance_score: result.relevance_score,
             primary_silo: result.primary_silo,
-            summary: result.summary,
+            summary: result.summary_sentence,
             sentiment: result.sentiment,
             tags: result.tags,
-            action_count: result.action_items.length,
+            action_count: result.actions.length,
+            contains_decision: result.contains_decision,
+            contains_action: result.contains_action,
+            task_candidates: result.task_creation_candidates.length,
           },
           pre_filter_result: "passed",
           dossier_summary: dossierRendered ? dossierRendered.slice(0, 500) : null,
@@ -1313,33 +1304,34 @@ export async function runGmailScanner(
           model: agentModel,
           agent_run_id: runId,
           acumen_category: result.acumen_category || null,
-          importance_level: result.importance_level || null,
-          acumen_reasoning: result.acumen_reasoning || null,
+          importance_level: attentionClassToPriority(result.attention_class),
+          acumen_reasoning: result.primary_reason || null,
           ceo_review_status: "pending",
         });
       } catch { /* ignore logging error */ }
 
+      // ── Suppress P3 cards (low-value noise) ──
+      if (shouldSuppressCard(result.attention_class)) {
+        addLog(`  Suppressed [${result.attention_class}]: "${details.subject.slice(0, 60)}"`);
+        // Still log correspondence and activity below, but don't emit a feed card or create tasks
+      } else {
+
       // ── Emit feed card ──
       try {
-        const cardType = inferCardType({
-          acumen_family: result.acumen_category?.split("/")[0],
-          acumen_category: result.acumen_category,
-          priority: enforcedPriority,
-          action_items: result.action_items,
-          summary: result.summary,
-        });
+        const cardType = attentionClassToCardType(result.attention_class);
+        const cardPriority = attentionClassToPriority(result.attention_class);
 
         const card = await emitFeedCard(sb, {
           card_type: cardType,
           title: details.subject,
-          body: result.summary,
-          reasoning: result.acumen_reasoning || undefined,
+          body: result.summary_sentence,
+          reasoning: result.primary_reason || undefined,
           source_type: "email",
           source_ref: `gmail_${msgId}`,
           acumen_family: result.acumen_category?.split("/")[0],
           acumen_category: result.acumen_category,
-          priority: enforcedPriority as "critical" | "high" | "medium" | "low",
-          confidence: result.action_items[0]?.goal_relevance_score || undefined,
+          priority: cardPriority,
+          confidence: result.confidence || undefined,
           visibility_scope: "personal",
           entity_id: entityId || undefined,
           entity_type: entityType || undefined,
@@ -1364,26 +1356,60 @@ export async function runGmailScanner(
           source_type: "email",
           source_ref: `gmail_${msgId}`,
           raw_content: `From: ${details.from}\nSubject: ${details.subject}\n\n${details.body?.slice(0, 500)}`,
-          normalized_content: result.summary,
+          normalized_content: result.summary_sentence,
           classification: {
+            attention_class: result.attention_class,
+            relevance_score: result.relevance_score,
             acumen_category: result.acumen_category,
-            importance_level: result.importance_level,
-            priority: enforcedPriority,
+            priority: cardPriority,
             tags: result.tags,
             sentiment: result.sentiment,
           },
-          actions_taken: result.action_items.map(a => ({
-            action: "create_task",
-            target: a.title,
-            result: "pending_review",
-          })),
+          actions_taken: result.task_creation_candidates
+            .filter(t => t.should_create_task)
+            .map(t => ({
+              action: "create_task",
+              target: t.proposed_task_title,
+              result: "pending_review",
+            })),
           feed_card_id: card?.id,
         });
       } catch (e) {
         addLog(`  Feed card emission failed: ${e instanceof Error ? e.message : String(e)}`);
       }
 
-      // ── Log correspondence + embed for RAG ──
+      // ── Create tasks (gated on should_create_task + attention class) ──
+      if (qualifiesForTaskCreation(result.attention_class)) {
+        for (const candidate of result.task_creation_candidates) {
+          if (!candidate.should_create_task) continue;
+
+          const taskPayload: Record<string, unknown> = {
+            title: candidate.proposed_task_title,
+            priority: candidate.priority,
+            status: "pending_review",
+            source: "gmail-scanner",
+          };
+          if (candidate.rationale) taskPayload.summary = candidate.rationale;
+          if (candidate.why_tracking_warranted) taskPayload.recommended_action = candidate.why_tracking_warranted;
+          if (entityType) taskPayload.entity_type = entityType;
+          if (entityId) taskPayload.entity_id = entityId;
+          if (candidate.proposed_due_date) taskPayload.due_date = candidate.proposed_due_date;
+          if (details.thread_id) taskPayload.gmail_thread_id = details.thread_id;
+          taskPayload.gmail_message_id = msgId;
+          taskPayload.thread_id = details.thread_id || null;
+          taskPayload.source_message_id = msgId;
+          if (taxonomySlug) taskPayload.taxonomy_category = taxonomySlug;
+          if (result.draft_reply) taskPayload.draft_reply = result.draft_reply;
+
+          await sb.schema('brain').from("tasks").insert(taskPayload);
+          tasksCreated++;
+          addLog(`  Task created [${candidate.priority}]: ${candidate.proposed_task_title.slice(0, 80)}`);
+        }
+      }
+
+      } // end of !shouldSuppressCard block
+
+      // ── Log correspondence + embed for RAG (always, even for suppressed) ──
       if (entityId) {
         const { data: corrRow } = await sb.schema('brain').from("correspondence").insert({
           entity_type: entityType,
@@ -1402,73 +1428,41 @@ export async function runGmailScanner(
           },
         }).select("id").single();
 
-        // Embed full email content for vector search
         if (corrRow?.id) {
           const embeddableText = `Subject: ${details.subject}\nFrom: ${details.from}\nTo: ${details.to || ""}\n\n${details.body}`;
           await embedCorrespondence(sb, corrRow.id, embeddableText, addLog);
         }
       }
 
-      // ── Create tasks (Phase 1C: enforced priority, 1E: pending_review, 1F: taxonomy_category) ──
-      for (const action of result.action_items) {
-        // Enforce taxonomy priority rules — only escalates, never downgrades
-        const taskPriority = enforcePriorityRules(result.tags, action.priority, taxonomy);
-
-        const taskPayload: Record<string, unknown> = {
-          title: action.title,
-          priority: taskPriority,
-          status: "pending_review",
-          source: "gmail-scanner",
-        };
-        if (action.summary) taskPayload.summary = action.summary;
-        if (action.recommended_action) taskPayload.recommended_action = action.recommended_action;
-        if (action.description) taskPayload.description = action.description;
-        if (entityType) taskPayload.entity_type = entityType;
-        if (entityId) taskPayload.entity_id = entityId;
-        if (action.due_date) taskPayload.due_date = action.due_date;
-        if (action.goal_relevance_score != null) taskPayload.goal_relevance_score = action.goal_relevance_score;
-        if (details.thread_id) taskPayload.gmail_thread_id = details.thread_id;
-        taskPayload.gmail_message_id = msgId;
-        taskPayload.thread_id = details.thread_id || null;
-        taskPayload.source_message_id = msgId;
-        if (taxonomySlug) taskPayload.taxonomy_category = taxonomySlug;
-        if (result.draft_reply) taskPayload.draft_reply = result.draft_reply;
-
-        await sb.schema('brain').from("tasks").insert(taskPayload);
-        tasksCreated++;
-        addLog(`  Task created [${taskPriority}${taskPriority !== action.priority ? ` ↑ from ${action.priority}` : ""}]: ${action.title.slice(0, 80)}`);
-      }
-
-      // ── Log activity (Phase 1D: enriched metadata for content-aware routing) ──
+      // ── Log activity (always, even for suppressed) ──
       await sb.schema('brain').from("activity").insert({
         entity_type: entityType,
         entity_id: entityId,
         action: "email_scanned",
         actor: "gmail-scanner",
         metadata: {
-          summary: result.summary,
+          summary: result.summary_sentence,
+          attention_class: result.attention_class,
+          relevance_score: result.relevance_score,
           subject: details.subject,
           from: details.from,
           direction,
           tags: result.tags,
           sentiment: result.sentiment,
-          action_count: result.action_items.length,
+          action_count: result.actions.length,
           source_id: `gmail_${msgId}`,
           taxonomy_slug: taxonomySlug,
           taxonomy_card_key: taxonomyCardKey,
-          priority: enforcedPriority,
-          goal_relevance: result.action_items[0]?.goal_relevance_score ?? null,
-          recommended_action: result.action_items[0]?.recommended_action ?? null,
+          priority: attentionClassToPriority(result.attention_class),
+          recommended_action: result.action_recommendation ?? null,
         },
       });
-
-      // NOTE: Legacy duplicate card emission removed — emitFeedCard() above (line ~1293) is the single emission point
 
       recordsUpdated++;
       const entityLabel = result.primary_entity_name
         ? ` → [${entityType}] ${result.primary_entity_name}`
         : "";
-      addLog(`Processed: ${details.subject.slice(0, 60)}${entityLabel} (${result.action_items.length} tasks)`);
+      addLog(`Processed: ${details.subject.slice(0, 60)}${entityLabel} [${result.attention_class}] (${result.actions.length} actions)`);
     }
 
     // ── Compute entity feedback for processed entities ──

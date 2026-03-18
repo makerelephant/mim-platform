@@ -220,7 +220,7 @@ export async function POST(request: NextRequest) {
               const { default: AnthropicVision } = await import("@anthropic-ai/sdk");
               const anthropicVision = new AnthropicVision({ apiKey: anthropicKeyForVision });
               const visionResponse = await anthropicVision.messages.create({
-                model: "claude-sonnet-4-5-20250929",
+                model: "claude-sonnet-4-6",
                 max_tokens: 3000,
                 messages: [{
                   role: "user",
@@ -307,7 +307,7 @@ Respond with ONLY a JSON object:
 }`;
 
           const response = await anthropic.messages.create({
-            model: "claude-sonnet-4-5-20250929",
+            model: "claude-sonnet-4-6",
             max_tokens: 600,
             messages: [{ role: "user", content: classifyPrompt }],
           });

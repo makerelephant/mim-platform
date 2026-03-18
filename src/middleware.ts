@@ -1,11 +1,9 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import { validateApiAuth } from '@/lib/auth';
 
 /**
- * Route redirect middleware
- *
- * Redirects old org-specific routes to the unified /orgs route.
- * Preserves query params. Uses 308 Permanent Redirect for SEO.
+ * Middleware — route redirects + API authentication
  */
 
 const ROUTE_REDIRECTS: Record<string, string> = {
@@ -20,24 +18,32 @@ const ROUTE_REDIRECTS: Record<string, string> = {
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Check static path redirects
+  // ── API Authentication ──
+  if (pathname.startsWith('/api/')) {
+    const authError = validateApiAuth(request);
+    if (authError) {
+      return NextResponse.json(
+        { error: authError },
+        { status: 401 },
+      );
+    }
+    return NextResponse.next();
+  }
+
+  // ── Route Redirects ──
   if (ROUTE_REDIRECTS[pathname]) {
     const url = request.nextUrl.clone();
     const target = ROUTE_REDIRECTS[pathname];
-
-    // Parse the target — it may contain query params (e.g., /orgs?type=investor)
     const [targetPath, targetQuery] = target.split('?');
     url.pathname = targetPath;
 
     if (targetQuery) {
-      // Set query params from the redirect target
       const params = new URLSearchParams(targetQuery);
       params.forEach((value, key) => {
         url.searchParams.set(key, value);
       });
     }
 
-    // Preserve any existing query params from the original request
     request.nextUrl.searchParams.forEach((value, key) => {
       if (!url.searchParams.has(key)) {
         url.searchParams.set(key, value);
@@ -59,8 +65,10 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  // Only run middleware on old routes that need redirecting
   matcher: [
+    // API routes — auth check
+    '/api/:path*',
+    // Legacy route redirects
     '/investors/:path*',
     '/soccer-orgs/:path*',
     '/channel-partners/:path*',

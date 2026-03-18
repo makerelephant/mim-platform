@@ -35,10 +35,25 @@ export default function LoginPage() {
     setLoading(true);
     setError(null);
 
-    // Placeholder — real Supabase auth in Phase 5
-    // For now, just redirect to the dashboard after a brief pause
-    await new Promise((r) => setTimeout(r, 600));
-    router.push("/");
+    try {
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        setError(data.error || "Invalid credentials.");
+        setLoading(false);
+        return;
+      }
+
+      router.push("/");
+    } catch {
+      setError("Failed to connect. Try again.");
+      setLoading(false);
+    }
   }
 
   return (

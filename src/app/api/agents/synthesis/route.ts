@@ -172,7 +172,7 @@ export async function GET() {
     const anthropic = new Anthropic({ apiKey: anthropicKey });
 
     const synthesisResponse = await anthropic.messages.create({
-      model: "claude-sonnet-4-5-20250929",
+      model: "claude-sonnet-4-6",
       max_tokens: 4000,
       system: `You are the MiM Brain synthesis engine. You analyze weekly COMMERCIAL activity data for Made in Motion, a youth sports technology company, and identify patterns, correlations, and actionable insights about the business.
 

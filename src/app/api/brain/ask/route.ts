@@ -295,7 +295,7 @@ export async function POST(request: NextRequest) {
     const anthropic = new Anthropic({ apiKey: anthropicKey });
 
     const response = await anthropic.messages.create({
-      model: "claude-sonnet-4-5-20250929",
+      model: "claude-sonnet-4-6",
       max_tokens: 1500,
       system: `You are MiM Brain, the intelligence system for Made in Motion (MiM), a sports merchandise company.
 CEO Mark Slater is asking you a question. Use ONLY the provided context to answer.

@@ -226,7 +226,7 @@ RELEVANCE GUIDE:
 - LOW: Tangentially related to youth sports but not actionable for MiM`;
 
   const response = await anthropic.messages.create({
-    model: "claude-sonnet-4-5-20250929",
+    model: "claude-sonnet-4-6",
     max_tokens: 600,
     messages: [{ role: "user", content: prompt }],
   });
