@@ -1,13 +1,7 @@
 # MiMBrain Platform — UI Requirements
-
-> **Purpose:** Define the interaction architecture for MiMBrain — a feed-first orchestration platform built on impermanence, snapshotting, and the rejection of static pages.
->
-> **Companion docs:**
-> - `design-brief.md` — Figma-actionable specs, component definitions, screen inventory
-> - `architecture-mimbrain-v2.md` — backend intelligence stack (entity intelligence, harness, memory, autonomy)
-> - `master-effort-list.md` — all planned efforts/epics
->
-> **Status:** Working draft. Reflects design sessions through 2026-03-14.
+> **Author:** Mark Slater, Co-founder & CEO — Made in Motion PBC
+> **Status:** Active strategic document.
+> **Last updated:** 2026-03-18
 
 ---
 

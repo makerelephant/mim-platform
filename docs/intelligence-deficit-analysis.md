@@ -1,8 +1,7 @@
 # Intelligence Deficit Analysis
-
-> **Author:** Mark Slater, CEO — Made in Motion
+> **Author:** Mark Slater, Co-founder & CEO — Made in Motion PBC
 > **Status:** Active strategic document. Solutions for deficits 1 and 2 in progress.
-> **Last updated:** 2026-03-17
+> **Last updated:** 2026-03-18
 
 ---
 

@@ -8,13 +8,15 @@
 
 ## What is MiMBrain?
 
-MiMBrain is an autonomous business intelligence platform built for Made in Motion, a youth sports technology company. It processes business data (emails, messages, documents), classifies it, prioritizes it, and recommends actions — with the goal of becoming an autonomous Chief Operating Officer.
+MiMBrain is an autonomous business intelligence platform built for Made in Motion, a a company engaged in building innovation for the generative commerce era.  
+
+The in Motion Platform processes business data (emails, messages, documents), classifies it, prioritizes it, and recommends actions — with the goal of becoming an autonomous Chief Operating Officer to the individual, an execution vehicle for its founding team (phase 2) - and finally a semi-autonomous commercial acquisition, engagement and retention platform for its customers (Stage 3)
 
 ---
 
-## Start Here: CLAUDE.md
+## Start Here: context-Primer.md
 
-Read `CLAUDE.md` at the project root first. It has the critical context about the UI paradigm shift, terminology, and "do not" rules.
+Read `context-primer.md' at the project root first. It has the critical instructional framework for new agent onboarding.lets go wit your 
 
 ## Then Read These (In This Order)
 

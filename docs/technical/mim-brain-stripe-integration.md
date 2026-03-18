@@ -1,4 +1,8 @@
 # MiM Brain — Stripe KPI Integration
+> **Author:** Mark Slater, Co-founder & CEO — Made in Motion PBC
+> **Status:** Active strategic document.
+> **Last updated:** 2026-03-18
+
 **Status:** Spec complete · Implementation pending  
 **Last updated:** March 12, 2026
 

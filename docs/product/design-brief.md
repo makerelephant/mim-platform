@@ -1,10 +1,7 @@
 # MiMBrain — Design Brief
-
-> **Purpose:** Everything a designer needs to build the MiMBrain UI in Figma. Concrete specs, component definitions, screen inventory, and interaction details.
->
-> **Companion doc:** `ui-requirements.md` — the philosophy, principles, and architecture. This brief is the actionable translation.
->
-> **Status:** First draft. 2026-03-14.
+> **Author:** Mark Slater, Co-founder & CEO — Made in Motion PBC
+> **Status:** Active strategic document.
+> **Last updated:** 2026-03-18
 
 ---
 

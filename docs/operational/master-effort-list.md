@@ -1,8 +1,7 @@
 # MiM Platform — Master Effort List
-
-> Living document. Captures all major efforts/epics at summary level. Add new items as they emerge — unpack in separate sessions.
->
-> **UI paradigm shift (March 2026):** All static CRM pages are being replaced by a feed-first architecture (Your Motion + Your Clearing + Engine Room). Efforts below reflect this. See `docs/product/ui-requirements.md` for the governing architecture document.
+> **Author:** Mark Slater, Co-founder & CEO — Made in Motion PBC
+> **Status:** Active strategic document.
+> **Last updated:** 2026-03-18
 
 ---
 

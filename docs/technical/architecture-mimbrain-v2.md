@@ -1,10 +1,7 @@
 # MiM Brain — Architecture v2
-
-> **Status:** Active north star document
-> **Author:** Mark Slater / Claude
-> **Date:** March 11, 2026
-> **Supersedes:** `docs/spec-brain-intelligence-layer.md` (March 10, 2026)
-> **Purpose:** Define the complete architecture for MiM Brain as an autonomous, learning business intelligence system.
+> **Author:** Mark Slater, Co-founder & CEO — Made in Motion PBC
+> **Status:** Active strategic document.
+> **Last updated:** 2026-03-18
 
 ---
 

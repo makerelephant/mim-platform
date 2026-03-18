@@ -1,8 +1,7 @@
 # MiMBrain — Documentation Tree
-
-> **Purpose:** Master index of every active document. Archived docs are in `docs/archive/` — they are historical record only, not reading material.
->
-> **Last updated:** 2026-03-17
+> **Author:** Mark Slater, Co-founder & CEO — Made in Motion PBC
+> **Status:** Active strategic document.
+> **Last updated:** 2026-03-18
 
 ---
 

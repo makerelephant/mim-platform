@@ -1,6 +1,7 @@
 # Harness Scope — Email Classification Categories
-
-> Defines the top-level categories for the MiM Brain email classifier. Each category will get its own classification rule in the harness.
+> **Author:** Mark Slater, Co-founder & CEO — Made in Motion PBC
+> **Status:** Active strategic document.
+> **Last updated:** 2026-03-18
 
 ---
 

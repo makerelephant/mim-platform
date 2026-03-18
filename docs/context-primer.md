@@ -1,9 +1,7 @@
 # MiMBrain — Context Primer Prompt
-
-> **Purpose:** Bedrock onboarding instructions for any new agent joining this project.
-> Place this at the start of any new session. Do not modify without the CEO's approval.
->
-> **Last updated:** 2026-03-17
+> **Author:** Mark Slater, Co-founder & CEO — Made in Motion PBC
+> **Status:** Active strategic document.
+> **Last updated:** 2026-03-18
 
 ---
 

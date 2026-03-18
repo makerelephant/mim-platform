@@ -1,13 +1,7 @@
 # MiMBrain — Acumen Training Plan
-
-> **Purpose:** Define how we train the brain's classifier to earn autonomy. Training is internal calibration, not a product feature. Design for speed, not beauty.
->
-> **Companion docs:**
-> - `docs/technical/architecture-mimbrain-v2.md` — autonomy layer design
-> - `docs/operational/harness-scope-email-categories.md` — the 11 categories being trained
-> - `docs/product/ui-requirements.md` — Section 11 (Training Phase)
->
-> **Last updated:** 2026-03-14
+> **Author:** Mark Slater, Co-founder & CEO — Made in Motion PBC
+> **Status:** Active strategic document.
+> **Last updated:** 2026-03-18
 
 ---
 

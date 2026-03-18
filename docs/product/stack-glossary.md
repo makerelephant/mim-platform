@@ -1,10 +1,7 @@
 # MiM Brain — Stack Glossary
-
-> **Purpose:** Plain-English cheat sheet for every named component in the MiM Brain stack. Written so anyone — product, marketing, investors, new engineers — can understand what each piece does without reading architecture docs.
->
-> **Rule:** If it doesn't have an entry here, it doesn't have a name yet. Add before you build.
->
-> **Last updated:** 2026-03-14
+> **Author:** Mark Slater, Co-founder & CEO — Made in Motion PBC
+> **Status:** Active strategic document.
+> **Last updated:** 2026-03-18
 
 ---
 
