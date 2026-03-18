@@ -132,6 +132,59 @@ export function buildCorrectionsPromptSection(corrections: CorrectionRecord[]): 
   return lines.join("\n");
 }
 
+// ─── Behavioral Rules Loading ─────────────────────────────────────────────
+
+export interface BehavioralRule {
+  id: string;
+  rule_type: string;
+  description: string;
+  confidence: number;
+  sample_size: number;
+}
+
+/**
+ * Load active behavioral rules from brain.behavioral_rules.
+ * These get injected into the classifier prompt so the brain applies
+ * learned patterns automatically.
+ */
+export async function loadBehavioralRules(sb: SupabaseClient): Promise<BehavioralRule[]> {
+  const { data, error } = await sb
+    .schema("brain")
+    .from("behavioral_rules")
+    .select("id, rule_type, description, confidence, sample_size")
+    .eq("status", "active")
+    .order("confidence", { ascending: false })
+    .limit(50);
+
+  if (error) {
+    // Table may not exist yet — don't crash the scanner
+    console.warn("[instruction-loader] Could not load behavioral rules:", error.message);
+    return [];
+  }
+  return data ?? [];
+}
+
+/**
+ * Build a prompt section from behavioral rules for injection into
+ * the classifier system prompt.
+ */
+export function buildBehavioralRulesPromptSection(rules: BehavioralRule[]): string {
+  if (rules.length === 0) return "";
+
+  const lines: string[] = [];
+  lines.push("\n## LEARNED BEHAVIORAL RULES");
+  lines.push("The brain has learned the following rules from CEO corrections. Apply these automatically:\n");
+
+  for (const rule of rules) {
+    const conf = (rule.confidence * 100).toFixed(0);
+    lines.push(`• [${rule.rule_type}] ${rule.description} (confidence: ${conf}%, ${rule.sample_size} examples)`);
+  }
+
+  lines.push("\nThese rules have been validated through CEO review. Apply them with high confidence. If a rule conflicts with a standing order, the standing order takes precedence.\n");
+
+  return lines.join("\n");
+}
+
 /**
  * Mark an instruction as executed (increment count, set last_executed_at).
  * For one-time instructions (recurrence='once'), also mark as 'fulfilled'.
