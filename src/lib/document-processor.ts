@@ -114,61 +114,15 @@ export function processTextInput(text: string): ProcessedDocument {
 }
 
 // ─── PDF Extraction ─────────────────────────────────────────────────────────
-
-async function extractPdfInternal(buffer: Buffer): Promise<string> {
-  const pdfjsLib = await import("pdfjs-dist/legacy/build/pdf.mjs");
-
-  // Disable web worker — not available in Vercel serverless environment
-  pdfjsLib.GlobalWorkerOptions.workerSrc = "";
-
-  const data = new Uint8Array(buffer);
-  const doc = await pdfjsLib.getDocument({
-    data,
-    disableFontFace: true,
-    useWorkerFetch: false,
-    isEvalSupported: false,
-    useSystemFonts: false,
-  }).promise;
-
-  const textPages: string[] = [];
-  for (let i = 1; i <= doc.numPages; i++) {
-    const page = await doc.getPage(i);
-    const content = await page.getTextContent();
-    let lastY: number | null = null;
-    let pageText = "";
-    for (const item of content.items) {
-      if ("str" in item) {
-        // Add newline when Y position changes (new line)
-        if (lastY !== null && Math.abs(item.transform[5] - lastY) > 2) {
-          pageText += "\n";
-        }
-        pageText += item.str;
-        lastY = item.transform[5];
-      }
-    }
-    if (pageText.trim()) {
-      textPages.push(pageText);
-    }
-  }
-
-  await doc.destroy();
-  return textPages.join("\n\n");
-}
+// Uses pdf-parse (Node.js native, no worker required) instead of pdfjs-dist.
+// pdfjs-dist v4.x requires a DOM worker that doesn't exist in Vercel serverless,
+// causing "worker configuration" errors on every real-world PDF.
 
 async function extractPdf(buffer: Buffer): Promise<string> {
-  // Hard 25-second timeout — some PDFs cause pdfjs to hang indefinitely
-  // (complex forms, recursive object refs, corrupt structures).
-  // Without this, the Vercel function runs to maxDuration (120s) and returns
-  // an HTML 504 instead of JSON, causing the UI to show a generic error.
-  const timeoutPromise = new Promise<string>((_, reject) =>
-    setTimeout(
-      () => reject(new Error("PDF extraction timed out after 25s — file may be encrypted, corrupt, or too complex")),
-      25000,
-    )
-  );
-
   try {
-    return await Promise.race([extractPdfInternal(buffer), timeoutPromise]);
+    const pdfParse = (await import("pdf-parse")).default;
+    const result = await pdfParse(buffer);
+    return result.text || "";
   } catch (e) {
     console.error("PDF extraction failed:", e);
     return `[PDF extraction failed: ${String(e).slice(0, 300)}]`;
