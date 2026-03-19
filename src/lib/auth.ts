@@ -14,6 +14,7 @@ import { NextRequest } from "next/server";
 /** Routes triggered by Vercel cron (use CRON_SECRET) */
 const CRON_ROUTES = new Set([
   "/api/agents/gmail-scanner",
+  "/api/agents/slack-scanner",
   "/api/agents/daily-briefing",
   "/api/brain/autonomy",
   "/api/feed/resurface",
@@ -42,7 +43,7 @@ export function validateApiAuth(request: NextRequest): string | null {
     ? authHeader.slice(7)
     : null;
 
-  // Cron routes — check CRON_SECRET
+  // Cron routes — check CRON_SECRET or cookie (browser-triggered gopher runs)
   if (CRON_ROUTES.has(pathname)) {
     const cronSecret = process.env.CRON_SECRET;
     if (!cronSecret) {
@@ -51,6 +52,12 @@ export function validateApiAuth(request: NextRequest): string | null {
       return null;
     }
     if (bearerToken === cronSecret) return null;
+
+    // Also accept CEO cookie — allows browser-triggered gopher runs via refresh button
+    const apiToken = process.env.API_AUTH_TOKEN;
+    const cookieToken = request.cookies.get("mim-auth")?.value;
+    if (apiToken && cookieToken === apiToken) return null;
+
     return "Invalid cron authorization";
   }
 

@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { Loader2 } from "lucide-react";
 import FeedCard, { FeedCardData, CorrectionData } from "@/components/FeedCard";
+import ContactPanel from "@/components/ContactPanel";
 
 /* eslint-disable @next/next/no-img-element */
 
@@ -20,6 +21,7 @@ export default function MotionFeedPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [searching, setSearching] = useState(false);
   const [activeFilter, setActiveFilter] = useState<string | null>(null);
+  const [contactPanelId, setContactPanelId] = useState<string | null>(null);
   const limit = 12;
   const scanStages = [
     "Connecting to Gmail...",
@@ -341,6 +343,7 @@ export default function MotionFeedPage() {
                 card={card}
                 onAction={handleAction}
                 onDismiss={handleDismiss}
+                onContactTap={(contactId) => setContactPanelId(contactId)}
               />
             ))}
 
@@ -362,6 +365,14 @@ export default function MotionFeedPage() {
           </>
         )}
       </div>
+
+      {/* ── Contact Panel Overlay ── */}
+      {contactPanelId && (
+        <ContactPanel
+          contactId={contactPanelId}
+          onDismiss={() => setContactPanelId(null)}
+        />
+      )}
     </div>
   );
 }

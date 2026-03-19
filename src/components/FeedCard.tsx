@@ -148,6 +148,7 @@ interface FeedCardProps {
   card: FeedCardData;
   onAction: (id: string, action: "do" | "no" | "not_now", correction?: CorrectionData) => Promise<void>;
   onDismiss: (id: string) => Promise<void>;
+  onContactTap?: (contactId: string, contactName: string) => void;
 }
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -177,6 +178,79 @@ function sourceUrl(card: FeedCardData): string | null {
   return null;
 }
 
+// ─── Contact Name Highlighter ────────────────────────────────────────────────
+// Scans text for known contact names (from entity_name + related_entities)
+// and renders them with dotted underlines, matching the design pattern.
+
+interface KnownContact {
+  name: string;
+  id?: string;
+  type?: string;
+}
+
+function highlightContacts(
+  text: string,
+  contacts: KnownContact[],
+  onTap?: (contactId: string, contactName: string) => void
+): React.ReactNode {
+  if (!contacts.length) return text;
+
+  // Build a regex that matches any known contact name (longest first to avoid partial matches)
+  const sorted = [...contacts].sort((a, b) => b.name.length - a.name.length);
+  const escaped = sorted.map((c) =>
+    c.name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+  );
+  const pattern = new RegExp(`(${escaped.join("|")})`, "gi");
+  const parts = text.split(pattern);
+
+  if (parts.length === 1) return text;
+
+  return parts.map((part, i) => {
+    const match = sorted.find(
+      (c) => c.name.toLowerCase() === part.toLowerCase()
+    );
+    if (match) {
+      if (onTap && match.id && (match.type === "contacts" || match.type === "contact")) {
+        return (
+          <button
+            key={i}
+            onClick={(e) => { e.preventDefault(); e.stopPropagation(); onTap(match.id!, match.name); }}
+            className="inline cursor-pointer"
+            style={{
+              textDecoration: "underline",
+              textDecorationStyle: "dotted",
+              textDecorationColor: "#1e252a",
+              background: "none",
+              border: "none",
+              padding: 0,
+              font: "inherit",
+              color: "inherit",
+            }}
+          >
+            {part}
+          </button>
+        );
+      }
+      const href =
+        match.id && match.type ? entityLink(match.id, match.type) : "#";
+      return (
+        <a
+          key={i}
+          href={href}
+          style={{
+            textDecoration: "underline",
+            textDecorationStyle: "dotted",
+            textDecorationColor: "#1e252a",
+          }}
+        >
+          {part}
+        </a>
+      );
+    }
+    return part;
+  });
+}
+
 /** Build entity detail link based on entity_type */
 function entityLink(entityId: string, entityType: string): string {
   if (entityType === "contacts" || entityType === "contact") {
@@ -188,7 +262,7 @@ function entityLink(entityId: string, entityType: string): string {
 
 // ─── Component ──────────────────────────────────────────────────────────────
 
-export default function FeedCard({ card, onAction, onDismiss }: FeedCardProps) {
+export default function FeedCard({ card, onAction, onDismiss, onContactTap }: FeedCardProps) {
   const [expanded, setExpanded] = useState(false);
   const [acting, setActing] = useState(false);
   const [showNoPanel, setShowNoPanel] = useState(false);
@@ -221,6 +295,17 @@ export default function FeedCard({ card, onAction, onDismiss }: FeedCardProps) {
 
   // Extract email metadata if present
   const meta = card.metadata as Record<string, unknown> | null;
+
+  // Build known contacts list for body text highlighting
+  const knownContacts: KnownContact[] = [];
+  if (card.entity_name && card.entity_id) {
+    knownContacts.push({ name: card.entity_name, id: card.entity_id, type: card.entity_type || "contact" });
+  }
+  if (card.related_entities) {
+    for (const e of card.related_entities) {
+      if (e.name) knownContacts.push({ name: e.name, id: e.id, type: e.type });
+    }
+  }
 
   // Badge config
   const badge = CARD_TYPE_BADGES[card.card_type] || CARD_TYPE_BADGES.signal;
@@ -646,20 +731,38 @@ export default function FeedCard({ card, onAction, onDismiss }: FeedCardProps) {
       <div className="flex flex-col gap-[12px] items-start">
         {/* Entity name + body text */}
         <div className="flex flex-col gap-[6px] items-start w-full">
-          {/* Entity name — dotted underline per Figma, links to entity detail */}
+          {/* Entity name — dotted underline per Figma, opens ContactPanel */}
           {card.entity_name && (
-            <a
-              href={card.entity_id && card.entity_type ? entityLink(card.entity_id, card.entity_type) : "#"}
-              className="text-[14px] font-medium text-[#1e252a] leading-[18px]"
-              style={{
-                fontFamily: "var(--font-geist-sans), 'Geist', sans-serif",
-                textDecoration: "underline",
-                textDecorationStyle: "dotted",
-                textDecorationColor: "#1e252a",
-              }}
-            >
-              {card.entity_name}
-            </a>
+            onContactTap && card.entity_id && (card.entity_type === "contacts" || card.entity_type === "contact") ? (
+              <button
+                onClick={(e) => { e.preventDefault(); e.stopPropagation(); onContactTap(card.entity_id!, card.entity_name!); }}
+                className="text-[14px] font-medium text-[#1e252a] leading-[18px] text-left cursor-pointer"
+                style={{
+                  fontFamily: "var(--font-geist-sans), 'Geist', sans-serif",
+                  textDecoration: "underline",
+                  textDecorationStyle: "dotted",
+                  textDecorationColor: "#1e252a",
+                  background: "none",
+                  border: "none",
+                  padding: 0,
+                }}
+              >
+                {card.entity_name}
+              </button>
+            ) : (
+              <a
+                href={card.entity_id && card.entity_type ? entityLink(card.entity_id, card.entity_type) : "#"}
+                className="text-[14px] font-medium text-[#1e252a] leading-[18px]"
+                style={{
+                  fontFamily: "var(--font-geist-sans), 'Geist', sans-serif",
+                  textDecoration: "underline",
+                  textDecorationStyle: "dotted",
+                  textDecorationColor: "#1e252a",
+                }}
+              >
+                {card.entity_name}
+              </a>
+            )
           )}
 
           {/* Body text — markdown for snapshot/briefing/reflection, plain for others */}
@@ -676,7 +779,7 @@ export default function FeedCard({ card, onAction, onDismiss }: FeedCardProps) {
                 className="text-[12px] text-[#0c111d] leading-[16px] w-full"
                 style={{ fontFamily: "var(--font-geist-sans), 'Geist', sans-serif" }}
               >
-                {card.body}
+                {highlightContacts(card.body, knownContacts, onContactTap)}
               </p>
             )
           )}
@@ -793,15 +896,33 @@ export default function FeedCard({ card, onAction, onDismiss }: FeedCardProps) {
               {card.related_entities.map((e, i) => (
                 <span key={e.id}>
                   {i > 0 && i === card.related_entities!.length - 1 ? " and " : i > 0 ? ", " : ""}
-                  <a
-                    href={entityLink(e.id, e.type)}
-                    style={{
-                      textDecoration: "underline",
-                      textDecorationStyle: "dotted",
-                    }}
-                  >
-                    {e.name}
-                  </a>
+                  {onContactTap && (e.type === "contacts" || e.type === "contact") ? (
+                    <button
+                      onClick={(ev) => { ev.preventDefault(); ev.stopPropagation(); onContactTap(e.id, e.name); }}
+                      className="inline cursor-pointer"
+                      style={{
+                        textDecoration: "underline",
+                        textDecorationStyle: "dotted",
+                        background: "none",
+                        border: "none",
+                        padding: 0,
+                        font: "inherit",
+                        color: "inherit",
+                      }}
+                    >
+                      {e.name}
+                    </button>
+                  ) : (
+                    <a
+                      href={entityLink(e.id, e.type)}
+                      style={{
+                        textDecoration: "underline",
+                        textDecorationStyle: "dotted",
+                      }}
+                    >
+                      {e.name}
+                    </a>
+                  )}
                 </span>
               ))}
             </>
