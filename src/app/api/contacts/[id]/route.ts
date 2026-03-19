@@ -26,7 +26,7 @@ export async function GET(
 
   // Fetch contact
   const { data: contact, error: contactError } = await sb
-    .from("contacts")
+    .schema("core").from("contacts")
     .select("*")
     .eq("id", id)
     .single();
@@ -42,7 +42,7 @@ export async function GET(
   let organization = null;
   if (contact.organization_id) {
     const { data: org } = await sb
-      .from("organizations")
+      .schema("core").from("organizations")
       .select("*")
       .eq("id", contact.organization_id)
       .single();
@@ -51,7 +51,7 @@ export async function GET(
 
   // Fetch recent correspondence (feed cards where entity_id matches)
   const { data: correspondence } = await sb
-    .from("feed_cards")
+    .schema("brain").from("feed_cards")
     .select("id, card_type, title, body, source_type, metadata, created_at")
     .eq("entity_id", id)
     .order("created_at", { ascending: false })
@@ -112,7 +112,7 @@ export async function PATCH(
   }
 
   const { data: contact, error } = await sb
-    .from("contacts")
+    .schema("core").from("contacts")
     .update(updates)
     .eq("id", id)
     .select()

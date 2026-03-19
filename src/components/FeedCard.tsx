@@ -630,7 +630,7 @@ export default function FeedCard({ card, onAction, onDismiss, onContactTap }: Fe
             </div>
           )}
 
-          {/* Briefing: Share / Schedule / Dig In — per Figma 40:1106 */}
+          {/* Briefing: Share / Schedule / Dig In / Dismiss */}
           {isBriefing && !isActed && (
             <div className="flex gap-[20px] items-start px-[6px] shrink-0">
               <button
@@ -655,6 +655,14 @@ export default function FeedCard({ card, onAction, onDismiss, onContactTap }: Fe
                 style={{ fontFamily: "-apple-system, 'SF Pro Display', system-ui, sans-serif" }}
               >
                 Dig In
+              </button>
+              <button
+                onClick={() => handleDismiss()}
+                disabled={acting}
+                className="text-[12px] font-medium text-[#344054] leading-[18px] text-center whitespace-nowrap hover:text-slate-500 transition-colors disabled:opacity-40"
+                style={{ fontFamily: "-apple-system, 'SF Pro Display', system-ui, sans-serif" }}
+              >
+                Dismiss
               </button>
             </div>
           )}
