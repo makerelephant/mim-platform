@@ -10,6 +10,12 @@ interface HarnessFile {
   name: string;
   slug: string;
   content: string;
+  section?: string;
+}
+
+interface HarnessSection {
+  label: string;
+  slugs: string[];
 }
 
 interface AccuracyCategory {
@@ -57,8 +63,9 @@ interface AccuracyData {
 // ─── Component ──────────────────────────────────────────────────────────────
 
 export default function EngineRoomPage() {
-  const [activeTab, setActiveTab] = useState<"map" | "accuracy" | "integrations" | "autonomy" | "health">("map");
+  const [activeTab, setActiveTab] = useState<"map" | "accuracy" | "metrics" | "integrations" | "autonomy" | "health">("map");
   const [harness, setHarness] = useState<HarnessFile[]>([]);
+  const [harnessSections, setHarnessSections] = useState<HarnessSection[]>([]);
   const [integrations, setIntegrations] = useState<Array<{ name: string; icon: string; status: string; description: string }>>([]);
   const [accuracy, setAccuracy] = useState<AccuracyData | null>(null);
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
@@ -74,6 +81,7 @@ export default function EngineRoomPage() {
         if (harnessRes.ok) {
           const data = await harnessRes.json();
           setHarness(data.files || []);
+          setHarnessSections(data.sections || []);
           if (data.files?.length > 0) setSelectedFile(data.files[0].slug);
         }
       } catch { /* ignore */ }
@@ -122,6 +130,7 @@ export default function EngineRoomPage() {
         {[
           { key: "map" as const, label: "Motion Map" },
           { key: "accuracy" as const, label: "Brain Accuracy" },
+          { key: "metrics" as const, label: "Metrics" },
           { key: "autonomy" as const, label: "Autonomy" },
           { key: "integrations" as const, label: "Integrations" },
           { key: "health" as const, label: "Health" },
@@ -154,12 +163,34 @@ export default function EngineRoomPage() {
           /* ── Motion Map ── */
           <div className="flex gap-4 h-full">
             {/* File list */}
-            <div className="w-48 shrink-0 space-y-1">
-              <p className="text-xs font-semibold text-[#94A3B8] uppercase tracking-wider mb-2">
-                Harness Classifiers
-              </p>
+            <div className="w-52 shrink-0 space-y-1 overflow-y-auto">
               {harness.length === 0 ? (
                 <p className="text-xs text-[#94A3B8]">No harness files loaded</p>
+              ) : harnessSections.length > 0 ? (
+                harnessSections.map((section) => (
+                  <div key={section.label} className="mb-3">
+                    <p className="text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider mb-1 px-3">
+                      {section.label}
+                    </p>
+                    {section.slugs.map((slug) => {
+                      const file = harness.find((h) => h.slug === slug);
+                      if (!file) return null;
+                      return (
+                        <button
+                          key={file.slug}
+                          onClick={() => setSelectedFile(file.slug)}
+                          className={`w-full text-left text-sm px-3 py-1.5 rounded-lg transition-colors ${
+                            selectedFile === file.slug
+                              ? "bg-white text-[#1e252a] font-medium shadow-sm"
+                              : "text-[#64748B] hover:text-[#1e252a] hover:bg-white/50"
+                          }`}
+                        >
+                          {file.name}
+                        </button>
+                      );
+                    })}
+                  </div>
+                ))
               ) : (
                 harness.map((h) => (
                   <button
@@ -352,6 +383,9 @@ export default function EngineRoomPage() {
               </>
             )}
           </div>
+        ) : activeTab === "metrics" ? (
+          /* ── Metrics ── */
+          <MetricsPanel />
         ) : activeTab === "autonomy" ? (
           /* ── Autonomy ── */
           <AutonomyPanel />
@@ -480,6 +514,347 @@ function AutonomyPanel() {
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+// ─── Metrics Types ──────────────────────────────────────────────────────────
+
+interface MetricsData {
+  success: boolean;
+  computed_at: string;
+  snr: {
+    current: number | null;
+    should_not_exist: number;
+    worth_seeing: number;
+    noise: number;
+    total: number;
+    weekly: Array<{ week: string; snr: number | null; total: number }>;
+    target: number;
+    status: string;
+  };
+  priority_calibration: Array<{
+    priority: string;
+    do_rate: number | null;
+    justified_rate: number | null;
+    target: number;
+    do_count: number;
+    no_count: number;
+    hold_count: number;
+    total: number;
+    calibrated: boolean | null;
+  }>;
+  category_accuracy: Array<{
+    category: string;
+    accuracy: number | null;
+    approved: number;
+    rejected: number;
+    held: number;
+    total: number;
+    trend: Array<{ week: string; accuracy: number | null; total: number }>;
+  }>;
+  expansion: {
+    rate: number | null;
+    unique_expanded: number;
+    total_expansions: number;
+    total_cards: number;
+    target: number;
+    status: string;
+    weekly: Array<{ week: string; rate: number | null; expansions: number }>;
+  };
+  volume: {
+    total_30d: number;
+    avg_per_day: number;
+    review_rate: number | null;
+    reviewed: number;
+    daily: Array<{ date: string; count: number }>;
+    by_category: Record<string, number>;
+  };
+  autonomy_readiness: Array<{
+    category: string;
+    reviews: number;
+    accuracy: number;
+    reviews_needed: number;
+    accuracy_gap: number;
+    qualifies: boolean;
+    threshold_reviews: number;
+    threshold_accuracy: number;
+  }>;
+}
+
+function MetricsPanel() {
+  const [data, setData] = useState<MetricsData | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch("/api/brain/metrics")
+      .then((r) => r.json())
+      .then((d) => { if (d.success) setData(d); })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) return <div className="text-sm text-[#94A3B8]">Computing metrics...</div>;
+  if (!data) return <div className="text-sm text-[#94A3B8]">Could not load metrics.</div>;
+
+  const snrColor = (v: number | null) =>
+    v === null ? "text-[#94A3B8]" : v >= 80 ? "text-emerald-600" : v >= 60 ? "text-amber-500" : "text-red-500";
+
+  return (
+    <div className="space-y-6">
+      {/* ── Top-line Stats ── */}
+      <div className="grid grid-cols-4 gap-4">
+        <StatCard label="Signal-to-Noise" value={data.snr.current !== null ? `${data.snr.current}%` : "—"} color={snrColor(data.snr.current)} />
+        <StatCard label="Cards / Day (avg)" value={String(data.volume.avg_per_day)} />
+        <StatCard label="Review Rate" value={data.volume.review_rate !== null ? `${data.volume.review_rate}%` : "—"} />
+        <StatCard label="Expansion Rate" value={data.expansion.rate !== null ? `${data.expansion.rate}%` : "—"} />
+      </div>
+
+      {/* ── SNR Trend ── */}
+      <div className="bg-white rounded-xl shadow-sm p-5">
+        <div className="mb-3">
+          <h3 className="text-sm font-bold text-[#1e252a]">Signal-to-Noise Ratio — Weekly Trend</h3>
+          <p className="text-xs text-[#94A3B8] mt-0.5">
+            What % of surfaced cards deserved attention. Target: {">"}80%.
+            {data.snr.status === "clean" ? " Feed is clean." : data.snr.status === "noisy" ? " Noise is building." : data.snr.status === "broken" ? " Too much noise." : ""}
+          </p>
+        </div>
+        <div className="space-y-2">
+          {data.snr.weekly.map((w, i) => (
+            <div key={i} className="flex items-center gap-3">
+              <span className="text-xs text-[#64748B] w-28 shrink-0">{w.week}</span>
+              <div className="flex-1 h-2 bg-[#f0f0f0] rounded-full overflow-hidden">
+                {w.snr !== null && (
+                  <div
+                    className={`h-full rounded-full ${w.snr >= 80 ? "bg-emerald-400" : w.snr >= 60 ? "bg-amber-400" : "bg-red-400"}`}
+                    style={{ width: `${w.snr}%` }}
+                  />
+                )}
+              </div>
+              <span className={`text-xs font-semibold w-10 text-right ${snrColor(w.snr)}`}>
+                {w.snr !== null ? `${w.snr}%` : "—"}
+              </span>
+              <span className="text-[10px] text-[#94A3B8] w-16 text-right">{w.total} cards</span>
+            </div>
+          ))}
+        </div>
+        <div className="mt-3 pt-3 border-t border-[#f0f0f0] flex gap-4 text-[10px] text-[#94A3B8]">
+          <span>{data.snr.worth_seeing} useful</span>
+          <span>{data.snr.noise} noise</span>
+          <span>{data.snr.should_not_exist} marked &quot;should not exist&quot;</span>
+        </div>
+      </div>
+
+      {/* ── Priority Calibration ── */}
+      {data.priority_calibration.some(p => p.total > 0) && (
+        <div className="bg-white rounded-xl shadow-sm p-5">
+          <div className="mb-3">
+            <h3 className="text-sm font-bold text-[#1e252a]">Priority Calibration</h3>
+            <p className="text-xs text-[#94A3B8] mt-0.5">When the brain says critical, is it actually critical? Do-rate and justified-rate by priority.</p>
+          </div>
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="text-[#94A3B8] border-b border-[#f0f0f0]">
+                <th className="text-left py-2 font-medium">Priority</th>
+                <th className="text-right py-2 font-medium">Do</th>
+                <th className="text-right py-2 font-medium">Hold</th>
+                <th className="text-right py-2 font-medium">No</th>
+                <th className="text-right py-2 font-medium">Do Rate</th>
+                <th className="text-right py-2 font-medium">Justified</th>
+                <th className="text-right py-2 font-medium">Target</th>
+                <th className="text-right py-2 font-medium">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.priority_calibration.map((row) => (
+                <tr key={row.priority} className="border-b border-[#f8f8f8]">
+                  <td className="py-2 font-medium text-[#1e252a] capitalize">{row.priority}</td>
+                  <td className="py-2 text-right text-emerald-600">{row.do_count}</td>
+                  <td className="py-2 text-right text-amber-500">{row.hold_count}</td>
+                  <td className="py-2 text-right text-red-500">{row.no_count}</td>
+                  <td className="py-2 text-right font-semibold">{row.do_rate !== null ? `${row.do_rate}%` : "—"}</td>
+                  <td className="py-2 text-right font-semibold">{row.justified_rate !== null ? `${row.justified_rate}%` : "—"}</td>
+                  <td className="py-2 text-right text-[#94A3B8]">
+                    {row.priority === "low" ? `<${row.target}%` : `>${row.target}%`}
+                  </td>
+                  <td className="py-2 text-right">
+                    {row.total === 0 ? (
+                      <span className="text-[#94A3B8]">—</span>
+                    ) : row.calibrated ? (
+                      <span className="text-emerald-600 font-medium">Calibrated</span>
+                    ) : (
+                      <span className="text-red-500 font-medium">Off</span>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* ── Volume Stats ── */}
+      <div className="bg-white rounded-xl shadow-sm p-5">
+        <div className="mb-3">
+          <h3 className="text-sm font-bold text-[#1e252a]">Volume — Last 30 Days</h3>
+          <p className="text-xs text-[#94A3B8] mt-0.5">
+            {data.volume.total_30d} cards total, {data.volume.avg_per_day} avg/day, {data.volume.reviewed} reviewed ({data.volume.review_rate ?? 0}%)
+          </p>
+        </div>
+        {/* Daily volume bars */}
+        <div className="flex items-end gap-1 h-16">
+          {data.volume.daily.map((d, i) => {
+            const maxCount = Math.max(...data.volume.daily.map(x => x.count), 1);
+            const heightPct = (d.count / maxCount) * 100;
+            return (
+              <div key={i} className="flex-1 flex flex-col items-center gap-0.5" title={`${d.date}: ${d.count} cards`}>
+                <div
+                  className="w-full bg-[#289bff] rounded-t"
+                  style={{ height: `${Math.max(heightPct, 2)}%`, minHeight: d.count > 0 ? "2px" : "0px" }}
+                />
+              </div>
+            );
+          })}
+        </div>
+        <div className="flex justify-between mt-1">
+          <span className="text-[10px] text-[#94A3B8]">{data.volume.daily[0]?.date.slice(5)}</span>
+          <span className="text-[10px] text-[#94A3B8]">{data.volume.daily[data.volume.daily.length - 1]?.date.slice(5)}</span>
+        </div>
+
+        {/* By category */}
+        {Object.keys(data.volume.by_category).length > 0 && (
+          <div className="mt-4 pt-3 border-t border-[#f0f0f0]">
+            <p className="text-[10px] font-semibold text-[#94A3B8] uppercase tracking-wider mb-2">By Category (30d)</p>
+            <div className="grid grid-cols-3 gap-x-4 gap-y-1">
+              {Object.entries(data.volume.by_category)
+                .sort(([, a], [, b]) => b - a)
+                .map(([cat, count]) => (
+                  <div key={cat} className="flex justify-between text-xs">
+                    <span className="text-[#64748B] truncate">{cat}</span>
+                    <span className="text-[#1e252a] font-medium ml-2">{count}</span>
+                  </div>
+                ))}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ── Expansion Rate ── */}
+      <div className="bg-white rounded-xl shadow-sm p-5">
+        <div className="mb-3">
+          <h3 className="text-sm font-bold text-[#1e252a]">Card Expansion Rate — Summary Quality Signal</h3>
+          <p className="text-xs text-[#94A3B8] mt-0.5">
+            How often cards need expanding to be understood. Target: {"<"}25%.
+            {data.expansion.status === "good" ? " Summaries are working." : data.expansion.status === "needs_improvement" ? " Summaries may need improvement." : ""}
+          </p>
+        </div>
+        <div className="grid grid-cols-3 gap-4 mb-4">
+          <div>
+            <p className="text-[10px] text-[#94A3B8]">Expansion Rate</p>
+            <p className={`text-lg font-bold ${data.expansion.rate !== null && data.expansion.rate <= 25 ? "text-emerald-600" : data.expansion.rate !== null ? "text-amber-500" : "text-[#94A3B8]"}`}>
+              {data.expansion.rate !== null ? `${data.expansion.rate}%` : "—"}
+            </p>
+          </div>
+          <div>
+            <p className="text-[10px] text-[#94A3B8]">Cards Expanded</p>
+            <p className="text-lg font-bold text-[#1e252a]">{data.expansion.unique_expanded}</p>
+          </div>
+          <div>
+            <p className="text-[10px] text-[#94A3B8]">Total Expansions</p>
+            <p className="text-lg font-bold text-[#1e252a]">{data.expansion.total_expansions}</p>
+          </div>
+        </div>
+        {/* Weekly trend */}
+        <div className="space-y-2">
+          {data.expansion.weekly.map((w, i) => (
+            <div key={i} className="flex items-center gap-3">
+              <span className="text-xs text-[#64748B] w-28 shrink-0">{w.week}</span>
+              <div className="flex-1 h-2 bg-[#f0f0f0] rounded-full overflow-hidden">
+                {w.rate !== null && (
+                  <div
+                    className={`h-full rounded-full ${w.rate <= 25 ? "bg-emerald-400" : "bg-amber-400"}`}
+                    style={{ width: `${Math.min(w.rate, 100)}%` }}
+                  />
+                )}
+              </div>
+              <span className="text-xs font-semibold w-10 text-right text-[#1e252a]">
+                {w.rate !== null ? `${w.rate}%` : "—"}
+              </span>
+              <span className="text-[10px] text-[#94A3B8] w-20 text-right">{w.expansions} clicks</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* ── Autonomy Readiness ── */}
+      {data.autonomy_readiness.length > 0 && (
+        <div className="bg-white rounded-xl shadow-sm p-5">
+          <div className="mb-3">
+            <h3 className="text-sm font-bold text-[#1e252a]">Autonomy Readiness</h3>
+            <p className="text-xs text-[#94A3B8] mt-0.5">Per-category: reviews count, accuracy, distance to autonomy threshold ({data.autonomy_readiness[0]?.threshold_reviews}+ reviews, {data.autonomy_readiness[0]?.threshold_accuracy}%+ accuracy).</p>
+          </div>
+          <div className="space-y-2">
+            {data.autonomy_readiness.map((cat) => (
+              <div key={cat.category} className="flex items-center gap-3">
+                <span className={`text-xs font-medium w-32 truncate ${cat.qualifies ? "text-emerald-600" : "text-[#64748B]"}`}>
+                  {cat.qualifies ? "* " : ""}{cat.category}
+                </span>
+                <div className="flex-1 h-2 bg-[#f0f0f0] rounded-full overflow-hidden">
+                  <div
+                    className={`h-full rounded-full ${cat.qualifies ? "bg-emerald-400" : cat.accuracy >= 80 ? "bg-amber-400" : "bg-[#cbd5e1]"}`}
+                    style={{ width: `${cat.accuracy}%` }}
+                  />
+                </div>
+                <span className="text-xs font-semibold w-10 text-right text-[#1e252a]">{cat.accuracy}%</span>
+                <span className="text-[10px] text-[#94A3B8] w-28 text-right">
+                  {cat.qualifies
+                    ? "Autonomous"
+                    : cat.reviews_needed > 0
+                      ? `${cat.reviews} reviews (need ${cat.reviews_needed} more)`
+                      : `${cat.reviews} reviews, need ${cat.accuracy_gap}% more`}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── Category Accuracy Trends ── */}
+      {data.category_accuracy.length > 0 && (
+        <div className="bg-white rounded-xl shadow-sm p-5">
+          <div className="mb-3">
+            <h3 className="text-sm font-bold text-[#1e252a]">Category Accuracy — 4-Week Trend</h3>
+            <p className="text-xs text-[#94A3B8] mt-0.5">Per-category accuracy over the last 4 weeks.</p>
+          </div>
+          <div className="space-y-3">
+            {data.category_accuracy.filter(c => c.total >= 2).map((cat) => (
+              <div key={cat.category}>
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-xs font-medium text-[#1e252a]">{cat.category}</span>
+                  <span className="text-xs font-semibold text-[#1e252a]">
+                    {cat.accuracy !== null ? `${cat.accuracy}%` : "—"} ({cat.total} reviews)
+                  </span>
+                </div>
+                <div className="flex gap-1">
+                  {cat.trend.map((w, i) => (
+                    <div key={i} className="flex-1 text-center">
+                      <div className="h-2 bg-[#f0f0f0] rounded-full overflow-hidden">
+                        {w.accuracy !== null && (
+                          <div
+                            className={`h-full rounded-full ${w.accuracy >= 80 ? "bg-emerald-400" : w.accuracy >= 60 ? "bg-amber-400" : "bg-red-400"}`}
+                            style={{ width: `${w.accuracy}%` }}
+                          />
+                        )}
+                      </div>
+                      <span className="text-[9px] text-[#94A3B8]">{w.week}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

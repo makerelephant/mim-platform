@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import Anthropic from "@anthropic-ai/sdk";
+import { getDailyBriefingPrompt } from "@/lib/prompts";
 
 export const maxDuration = 120;
 
@@ -294,33 +295,7 @@ export async function POST() {
 
     const dataContext = sections.join("\n");
 
-    const prompt = `You are the CEO's daily briefing writer for MiMBrain, an autonomous business intelligence platform for Made in Motion (youth sports tech company).
-
-Your job: write a CONCISE, genuinely useful morning briefing based on the real data below. Write like a sharp Chief of Staff — direct, no fluff, only what matters.
-
-CRITICAL RULES:
-- Only mention things that ACTUALLY happened (data below). Never fabricate or pad.
-- If a section would be empty, SKIP IT entirely. Do not write "No items" or "Nothing to report."
-- Keep total length under 400 words. Shorter is better.
-- Use specific names, numbers, and subjects from the data.
-- If the day was quiet, say so in 2-3 sentences. Don't pad a quiet day into a long report.
-
-## DATA FROM LAST 24 HOURS
-
-${dataContext}
-
-## FORMAT
-
-Write a briefing with ONLY the sections that have real content:
-
-1. **Top Line** — One sentence: the single most important takeaway.
-2. **Needs Attention** — Unresolved high-priority items. Name and subject. Skip if none.
-3. **What Happened** — Key activity: emails processed, decisions made, tasks created. Use numbers.
-4. **Who Was Active** — Which entities/contacts had the most activity. Skip if not interesting.
-5. **Brain Performance** — CEO review stats and accuracy. Skip if no reviews happened.
-6. **Watch** — Anything the CEO should keep an eye on. Skip if nothing notable.
-
-Omit any section that would be empty or trivial. Be direct.`;
+    const prompt = getDailyBriefingPrompt(dataContext);
 
     const response = await claude.messages.create({
       model: "claude-sonnet-4-20250514",

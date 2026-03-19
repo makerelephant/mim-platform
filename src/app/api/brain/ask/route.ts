@@ -3,6 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import Anthropic from "@anthropic-ai/sdk";
 import { embedText } from "@/lib/embeddings";
 import { emitFeedCard } from "@/lib/feed-card-emitter";
+import { getBrainAskPrompt } from "@/lib/prompts";
 
 export const maxDuration = 120;
 
@@ -367,18 +368,7 @@ export async function POST(request: NextRequest) {
     const response = await anthropic.messages.create({
       model: "claude-sonnet-4-6",
       max_tokens: 1500,
-      system: `You are the intelligence system for In Motion, a youth sports technology company.
-CEO Mark Slater is asking you a question. Use ONLY the provided context to answer.
-
-CRITICAL RULES:
-- Answer ONLY about what the user asked. Do not pivot to other topics.
-- If the context contains documents uploaded in this session, PRIORITIZE those above all other context.
-- If the user asks about a specific document or page, answer from that document's content ONLY.
-- If you cannot find the specific information requested, say "I don't have that specific information in my context" — do NOT substitute with unrelated data.
-- NEVER talk about email alerts, signal cards, suppression rules, or system diagnostics unless explicitly asked.
-- Be concise and direct — executive briefing style.
-- Use bullet points and bold text for readability.
-- Never make up information not in the context.`,
+      system: getBrainAskPrompt(),
       messages: [
         {
           role: "user",

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import Anthropic from "@anthropic-ai/sdk";
 import { emitFeedCard } from "@/lib/feed-card-emitter";
+import { getMonthlyReportPrompt } from "@/lib/prompts";
 
 export const maxDuration = 300;
 
@@ -185,22 +186,7 @@ export async function GET() {
       messages: [
         {
           role: "user",
-          content: `You are writing a monthly commercial activity report for Made in Motion, a youth sports technology company. This report covers the past 30 days of EXTERNAL business activity — relationships, deals, partnerships, customers, legal matters, finances, product developments, and market signals.
-
-CRITICAL: This report is for the CEO and board. It must focus entirely on COMMERCIAL and EXTERNAL business activity. Do NOT mention the MiMBrain platform, AI systems, training progress, classification accuracy, autonomy metrics, or any internal technology activity. That is invisible infrastructure — it does not appear in this report.
-
-Write a clear, professional report. Structure:
-
-1. **Executive Summary** — 2-3 sentences on the most important commercial takeaways
-2. **Key Activity** — Volume and nature of external interactions, breakdown by business category, what the business was engaged with
-3. **Key Relationships** — Most active contacts and organisations and what their activity signals for the business
-4. **Commercial Signals** — Patterns, trends, or developments worth noting across deals, partnerships, customers, or market
-5. **Looking Ahead** — What to watch commercially next month based on the trends observed
-
-Data:
-${JSON.stringify(dataPackage, null, 2)}
-
-Keep it under 800 words. Use markdown formatting. Be specific — use real numbers and entity names from the data. Write in first person plural ("we" = Made in Motion).`,
+          content: getMonthlyReportPrompt(JSON.stringify(dataPackage, null, 2)),
         },
       ],
     });

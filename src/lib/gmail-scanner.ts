@@ -18,6 +18,15 @@ import { writeProvenance, recomputeKCSForEntities } from "./entity-intelligence"
 import { buildAcumenPromptSection } from "./harness-loader";
 import { emitFeedCard, inferCardType, logIngestion, embedCorrespondence } from "./feed-card-emitter";
 import { getAutonomousCategories } from "./autonomy";
+import {
+  buildUnifiedClassifierPrompt,
+  parseUnifiedClassification,
+  attentionClassToCardType,
+  attentionClassToPriority,
+  shouldSuppressCard,
+  qualifiesForTaskCreation,
+  UnifiedClassificationResult,
+} from "./unified-classifier";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 

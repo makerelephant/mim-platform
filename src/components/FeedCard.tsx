@@ -815,7 +815,18 @@ export default function FeedCard({ card, onAction, onDismiss, onContactTap }: Fe
             ══════════════════════════════════════════════════════════════════ */}
         {(card.reasoning || card.acumen_category || (card.related_entities && card.related_entities.length > 0)) && (
           <button
-            onClick={() => setExpanded(!expanded)}
+            onClick={() => {
+              const willExpand = !expanded;
+              setExpanded(willExpand);
+              if (willExpand && card.id) {
+                // Fire-and-forget tracking event
+                fetch("/api/brain/track", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ event: "card_expanded", card_id: card.id }),
+                }).catch(() => {});
+              }
+            }}
             className={`flex items-center px-[12px] py-[4px] rounded-[8px] ${expanded ? "gap-[6px]" : "gap-[12px]"}`}
             style={{ backgroundColor: expanded ? "#f4efea" : "rgba(244, 239, 234, 0.8)" }}
           >

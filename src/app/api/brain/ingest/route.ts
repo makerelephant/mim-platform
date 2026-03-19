@@ -4,6 +4,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { processDocument, processTextInput, validateFileSize, EXTENSION_TO_TYPE } from "@/lib/document-processor";
 import { loadTaxonomy, matchTaxonomyCategory } from "@/lib/taxonomy-loader";
 import { chunkText, embedBatch, estimateTokens } from "@/lib/embeddings";
+import { getBrainIngestPrompt } from "@/lib/prompts";
 
 export const maxDuration = 120;
 
@@ -285,26 +286,11 @@ export async function POST(request: NextRequest) {
             .map((t) => `- ${t.category} (${t.slug}): ${t.signal_keywords.join(", ")}`)
             .join("\n");
 
-          const classifyPrompt = `Analyze this document and provide:
-1. A concise 2-3 sentence summary
-2. Which taxonomy categories it relates to (from the list below)
-3. Relevant tags (lowercase, hyphenated)
-4. Any organization or entity names mentioned
-
-TAXONOMY CATEGORIES:
-${taxonomyContext}
-
-DOCUMENT TITLE: ${title}
-DOCUMENT TEXT (first 3000 chars):
-${contentText.slice(0, 3000)}
-
-Respond with ONLY a JSON object:
-{
-  "summary": "2-3 sentence summary",
-  "categories": ["slug1", "slug2"],
-  "tags": ["tag1", "tag2"],
-  "mentioned_entities": ["Entity Name 1", "Entity Name 2"]
-}`;
+          const classifyPrompt = getBrainIngestPrompt(
+            taxonomyContext,
+            title,
+            contentText.slice(0, 3000),
+          );
 
           const response = await anthropic.messages.create({
             model: "claude-sonnet-4-6",
