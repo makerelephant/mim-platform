@@ -446,52 +446,82 @@ export default function ClearingPage() {
         </div>
       )}
 
+
       {/* ══════════════════════════════════════════════════════════════════
-          HEADER — Centered, max 548px, same as Motion per Figma 61:413
+          CONVERSATIONS PANEL — Separate floating card per Figma 61:510
+          180px wide, positioned left of main chat area
           ══════════════════════════════════════════════════════════════════ */}
       <div
-        className="mx-auto flex flex-col gap-[12px] items-start p-[12px] rounded-[12px] shadow-[0px_0px_40px_0px_rgba(0,0,0,0.08)] w-full"
-        style={{ backgroundColor: "rgba(236,250,255,0.6)", maxWidth: "548px", marginTop: "52px" }}
+        className="absolute rounded-[12px]"
+        style={{
+          left: "232px",
+          top: "52px",
+          width: "180px",
+          background: "rgba(0,0,0,0)",
+          boxShadow: "0px 0px 40px 0px rgba(0,0,0,0.08)",
+        }}
       >
-        <div className="flex gap-[6px] items-end pr-[6px] w-full">
-          <img
-            src="/icons/mark-avatar.png"
-            alt="Mark Slater"
-            className="w-[34px] h-[34px] rounded-full object-cover shrink-0"
-          />
-          <span
-            className="text-[16px] font-medium text-[#3e4c60] leading-[20px] text-center whitespace-nowrap"
-            style={{ fontFamily: "var(--font-geist-sans), 'Geist', sans-serif", letterSpacing: "-0.32px" }}
-          >
-            Mark Slater, CEO.
-          </span>
-        </div>
-        <div className="flex items-start justify-between pr-[6px] w-full">
-          <div className="flex gap-[6px] items-center">
-            <span
-              className="text-[18px] font-semibold text-[#1e252a] leading-[20px] text-center whitespace-nowrap"
-              style={{ fontFamily: "var(--font-geist-sans), 'Geist', sans-serif", letterSpacing: "-0.36px" }}
-            >
-              Important Conversations{" "}
-            </span>
-            <span
-              className="text-[10px] font-medium text-[#9ca5a9] leading-[10px] whitespace-nowrap self-end pb-[2px]"
-              style={{ fontFamily: "var(--font-geist-sans), 'Geist', sans-serif" }}
-            >
-              {lastConversationText().replace("Last Conversation was ", "...updated ")}
-            </span>
-          </div>
-          <img src="/icons/refresh-2.svg" alt="" className="w-[20px] h-[20px] shrink-0" />
-        </div>
-        <p
-          className="text-[12px] font-medium leading-[14px] w-full"
-          style={{ fontFamily: "var(--font-geist-sans), 'Geist', sans-serif", color: "#627c9e" }}
+        {/* Header */}
+        <div
+          className="flex items-center justify-between rounded-tl-[12px] rounded-tr-[12px]"
+          style={{ borderBottom: "0.5px solid #c7d2e5", padding: "12px" }}
         >
-          My personal and company execution feed. no more email bitches...
-        </p>
-      </div>
+          <span
+            className="text-[12px] font-medium text-[#1e252a] leading-[14px] tracking-[-0.12px] whitespace-nowrap"
+            style={{ fontFamily: "var(--font-geist-sans), 'Geist', sans-serif" }}
+          >
+            Conversations
+          </span>
+          <button onClick={newSession}>
+            <img src="/icons/more-horizontal.svg" alt="" className="w-[24px] h-[24px]" />
+          </button>
+        </div>
 
-      {/* Conversations panel is now toggled via button in the chat card top bar */}
+        {/* Session list */}
+        <div
+          className="flex flex-col gap-[12px] items-start"
+          style={{ padding: "12px", width: "100%" }}
+        >
+          {loadingSessions ? (
+            <span className="text-[12px] text-[#9ca5a9]" style={{ fontFamily: "var(--font-geist-sans), 'Geist', sans-serif" }}>
+              Loading...
+            </span>
+          ) : activeSessions.map((s) => (
+            <div key={s.id} className="flex items-center justify-between w-full group relative">
+              {/* Active pill — wraps full height of text */}
+              {s.id === activeSessionId && (
+                <div
+                  className="absolute bg-white rounded-tr-[18px] rounded-br-[18px]"
+                  style={{ left: "-6px", top: "-2px", bottom: "-2px", width: "173px" }}
+                />
+              )}
+              <button
+                onClick={() => setActiveSessionId(s.id)}
+                className="text-left flex-1 overflow-hidden text-ellipsis relative z-[1]"
+                style={{
+                  fontFamily: "var(--font-geist-sans), 'Geist', sans-serif",
+                  fontSize: "12px",
+                  fontWeight: 500,
+                  lineHeight: "16px",
+                  letterSpacing: "-0.24px",
+                  color: "#1e252a",
+                }}
+              >
+                {s.title}
+              </button>
+              {activeSessions.length > 1 && (
+                <button
+                  onClick={() => dissolveSession(s.id)}
+                  className="opacity-0 group-hover:opacity-100 transition-opacity text-[#9ca5a9] hover:text-[#627c9e] text-[12px] ml-1 shrink-0 relative z-[1]"
+                  title="Dissolve"
+                >
+                  ×
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
 
       {/* ══════════════════════════════════════════════════════════════════
           MAIN CHAT CARD — Centered, max 551px, responsive
@@ -503,7 +533,7 @@ export default function ClearingPage() {
           backgroundColor: "rgba(255,255,255,0.6)",
           maxWidth: "551px",
           height: "838px",
-          marginTop: "24px",
+          marginTop: "52px",
           boxShadow: "0px 0px 60px 0px rgba(0,0,0,0.12)",
         }}
       >

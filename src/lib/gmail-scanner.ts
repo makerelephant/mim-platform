@@ -16,16 +16,8 @@ import { loadStandingOrders, buildStandingOrdersPromptSection, loadRecentCorrect
 import { loadBehavioralRules, buildBehavioralRulesPromptSection } from "./behavioral-rules";
 import { writeProvenance, recomputeKCSForEntities } from "./entity-intelligence";
 import { buildAcumenPromptSection } from "./harness-loader";
-import { emitFeedCard, logIngestion, embedCorrespondence } from "./feed-card-emitter";
-import {
-  buildUnifiedClassifierPrompt,
-  parseUnifiedClassification,
-  attentionClassToCardType,
-  attentionClassToPriority,
-  shouldSuppressCard,
-  qualifiesForTaskCreation,
-  UnifiedClassificationResult,
-} from "./unified-classifier";
+import { emitFeedCard, inferCardType, logIngestion, embedCorrespondence } from "./feed-card-emitter";
+import { getAutonomousCategories } from "./autonomy";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -759,6 +751,12 @@ export async function runGmailScanner(
       addLog(`Injected ${behavioralRules.length} permanent behavioral rule(s) into classifier prompt`);
     }
 
+    // ── Load autonomous categories (cached for this scan run) ──
+    const autonomousCategories = new Set(await getAutonomousCategories(sb, addLog));
+    if (autonomousCategories.size > 0) {
+      addLog(`Autonomy active for ${autonomousCategories.size} categor${autonomousCategories.size === 1 ? "y" : "ies"}: ${[...autonomousCategories].join(", ")}`);
+    }
+
     const userEmails = new Set(userEmailsList.map((e) => e.toLowerCase().trim()));
 
     // ── Brain email config (for knowledge ingestion routing) ──
@@ -811,6 +809,8 @@ export async function runGmailScanner(
     let skippedDupes = 0;
     let preFiltered = 0;
     let threadSkipped = 0;
+    let autoActed = 0;
+    const autoActedByCategory = new Map<string, number>();
     const processedEntities: Array<{ entity_type: string; entity_id: string }> = [];
 
     for (const msgRef of messages) {
@@ -1352,7 +1352,18 @@ export async function runGmailScanner(
             action_recommendation: result.action_recommendation || null,
           },
           agent_run_id: runId,
-        }, addLog);
+        }, addLog, {
+          autoAct: !!(result.acumen_category && autonomousCategories.has(result.acumen_category)),
+        });
+
+        // Track autonomous actions for reflection card
+        if (card && result.acumen_category && autonomousCategories.has(result.acumen_category)) {
+          autoActed++;
+          autoActedByCategory.set(
+            result.acumen_category,
+            (autoActedByCategory.get(result.acumen_category) || 0) + 1,
+          );
+        }
 
         // Log ingestion
         await logIngestion(sb, {
@@ -1499,6 +1510,31 @@ export async function runGmailScanner(
 
     addLog(`Contacts auto-created: ${contactsCreated}`);
     addLog(`Pre-filtered: ${preFiltered}, Thread-skipped: ${threadSkipped}`);
+
+    // ── Emit reflection card for autonomous actions (once per scan, not per card) ──
+    if (autoActed > 0) {
+      const categoryBreakdown = [...autoActedByCategory.entries()]
+        .map(([cat, count]) => `  - ${cat}: ${count}`)
+        .join("\n");
+
+      await emitFeedCard(sb, {
+        card_type: "reflection",
+        title: `Brain auto-acted on ${autoActed} card${autoActed > 1 ? "s" : ""} this scan`,
+        body: `The following categories have earned autonomous authority and ${autoActed} card${autoActed > 1 ? "s were" : " was"} auto-approved:\n\n${categoryBreakdown}\n\nThese cards are marked as "acted" and won't appear in your feed unless you filter by Old. If any action was wrong, find it in Old and mark it "No" — the category will lose autonomous status until accuracy recovers.`,
+        source_type: "autonomy",
+        source_ref: `autonomy-scan-${new Date().toISOString().slice(0, 19)}`,
+        priority: "low",
+        visibility_scope: "personal",
+        metadata: {
+          autonomous_categories: [...autoActedByCategory.keys()],
+          cards_auto_acted: autoActed,
+          breakdown: Object.fromEntries(autoActedByCategory),
+          agent_run_id: runId,
+        },
+      }, addLog);
+
+      addLog(`Autonomy: auto-acted on ${autoActed} card(s) across ${autoActedByCategory.size} categor${autoActedByCategory.size === 1 ? "y" : "ies"}`);
+    }
 
     return {
       success: true,

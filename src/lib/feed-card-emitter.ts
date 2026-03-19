@@ -210,6 +210,7 @@ export async function emitFeedCard(
   sb: SupabaseClient,
   input: FeedCardInput,
   log?: (msg: string) => void,
+  options?: { autoAct?: boolean },
 ): Promise<FeedCard | null> {
   const addLog = log || (() => {});
 
@@ -228,7 +229,10 @@ export async function emitFeedCard(
     }
   }
 
-  const cardPayload = {
+  const autoAct = options?.autoAct === true;
+  const now = new Date().toISOString();
+
+  const row: Record<string, unknown> = {
     card_type: input.card_type,
     title: input.title,
     body: input.body || null,
@@ -250,50 +254,21 @@ export async function emitFeedCard(
     agent_run_id: input.agent_run_id || null,
     thread_id: threadId || null,
     message_count: 1,
-    thread_updated_at: new Date().toISOString(),
+    thread_updated_at: now,
   };
 
-  // If source_ref is present, check for an existing card and update it
-  // (handles re-scans fixing bad classification data from a prior run)
-  if (input.source_ref) {
-    const { data: existing } = await sb
-      .schema("brain")
-      .from("feed_cards")
-      .select("id, status")
-      .eq("source_ref", input.source_ref)
-      .limit(1)
-      .single();
-
-    if (existing) {
-      const { data, error } = await sb
-        .schema("brain")
-        .from("feed_cards")
-        .update({
-          ...cardPayload,
-          // Preserve acted/dismissed status — don't resurface old resolved cards
-          status: existing.status === "acted" || existing.status === "dismissed"
-            ? existing.status
-            : "unread",
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", existing.id)
-        .select()
-        .single();
-
-      if (error) {
-        addLog(`  Feed card update failed: ${error.message}`);
-        return null;
-      }
-
-      addLog(`  Feed card updated: [${input.card_type}] ${input.title.slice(0, 60)}`);
-      return data as FeedCard;
-    }
+  // Autonomy: auto-act on cards in trusted categories
+  if (autoAct) {
+    row.status = "acted";
+    row.ceo_action = "do";
+    row.ceo_action_at = now;
+    row.ceo_action_note = `Auto-approved: ${input.acumen_category} has autonomous authority`;
   }
 
   const { data, error } = await sb
     .schema("brain")
     .from("feed_cards")
-    .insert(cardPayload)
+    .insert(row)
     .select()
     .single();
 
@@ -302,7 +277,11 @@ export async function emitFeedCard(
     return null;
   }
 
-  addLog(`  Feed card emitted: [${input.card_type}] ${input.title.slice(0, 60)}`);
+  if (autoAct) {
+    addLog(`  Feed card AUTO-ACTED: [${input.card_type}] ${input.title.slice(0, 60)} (autonomous: ${input.acumen_category})`);
+  } else {
+    addLog(`  Feed card emitted: [${input.card_type}] ${input.title.slice(0, 60)}`);
+  }
   return data as FeedCard;
 }
 

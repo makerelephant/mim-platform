@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { synthesizeRulesFromCorrections } from "@/lib/behavioral-rules";
+import { synthesizeRules } from "@/lib/behavioral-rules";
 
 /**
  * POST /api/brain/learn
@@ -236,11 +236,31 @@ export async function POST(request: NextRequest) {
       learned.push("Correction stored as institutional memory in knowledge_base");
     }
 
-    // ── 6. Synthesize permanent behavioral rules from accumulated patterns ──
+    // ── 6. Synthesize behavioral rules every 5th correction (not every time) ──
+    // Count total corrections to decide if we should run synthesis
     try {
-      const newRulesCount = await synthesizeRulesFromCorrections(sb);
-      if (newRulesCount > 0) {
-        learned.push(`${newRulesCount} new permanent behavioral rule(s) synthesized from correction patterns`);
+      const { count: correctionCount } = await (sb as any)
+        .schema("brain")
+        .from("decision_log")
+        .select("id", { count: "exact", head: true })
+        .eq("ceo_override", true);
+
+      const shouldSynthesize = (correctionCount ?? 0) % 5 === 0;
+
+      if (shouldSynthesize) {
+        console.log(
+          `[brain/learn] Correction #${correctionCount} — triggering rule synthesis`
+        );
+        const newRulesCount = await synthesizeRules(sb);
+        if (newRulesCount > 0) {
+          learned.push(
+            `${newRulesCount} behavioral rule(s) synthesized from correction patterns (correction #${correctionCount})`
+          );
+        }
+      } else {
+        console.log(
+          `[brain/learn] Correction #${correctionCount} — synthesis will run on next multiple of 5`
+        );
       }
     } catch (synthErr) {
       // Don't fail the whole request if synthesis fails

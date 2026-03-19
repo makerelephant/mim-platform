@@ -1,5 +1,10 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import {
+  computeAutonomyReport,
+  AUTONOMY_THRESHOLD_REVIEWS,
+  AUTONOMY_THRESHOLD_ACCURACY,
+} from "@/lib/autonomy";
 
 /**
  * GET /api/brain/autonomy
@@ -12,11 +17,10 @@ import { createClient } from "@supabase/supabase-js";
  * POST /api/brain/autonomy
  *
  * Runs the autonomy check and auto-acts on qualifying unread cards.
+ * This is a catch-up mechanism for cards that were created before
+ * the gmail scanner's inline autonomy was active.
  * Emits reflection cards when categories cross the autonomy threshold.
  */
-
-const AUTONOMY_THRESHOLD_REVIEWS = 20;
-const AUTONOMY_THRESHOLD_ACCURACY = 90;
 
 export async function GET() {
   try {
@@ -47,6 +51,7 @@ export async function POST() {
     }
 
     // ── Auto-act on unread cards in autonomous categories ──
+    // This catches any cards that slipped through before inline autonomy was active
     const autonomousSlugs = report.autonomous_categories.map((c) => c.category);
 
     const { data: eligibleCards, error: fetchErr } = await sb
@@ -118,53 +123,4 @@ function getClient() {
 
 function envError() {
   return NextResponse.json({ success: false, error: "Missing env vars" }, { status: 500 });
-}
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function computeAutonomyReport(sb: any) {
-  const { data: actedCards } = await sb
-    .schema("brain")
-    .from("feed_cards")
-    .select("acumen_category, ceo_action")
-    .eq("status", "acted")
-    .not("ceo_action", "is", null)
-    .not("acumen_category", "is", null);
-
-  const categoryMap = new Map<string, { approved: number; rejected: number; total: number }>();
-
-  for (const card of actedCards || []) {
-    const cat = card.acumen_category;
-    if (!cat) continue;
-    if (!categoryMap.has(cat)) categoryMap.set(cat, { approved: 0, rejected: 0, total: 0 });
-    const entry = categoryMap.get(cat)!;
-    entry.total++;
-    if (card.ceo_action === "do") entry.approved++;
-    else if (card.ceo_action === "no") entry.rejected++;
-  }
-
-  const categories = Array.from(categoryMap.entries()).map(([category, stats]) => {
-    const accuracy = stats.approved + stats.rejected > 0
-      ? Math.round((stats.approved / (stats.approved + stats.rejected)) * 100)
-      : 0;
-    return {
-      category,
-      accuracy,
-      reviews: stats.total,
-      approved: stats.approved,
-      rejected: stats.rejected,
-      qualifies: stats.total >= AUTONOMY_THRESHOLD_REVIEWS && accuracy >= AUTONOMY_THRESHOLD_ACCURACY,
-    };
-  });
-
-  return {
-    autonomous_categories: categories.filter((c) => c.qualifies),
-    approaching_categories: categories.filter(
-      (c) => !c.qualifies && c.reviews >= 10 && c.accuracy >= 80
-    ),
-    all_categories: categories.sort((a, b) => b.reviews - a.reviews),
-    thresholds: {
-      reviews: AUTONOMY_THRESHOLD_REVIEWS,
-      accuracy: AUTONOMY_THRESHOLD_ACCURACY,
-    },
-  };
 }

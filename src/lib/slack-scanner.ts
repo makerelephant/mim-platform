@@ -12,6 +12,7 @@ import { buildEntityDossier } from "./entity-dossier";
 import { computeFeedbackForEntities } from "./feedback-engine";
 import { loadTaxonomy, matchTaxonomyCategory, buildTaxonomyPromptSection, enforcePriorityRules } from "./taxonomy-loader";
 import { loadStandingOrders, buildStandingOrdersPromptSection } from "./instruction-loader";
+import { loadBehavioralRules, buildBehavioralRulesPromptSection } from "./behavioral-rules";
 import { recomputeKCSForEntities } from "./entity-intelligence";
 import { emitFeedCard } from "./feed-card-emitter";
 import {
@@ -511,16 +512,13 @@ export async function runSlackScanner(
       addLog(`Injected ${standingOrders.length} standing order(s) into classifier prompt`);
     }
 
-    // ── Always-on action extraction rules (appended regardless of DB prompt override) ──
-    agentSystemPrompt += `\n\nACTION EXTRACTION RULES — ALWAYS apply these regardless of other instructions:
-- If the message @mentions or tags Mark Slater directly → create an action item to review and respond
-- If a link, document, Google Doc, or resource is shared → create an action item to review it
-- If a question is asked → create an action item to answer it
-- If access/credentials were shared → create an action item to acknowledge or use them
-- If a new contact, org, or opportunity is mentioned → create an action item to follow up
-- Minimum action item when in doubt: "Review and respond to [sender] in #[channel]" at medium priority
-- The "summary" field must be a specific one-line description of what happened. NEVER return "Message processed" as the summary. Describe the actual content.`;
-    addLog("Injected action extraction rules");
+    // ── Inject permanent behavioral rules (synthesized from repeated corrections) ──
+    const behavioralRules = await loadBehavioralRules(sb);
+    if (behavioralRules.length > 0) {
+      const behavioralRulesSection = buildBehavioralRulesPromptSection(behavioralRules);
+      agentSystemPrompt += "\n" + behavioralRulesSection;
+      addLog(`Injected ${behavioralRules.length} permanent behavioral rule(s) into classifier prompt`);
+    }
 
     // ── Slack client ──
     const slack = new WebClient(slackToken);
