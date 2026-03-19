@@ -633,10 +633,10 @@ export default function ClearingPage() {
                         </p>
                       </div>
                     ) : (
-                      /* Brain: left-aligned plain text, 14px, leading-16 */
+                      /* Brain: left-aligned plain text, 14px, leading-18 */
                       <div style={{ width: "100%" }}>
                         <div
-                          className="text-[14px] text-[#1e252a] leading-[16px]"
+                          className="text-[14px] text-[#1e252a] leading-[18px]"
                           style={{ fontFamily: "var(--font-geist-sans), 'Geist', sans-serif" }}
                           dangerouslySetInnerHTML={{
                             __html: msg.content
@@ -671,14 +671,18 @@ export default function ClearingPage() {
       <div className="mx-auto w-full" style={{ maxWidth: "550px", marginTop: "16px", marginBottom: "24px" }}>
         {/* Input bar */}
         <div
-          className="flex items-center justify-between bg-white rounded-[12px] shadow-[0px_0px_6px_0px_rgba(0,0,0,0.18)] px-[14px] py-[18px] w-full"
-          style={{ border: "0.5px solid #a9d8ff", height: "48px" }}
+          className="flex items-end justify-between bg-white rounded-[12px] shadow-[0px_0px_6px_0px_rgba(0,0,0,0.18)] px-[14px] py-[12px] w-full"
+          style={{ border: "0.5px solid #a9d8ff", minHeight: "48px" }}
         >
-          <div className="flex flex-1 items-center pl-[12px]">
-            <input
-              type="text"
+          <div className="flex flex-1 items-end pl-[12px]">
+            <textarea
               value={input}
-              onChange={(e) => setInput(e.target.value)}
+              onChange={(e) => {
+                setInput(e.target.value);
+                // Auto-grow textarea
+                e.target.style.height = "auto";
+                e.target.style.height = Math.min(e.target.scrollHeight, 160) + "px";
+              }}
               onKeyDown={(e) => {
                 if (e.key === "Enter" && !e.shiftKey) {
                   e.preventDefault();
@@ -686,11 +690,12 @@ export default function ClearingPage() {
                 }
               }}
               placeholder="Ask anything about the business...."
-              className="flex-1 text-[12px] text-black placeholder:text-[#b0b8bb] focus:outline-none bg-transparent leading-[24px]"
-              style={{ fontFamily: "var(--font-geist-sans), 'Geist', sans-serif" }}
+              rows={1}
+              className="flex-1 text-[14px] text-black placeholder:text-[#b0b8bb] focus:outline-none bg-transparent leading-[18px] resize-none overflow-hidden"
+              style={{ fontFamily: "var(--font-geist-sans), 'Geist', sans-serif", minHeight: "24px", maxHeight: "160px" }}
             />
           </div>
-          <div className="flex gap-[24px] items-center w-[143px] h-[21px]">
+          <div className="flex gap-[24px] items-center w-[143px] h-[21px] shrink-0 mb-[2px]">
             <img src="/icons/calendar-plus.svg" alt="" className="w-[16px] h-[16px] shrink-0" />
             <img
               src="/icons/paperclip.svg"

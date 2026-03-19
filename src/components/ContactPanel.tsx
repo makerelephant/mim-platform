@@ -56,6 +56,115 @@ function gmailThreadUrl(metadata?: Record<string, unknown>): string | null {
   return null;
 }
 
+// ─── Inline SVG Icons ───────────────────────────────────────────────────────
+
+function IconUser({ size = 16, stroke = "#627c9e" }: { size?: number; stroke?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={stroke} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+      <circle cx="12" cy="7" r="4" />
+    </svg>
+  );
+}
+
+function IconShare({ size = 16, stroke = "#ffffff" }: { size?: number; stroke?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={stroke} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
+      <polyline points="16 6 12 2 8 6" />
+      <line x1="12" y1="2" x2="12" y2="15" />
+    </svg>
+  );
+}
+
+function IconEdit({ size = 14, stroke = "#ffffff" }: { size?: number; stroke?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={stroke} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+    </svg>
+  );
+}
+
+function IconTrash({ size = 16, stroke = "#627c9e" }: { size?: number; stroke?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={stroke} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="3 6 5 6 21 6" />
+      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+      <line x1="10" y1="11" x2="10" y2="17" />
+      <line x1="14" y1="11" x2="14" y2="17" />
+    </svg>
+  );
+}
+
+function IconPencil({ size = 14, stroke = "#627c9e" }: { size?: number; stroke?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={stroke} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
+    </svg>
+  );
+}
+
+function IconSave({ size = 14, stroke = "#627c9e" }: { size?: number; stroke?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={stroke} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+      <polyline points="17 21 17 13 7 13 7 21" />
+      <polyline points="7 3 7 8 15 8" />
+    </svg>
+  );
+}
+
+function IconInbox({ size = 14, stroke = "#627c9e" }: { size?: number; stroke?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={stroke} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="22 12 16 12 14 15 10 15 8 12 2 12" />
+      <path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z" />
+    </svg>
+  );
+}
+
+function IconArrowUpRight({ size = 16, stroke = "#1e252a" }: { size?: number; stroke?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={stroke} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="7" y1="17" x2="17" y2="7" />
+      <polyline points="7 7 17 7 17 17" />
+    </svg>
+  );
+}
+
+function IconChevronDown() {
+  return (
+    <svg width="10" height="5" viewBox="0 0 10 5" fill="none">
+      <path d="M1 1L5 4L9 1" stroke="#1e252a" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function IconPlusCircle({ size = 24, stroke = "#9ca5a9" }: { size?: number; stroke?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={stroke} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="10" />
+      <line x1="12" y1="8" x2="12" y2="16" />
+      <line x1="8" y1="12" x2="16" y2="12" />
+    </svg>
+  );
+}
+
+function IconBuilding({ size = 24, stroke = "#9ca5a9" }: { size?: number; stroke?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={stroke} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="4" y="2" width="16" height="20" rx="2" />
+      <path d="M9 22v-4h6v4" />
+      <path d="M8 6h.01M16 6h.01M12 6h.01M8 10h.01M16 10h.01M12 10h.01M8 14h.01M16 14h.01M12 14h.01" />
+    </svg>
+  );
+}
+
+// ─── Font helper ────────────────────────────────────────────────────────────
+
+const geist = "var(--font-geist-sans), 'Geist', sans-serif";
+
 // ─── Component ──────────────────────────────────────────────────────────────
 
 export default function ContactPanel({ contactId, onDismiss }: ContactPanelProps) {
@@ -114,7 +223,6 @@ export default function ContactPanel({ contactId, onDismiss }: ContactPanelProps
 
   useEffect(() => {
     fetchContact();
-    // Trigger slide-in animation
     requestAnimationFrame(() => setVisible(true));
   }, [fetchContact]);
 
@@ -190,10 +298,8 @@ export default function ContactPanel({ contactId, onDismiss }: ContactPanelProps
     }
     setSearchingOrgs(true);
     try {
-      // Search organizations - use the feed API pattern with a simple fetch
       const res = await fetch(`/api/contacts/${contactId}`);
       if (res.ok) {
-        // For now, just show a placeholder. In production this would query organizations table.
         setOrgResults([]);
       }
     } finally {
@@ -268,40 +374,52 @@ export default function ContactPanel({ contactId, onDismiss }: ContactPanelProps
     >
       <div
         ref={panelRef}
-        className="absolute top-0 right-0 h-full bg-white flex flex-col transition-transform duration-200 ease-out"
+        className="absolute top-0 right-0 h-full flex flex-col transition-transform duration-200 ease-out overflow-y-auto"
         style={{
           width: "384px",
           maxWidth: "100vw",
           transform: visible ? "translateX(0)" : "translateX(100%)",
-          boxShadow: "-4px 0 24px rgba(0,0,0,0.08)",
+          background: "rgba(255,255,255,0.4)",
+          backdropFilter: "blur(20px)",
+          WebkitBackdropFilter: "blur(20px)",
+          boxShadow: "0px 0px 40px 0px rgba(0,0,0,0.08)",
+          borderRadius: "12px",
+          paddingTop: "24px",
+          paddingBottom: "12px",
+          paddingLeft: "12px",
+          paddingRight: "12px",
         }}
       >
         {/* ════════════════════════════════════════════════════════════════════
-            1. HEADER BAR — 26px height, 12px padding
+            1. HEADER ROW
             ════════════════════════════════════════════════════════════════════ */}
         <div
           className="flex items-center justify-between shrink-0"
-          style={{ height: "26px", padding: "0 12px", marginTop: "12px" }}
+          style={{ padding: "0 12px" }}
         >
           {/* Left: Badge + Dismiss */}
           <div className="flex items-center gap-[12px]">
             {/* Contact badge */}
             <div
-              className="flex items-center gap-[4px] px-[8px] rounded-[4px]"
+              className="flex items-center gap-[4px] rounded-[4px]"
               style={{
-                backgroundColor: "#EBF2FF",
+                backgroundColor: "#e6f1ff",
+                border: "1px solid #b9cee8",
                 height: "26px",
+                paddingLeft: "8px",
+                paddingRight: "8px",
+                paddingTop: "6px",
+                paddingBottom: "6px",
               }}
             >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3B82F6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-                <circle cx="12" cy="7" r="4" />
-              </svg>
+              <IconUser size={16} stroke="#627c9e" />
               <span
-                className="text-[16px] font-medium leading-none"
+                className="font-medium"
                 style={{
-                  fontFamily: "var(--font-geist-sans), 'Geist', sans-serif",
-                  color: "#3B82F6",
+                  fontFamily: geist,
+                  fontSize: "12px",
+                  color: "#627c9e",
+                  lineHeight: "14px",
                 }}
               >
                 Contact
@@ -310,10 +428,12 @@ export default function ContactPanel({ contactId, onDismiss }: ContactPanelProps
             {/* Dismiss text */}
             <button
               onClick={handleDismiss}
-              className="text-[14px] hover:opacity-60 transition-opacity"
+              className="hover:opacity-60 transition-opacity font-medium"
               style={{
-                fontFamily: "var(--font-geist-sans), 'Geist', sans-serif",
+                fontFamily: geist,
+                fontSize: "12px",
                 color: "#1e252a",
+                lineHeight: "14px",
               }}
             >
               Dismiss
@@ -321,33 +441,26 @@ export default function ContactPanel({ contactId, onDismiss }: ContactPanelProps
           </div>
 
           {/* Right: Share + Edit */}
-          <div className="flex items-center gap-[8px]">
+          <div className="flex items-center gap-[24px]">
             {/* Share */}
             <button
               onClick={shareContact}
-              className="flex items-center justify-center hover:bg-gray-100 rounded transition-colors"
-              style={{ width: "26px", height: "26px" }}
+              className="flex items-center justify-center rounded-[6px] hover:opacity-80 transition-opacity"
+              style={{ width: "26px", height: "26px", backgroundColor: "#627c9e" }}
               title="Copy contact info"
             >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1e252a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="18" cy="5" r="3" />
-                <circle cx="6" cy="12" r="3" />
-                <circle cx="18" cy="19" r="3" />
-                <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
-                <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
-              </svg>
+              <IconShare size={16} stroke="#ffffff" />
             </button>
             {/* Edit */}
             <button
               onClick={editing ? cancelEdit : startEdit}
-              className="flex items-center justify-center hover:bg-gray-100 rounded transition-colors"
-              style={{ width: "26px", height: "26px" }}
+              className="flex items-center justify-center rounded-[6px] hover:opacity-80 transition-opacity"
+              style={{ width: "26px", height: "26px", backgroundColor: "#627c9e" }}
               title={editing ? "Cancel edit" : "Edit contact"}
             >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#1e252a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-              </svg>
+              <div className="flex items-center justify-center" style={{ width: "20px", height: "20px" }}>
+                <IconEdit size={14} stroke="#ffffff" />
+              </div>
             </button>
           </div>
         </div>
@@ -355,7 +468,7 @@ export default function ContactPanel({ contactId, onDismiss }: ContactPanelProps
         {/* ════════════════════════════════════════════════════════════════════
             SCROLLABLE BODY
             ════════════════════════════════════════════════════════════════════ */}
-        <div className="flex-1 overflow-y-auto" style={{ padding: "12px" }}>
+        <div className="flex-1 flex flex-col" style={{ gap: "12px", marginTop: "6px" }}>
           {loading ? (
             <div className="flex items-center justify-center py-20">
               <div className="w-5 h-5 border-2 border-gray-300 border-t-gray-600 rounded-full animate-spin" />
@@ -365,282 +478,279 @@ export default function ContactPanel({ contactId, onDismiss }: ContactPanelProps
               <p className="text-[14px] text-[#6B7280]">{error}</p>
             </div>
           ) : contact ? (
-            <div className="flex flex-col gap-[12px]">
+            <>
               {/* ══════════════════════════════════════════════════════════════
                   2. CONTACT INFO SECTION
                   ══════════════════════════════════════════════════════════════ */}
-              <div
-                className="rounded-lg overflow-hidden"
-                style={{ border: "1px solid #E5E7EB" }}
-              >
-                {/* Row 1 — Contact details */}
+              <div className="rounded-[4px]">
                 <div
-                  className="flex items-center gap-[12px]"
-                  style={{ padding: "12px", minHeight: "87px" }}
+                  className="flex flex-col gap-[10px]"
+                  style={{
+                    backgroundColor: "rgba(243,242,237,0.6)",
+                    padding: "12px",
+                  }}
                 >
-                  {/* Avatar */}
+                  {/* Row 1 — Contact media-body */}
                   <div
-                    className="shrink-0 rounded-full flex items-center justify-center"
-                    style={{
-                      width: "48px",
-                      height: "48px",
-                      backgroundColor: "#E5E7EB",
-                    }}
+                    className="bg-white overflow-clip"
+                    style={{ padding: "6px" }}
                   >
-                    <span
-                      className="text-[18px] font-medium text-[#6B7280]"
-                      style={{ fontFamily: "var(--font-geist-sans), 'Geist', sans-serif" }}
-                    >
-                      {getInitials(contact.name)}
-                    </span>
-                  </div>
-
-                  {/* Details */}
-                  <div className="flex flex-col gap-[2px] min-w-0 flex-1">
-                    {editing ? (
-                      <>
-                        <input
-                          type="text"
-                          value={editName}
-                          onChange={(e) => setEditName(e.target.value)}
-                          className="text-[16px] font-medium text-[#1e252a] bg-gray-50 border border-gray-200 rounded px-[6px] py-[2px] focus:outline-none focus:ring-1 focus:ring-blue-300 w-full"
-                          style={{ fontFamily: "var(--font-geist-sans), 'Geist', sans-serif", height: "21px" }}
-                          placeholder="Name"
-                        />
-                        <input
-                          type="text"
-                          value={editTitle}
-                          onChange={(e) => setEditTitle(e.target.value)}
-                          className="text-[14px] text-[#6B7280] bg-gray-50 border border-gray-200 rounded px-[6px] py-[2px] focus:outline-none focus:ring-1 focus:ring-blue-300 w-full"
-                          style={{ fontFamily: "var(--font-geist-sans), 'Geist', sans-serif" }}
-                          placeholder="Title"
-                        />
-                        <input
-                          type="email"
-                          value={editEmail}
-                          onChange={(e) => setEditEmail(e.target.value)}
-                          className="text-[14px] text-[#3B82F6] bg-gray-50 border border-gray-200 rounded px-[6px] py-[2px] focus:outline-none focus:ring-1 focus:ring-blue-300 w-full"
-                          style={{ fontFamily: "var(--font-geist-sans), 'Geist', sans-serif" }}
-                          placeholder="Email"
-                        />
-                        <input
-                          type="tel"
-                          value={editPhone}
-                          onChange={(e) => setEditPhone(e.target.value)}
-                          className="text-[14px] text-[#6B7280] bg-gray-50 border border-gray-200 rounded px-[6px] py-[2px] focus:outline-none focus:ring-1 focus:ring-blue-300 w-full"
-                          style={{ fontFamily: "var(--font-geist-sans), 'Geist', sans-serif" }}
-                          placeholder="Phone"
-                        />
-                        <div className="flex gap-[8px] mt-[4px]">
-                          <button
-                            onClick={saveEdit}
-                            disabled={saving}
-                            className="px-[10px] py-[2px] text-[12px] font-medium text-white bg-[#3B82F6] rounded hover:bg-blue-600 transition-colors disabled:opacity-50"
-                            style={{ fontFamily: "var(--font-geist-sans), 'Geist', sans-serif" }}
-                          >
-                            {saving ? "Saving..." : "Save"}
-                          </button>
-                          <button
-                            onClick={cancelEdit}
-                            className="px-[10px] py-[2px] text-[12px] font-medium text-[#6B7280] hover:text-[#1e252a] transition-colors"
-                            style={{ fontFamily: "var(--font-geist-sans), 'Geist', sans-serif" }}
-                          >
-                            Cancel
-                          </button>
-                        </div>
-                      </>
-                    ) : (
-                      <>
-                        <span
-                          className="text-[16px] font-medium text-[#1e252a] truncate"
-                          style={{
-                            fontFamily: "var(--font-geist-sans), 'Geist', sans-serif",
-                            height: "21px",
-                            lineHeight: "21px",
-                            textDecoration: "underline",
-                          }}
-                        >
-                          {contact.name || "Unknown"}
-                        </span>
-                        {contact.title && (
-                          <span
-                            className="text-[14px] text-[#6B7280] truncate"
-                            style={{ fontFamily: "var(--font-geist-sans), 'Geist', sans-serif" }}
-                          >
-                            {contact.title}
-                          </span>
-                        )}
-                        {contact.email && (
-                          <a
-                            href={`mailto:${contact.email}`}
-                            className="text-[14px] text-[#3B82F6] truncate hover:underline"
-                            style={{ fontFamily: "var(--font-geist-sans), 'Geist', sans-serif" }}
-                          >
-                            {contact.email}
-                          </a>
-                        )}
-                        {contact.phone && (
-                          <span
-                            className="text-[14px] text-[#6B7280]"
-                            style={{ fontFamily: "var(--font-geist-sans), 'Geist', sans-serif" }}
-                          >
-                            {contact.phone}
-                          </span>
-                        )}
-                      </>
-                    )}
-                  </div>
-                </div>
-
-                {/* Divider */}
-                <div style={{ borderTop: "1px solid #E5E7EB" }} />
-
-                {/* Row 2 — Organization */}
-                <div
-                  className="flex items-center gap-[12px]"
-                  style={{ padding: "12px", minHeight: "60px" }}
-                >
-                  {organization ? (
-                    <>
-                      {/* Org avatar */}
+                    <div className="flex gap-[12px] items-start">
+                      {/* Avatar */}
                       <div
-                        className="shrink-0 rounded-lg flex items-center justify-center"
+                        className="shrink-0 rounded-[50px] flex items-center justify-center"
                         style={{
                           width: "48px",
                           height: "48px",
-                          backgroundColor: "#F3F4F6",
+                          backgroundColor: "#E5E7EB",
+                          boxShadow: "0px 0px 4px 0px rgba(0,0,0,0.25)",
                         }}
                       >
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                          <rect x="4" y="2" width="16" height="20" rx="2" />
-                          <path d="M9 22v-4h6v4" />
-                          <path d="M8 6h.01M16 6h.01M12 6h.01M8 10h.01M16 10h.01M12 10h.01M8 14h.01M16 14h.01M12 14h.01" />
-                        </svg>
-                      </div>
-                      {/* Org name + remove */}
-                      <div className="flex items-center justify-between flex-1 min-w-0">
                         <span
-                          className="text-[16px] font-medium text-[#1e252a] truncate"
+                          className="text-[18px] font-medium text-[#6B7280]"
+                          style={{ fontFamily: geist }}
+                        >
+                          {getInitials(contact.name)}
+                        </span>
+                      </div>
+
+                      {/* Details */}
+                      <div className="flex flex-col min-w-0 flex-1">
+                        {editing ? (
+                          <>
+                            <input
+                              type="text"
+                              value={editName}
+                              onChange={(e) => setEditName(e.target.value)}
+                              className="font-semibold text-black bg-gray-50 border border-gray-200 rounded px-[6px] py-[2px] focus:outline-none focus:ring-1 focus:ring-blue-300 w-full"
+                              style={{ fontFamily: geist, fontSize: "16px" }}
+                              placeholder="Name"
+                            />
+                            <input
+                              type="text"
+                              value={editTitle}
+                              onChange={(e) => setEditTitle(e.target.value)}
+                              className="text-[#3e4c60] bg-gray-50 border border-gray-200 rounded px-[6px] py-[2px] focus:outline-none focus:ring-1 focus:ring-blue-300 w-full mt-[2px]"
+                              style={{ fontFamily: geist, fontSize: "14px" }}
+                              placeholder="Title"
+                            />
+                            <input
+                              type="email"
+                              value={editEmail}
+                              onChange={(e) => setEditEmail(e.target.value)}
+                              className="text-[#1873de] bg-gray-50 border border-gray-200 rounded px-[6px] py-[2px] focus:outline-none focus:ring-1 focus:ring-blue-300 w-full mt-[2px]"
+                              style={{ fontFamily: geist, fontSize: "14px" }}
+                              placeholder="Email"
+                            />
+                            <input
+                              type="tel"
+                              value={editPhone}
+                              onChange={(e) => setEditPhone(e.target.value)}
+                              className="text-[#3e4c60] bg-gray-50 border border-gray-200 rounded px-[6px] py-[2px] focus:outline-none focus:ring-1 focus:ring-blue-300 w-full mt-[2px]"
+                              style={{ fontFamily: geist, fontSize: "14px" }}
+                              placeholder="Phone"
+                            />
+                            <div className="flex gap-[8px] mt-[4px]">
+                              <button
+                                onClick={saveEdit}
+                                disabled={saving}
+                                className="px-[10px] py-[2px] text-[12px] font-medium text-white bg-[#627c9e] rounded hover:opacity-80 transition-opacity disabled:opacity-50"
+                                style={{ fontFamily: geist }}
+                              >
+                                {saving ? "Saving..." : "Save"}
+                              </button>
+                              <button
+                                onClick={cancelEdit}
+                                className="px-[10px] py-[2px] text-[12px] font-medium text-[#627c9e] hover:text-[#1e252a] transition-colors"
+                                style={{ fontFamily: geist }}
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <span
+                              className="font-semibold text-black"
+                              style={{
+                                fontFamily: geist,
+                                fontSize: "16px",
+                                textDecoration: "underline",
+                                textDecorationStyle: "dotted",
+                              }}
+                            >
+                              {contact.name || "Unknown"}
+                            </span>
+                            <div
+                              className="font-normal"
+                              style={{
+                                fontFamily: geist,
+                                fontSize: "14px",
+                                lineHeight: "18px",
+                              }}
+                            >
+                              {contact.title && (
+                                <div style={{ color: "#3e4c60" }}>{contact.title}</div>
+                              )}
+                              {contact.email && (
+                                <a
+                                  href={`mailto:${contact.email}`}
+                                  className="block hover:underline"
+                                  style={{ color: "#1873de" }}
+                                >
+                                  {contact.email}
+                                </a>
+                              )}
+                              {contact.phone && (
+                                <div style={{ color: "#3e4c60" }}>{contact.phone}</div>
+                              )}
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Row 2 — Org media-body */}
+                  <div
+                    className="bg-white overflow-clip relative"
+                    style={{ padding: "6px" }}
+                  >
+                    <div className="flex items-center justify-between" style={{ paddingRight: "6px" }}>
+                      <div className="flex items-center gap-[12px]">
+                        {/* Org Avatar */}
+                        <div
+                          className="shrink-0 rounded-[50px] flex items-center justify-center"
                           style={{
-                            fontFamily: "var(--font-geist-sans), 'Geist', sans-serif",
-                            height: "21px",
-                            lineHeight: "21px",
+                            width: "48px",
+                            height: "48px",
+                            backgroundColor: "#F3F4F6",
+                            boxShadow: "0px 0px 4px 0px rgba(0,0,0,0.25)",
                           }}
                         >
-                          {organization.name || "Unknown Org"}
-                        </span>
+                          <IconBuilding size={24} stroke={organization ? "#9ca5a9" : "#d1d5db"} />
+                        </div>
+
+                        {organization ? (
+                          <span
+                            className="font-semibold text-black"
+                            style={{
+                              fontFamily: geist,
+                              fontSize: "16px",
+                              textDecoration: "underline",
+                              textDecorationStyle: "dotted",
+                            }}
+                          >
+                            {organization.name || "Unknown Org"}
+                          </span>
+                        ) : (
+                          <span
+                            className="font-semibold"
+                            style={{
+                              fontFamily: geist,
+                              fontSize: "16px",
+                              color: "#9ca5a9",
+                              textDecoration: "underline",
+                              textDecorationStyle: "dotted",
+                            }}
+                          >
+                            Add Organization
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Right action */}
+                      {organization ? (
                         <button
                           onClick={removeOrg}
-                          className="shrink-0 hover:opacity-60 transition-opacity ml-[8px]"
+                          className="shrink-0 hover:opacity-60 transition-opacity"
                           title="Remove organization"
                         >
-                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <polyline points="3,6 5,6 21,6" />
-                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                          </svg>
+                          <IconTrash size={16} stroke="#627c9e" />
                         </button>
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      {/* Placeholder avatar */}
-                      <div
-                        className="shrink-0 rounded-lg flex items-center justify-center"
-                        style={{
-                          width: "48px",
-                          height: "48px",
-                          backgroundColor: "#F3F4F6",
-                        }}
-                      >
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#D1D5DB" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                          <rect x="4" y="2" width="16" height="20" rx="2" />
-                          <path d="M9 22v-4h6v4" />
-                          <path d="M8 6h.01M16 6h.01M12 6h.01M8 10h.01M16 10h.01M12 10h.01M8 14h.01M16 14h.01M12 14h.01" />
-                        </svg>
-                      </div>
-                      {/* Add Organization */}
-                      <div className="flex items-center justify-between flex-1 min-w-0 relative">
-                        <span
-                          className="text-[16px] text-[#9CA3AF]"
-                          style={{
-                            fontFamily: "var(--font-geist-sans), 'Geist', sans-serif",
-                            height: "21px",
-                            lineHeight: "21px",
-                          }}
-                        >
-                          Add Organization
-                        </span>
+                      ) : (
                         <button
                           onClick={() => setShowOrgDropdown(!showOrgDropdown)}
-                          className="shrink-0 flex items-center justify-center rounded-full border border-[#D1D5DB] hover:border-[#9CA3AF] transition-colors ml-[8px]"
-                          style={{ width: "24px", height: "24px" }}
+                          className="shrink-0 hover:opacity-60 transition-opacity"
                         >
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <line x1="12" y1="5" x2="12" y2="19" />
-                            <line x1="5" y1="12" x2="19" y2="12" />
-                          </svg>
+                          <IconPlusCircle size={24} stroke="#9ca5a9" />
                         </button>
-                      </div>
-                    </>
-                  )}
-                </div>
+                      )}
+                    </div>
 
-                {/* Org dropdown */}
-                {showOrgDropdown && (
-                  <div
-                    className="border-t border-[#E5E7EB]"
-                    style={{ padding: "8px 12px" }}
-                  >
-                    <input
-                      type="text"
-                      value={orgSearch}
-                      onChange={(e) => searchOrgs(e.target.value)}
-                      placeholder="Search organizations..."
-                      className="w-full text-[14px] px-[8px] py-[6px] border border-gray-200 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-300 bg-gray-50"
-                      style={{ fontFamily: "var(--font-geist-sans), 'Geist', sans-serif" }}
-                      autoFocus
-                    />
-                    {searchingOrgs && (
-                      <p className="text-[12px] text-[#9CA3AF] mt-[4px] px-[4px]">Searching...</p>
-                    )}
-                    {orgResults.length > 0 && (
-                      <div className="mt-[4px] max-h-[120px] overflow-y-auto">
-                        {orgResults.map((org) => (
-                          <button
-                            key={org.id}
-                            onClick={() => assignOrg(org.id)}
-                            className="w-full text-left px-[8px] py-[6px] hover:bg-blue-50 rounded transition-colors"
-                          >
-                            <span
-                              className="text-[16px] font-medium text-[#3B82F6]"
-                              style={{ fontFamily: "var(--font-geist-sans), 'Geist', sans-serif" }}
-                            >
-                              {org.name}
-                            </span>
-                          </button>
-                        ))}
+                    {/* Org dropdown */}
+                    {showOrgDropdown && (
+                      <div
+                        className="absolute left-0 bg-white"
+                        style={{
+                          top: "100%",
+                          width: "336px",
+                          boxShadow: "0px 1px 4px 0px rgba(0,0,0,0.25)",
+                          padding: "6px",
+                          zIndex: 10,
+                        }}
+                      >
+                        <input
+                          type="text"
+                          value={orgSearch}
+                          onChange={(e) => searchOrgs(e.target.value)}
+                          placeholder="Search organizations..."
+                          className="w-full text-[14px] px-[8px] py-[6px] border border-gray-200 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-300 bg-gray-50"
+                          style={{ fontFamily: geist }}
+                          autoFocus
+                        />
+                        {searchingOrgs && (
+                          <p className="text-[12px] text-[#9ca5a9] mt-[4px] px-[6px]" style={{ fontFamily: geist }}>Searching...</p>
+                        )}
+                        {orgResults.length > 0 && (
+                          <div className="flex flex-col mt-[4px]">
+                            {orgResults.map((org) => (
+                              <button
+                                key={org.id}
+                                onClick={() => assignOrg(org.id)}
+                                className="text-left hover:bg-blue-50 transition-colors"
+                                style={{ padding: "0 6px" }}
+                              >
+                                <span
+                                  className="font-medium"
+                                  style={{
+                                    fontFamily: geist,
+                                    fontSize: "16px",
+                                    color: "#289bff",
+                                    textDecoration: "underline",
+                                    textDecorationStyle: "dotted",
+                                  }}
+                                >
+                                  {org.name}
+                                </span>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                        {orgSearch && !searchingOrgs && orgResults.length === 0 && (
+                          <p className="text-[12px] text-[#9ca5a9] mt-[4px] px-[6px]" style={{ fontFamily: geist }}>No organizations found</p>
+                        )}
                       </div>
-                    )}
-                    {orgSearch && !searchingOrgs && orgResults.length === 0 && (
-                      <p className="text-[12px] text-[#9CA3AF] mt-[4px] px-[4px]">No organizations found</p>
                     )}
                   </div>
-                )}
+                </div>
               </div>
 
               {/* ══════════════════════════════════════════════════════════════
                   3. NOTES SECTION
                   ══════════════════════════════════════════════════════════════ */}
-              <div>
+              <div style={{ gap: "12px" }}>
                 {/* Label */}
-                <div className="flex items-center gap-[6px] mb-[6px]">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                  </svg>
+                <div className="flex gap-[4px] items-start">
+                  <IconPencil size={14} stroke="#627c9e" />
                   <span
-                    className="text-[14px] text-[#6B7280]"
-                    style={{ fontFamily: "var(--font-geist-sans), 'Geist', sans-serif" }}
+                    className="font-medium"
+                    style={{
+                      fontFamily: geist,
+                      fontSize: "12px",
+                      color: "#627c9e",
+                      lineHeight: "14px",
+                    }}
                   >
                     Add A Note
                   </span>
@@ -648,40 +758,55 @@ export default function ContactPanel({ contactId, onDismiss }: ContactPanelProps
 
                 {/* Textarea container */}
                 <div
-                  className="rounded-lg relative"
+                  className="rounded-[4px] mt-[6px]"
                   style={{
-                    backgroundColor: "#F3F4F6",
-                    border: "1px solid #E5E7EB",
+                    backgroundColor: "#f8f8f8",
                     padding: "12px",
                   }}
                 >
-                  <textarea
-                    value={noteText}
-                    onChange={(e) => setNoteText(e.target.value)}
-                    placeholder="Meeting Notes, favorite food...."
-                    className="w-full bg-transparent resize-none text-[14px] text-[#1e252a] placeholder:text-[#9CA3AF] focus:outline-none"
-                    style={{
-                      fontFamily: "var(--font-geist-sans), 'Geist', sans-serif",
-                      height: "80px",
-                    }}
-                  />
-                  <div className="flex justify-end">
+                  <div className="flex flex-col gap-[12px] items-end">
+                    <textarea
+                      value={noteText}
+                      onChange={(e) => setNoteText(e.target.value)}
+                      placeholder="Meeting Notes, favorite food...."
+                      className="w-full resize-none bg-white focus:outline-none"
+                      style={{
+                        fontFamily: geist,
+                        fontSize: "12px",
+                        color: "#1e252a",
+                        height: "80px",
+                        border: "0.5px solid #c7d2e5",
+                        borderRadius: "12px",
+                        paddingLeft: "12px",
+                        paddingTop: "12px",
+                        paddingBottom: "12px",
+                      }}
+                    />
                     <button
                       onClick={saveNote}
                       disabled={savingNote}
-                      className="flex items-center gap-[4px] px-[12px] rounded-[4px] text-[14px] font-medium transition-colors hover:bg-[#EBF2FF] disabled:opacity-50"
+                      className="flex items-center gap-[4px] rounded-[8px] hover:opacity-80 transition-opacity disabled:opacity-50"
                       style={{
-                        fontFamily: "var(--font-geist-sans), 'Geist', sans-serif",
-                        color: "#1e252a",
+                        backgroundColor: "#ecfaff",
+                        border: "1px solid #b9cee8",
                         height: "26px",
+                        paddingLeft: "12px",
+                        paddingRight: "12px",
+                        paddingTop: "4px",
+                        paddingBottom: "4px",
                       }}
                     >
-                      <span>{savingNote ? "Saving..." : "Save"}</span>
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
-                        <polyline points="17,21 17,13 7,13 7,21" />
-                        <polyline points="7,3 7,8 15,8" />
-                      </svg>
+                      <span
+                        className="font-medium"
+                        style={{
+                          fontFamily: geist,
+                          fontSize: "12px",
+                          color: "#627c9e",
+                        }}
+                      >
+                        {savingNote ? "Saving..." : "Save"}
+                      </span>
+                      <IconSave size={14} stroke="#627c9e" />
                     </button>
                   </div>
                 </div>
@@ -692,15 +817,20 @@ export default function ContactPanel({ contactId, onDismiss }: ContactPanelProps
                   ══════════════════════════════════════════════════════════════ */}
               <div>
                 {/* Header */}
-                <div className="flex items-center justify-between mb-[8px]">
-                  <div className="flex items-center gap-[6px]">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6B7280" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <polyline points="22,12 16,12 14,15 10,15 8,12 2,12" />
-                      <path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z" />
-                    </svg>
+                <div
+                  className="flex items-center justify-between"
+                  style={{ width: "360px", maxWidth: "100%" }}
+                >
+                  <div className="flex items-center gap-[4px]">
+                    <IconInbox size={14} stroke="#627c9e" />
                     <span
-                      className="text-[14px] font-medium text-[#6B7280]"
-                      style={{ fontFamily: "var(--font-geist-sans), 'Geist', sans-serif" }}
+                      className="font-medium"
+                      style={{
+                        fontFamily: geist,
+                        fontSize: "12px",
+                        color: "#627c9e",
+                        lineHeight: "1.2",
+                      }}
                     >
                       Correspondence
                     </span>
@@ -710,8 +840,13 @@ export default function ContactPanel({ contactId, onDismiss }: ContactPanelProps
                       href={`https://mail.google.com/mail/?view=cm&to=${encodeURIComponent(contact.email)}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-[14px] text-[#3B82F6] hover:underline"
-                      style={{ fontFamily: "var(--font-geist-sans), 'Geist', sans-serif" }}
+                      className="font-medium hover:opacity-80 transition-opacity"
+                      style={{
+                        fontFamily: geist,
+                        fontSize: "12px",
+                        color: "#289bff",
+                        lineHeight: "14px",
+                      }}
                     >
                       Compose
                     </a>
@@ -721,76 +856,87 @@ export default function ContactPanel({ contactId, onDismiss }: ContactPanelProps
                 {/* Correspondence list */}
                 {correspondence.length === 0 ? (
                   <p
-                    className="text-[14px] text-[#9CA3AF] py-[12px]"
-                    style={{ fontFamily: "var(--font-geist-sans), 'Geist', sans-serif" }}
+                    className="py-[12px]"
+                    style={{
+                      fontFamily: geist,
+                      fontSize: "14px",
+                      color: "#9ca5a9",
+                    }}
                   >
                     No correspondence yet
                   </p>
                 ) : (
-                  <div className="flex flex-col">
-                    {displayedCorrespondence.map((item, idx) => {
+                  <div className="flex flex-col gap-[12px]" style={{ marginTop: "12px" }}>
+                    {displayedCorrespondence.map((item) => {
                       const threadUrl = gmailThreadUrl(item.metadata);
                       return (
-                        <div key={item.id}>
-                          {idx > 0 && (
-                            <div style={{ borderTop: "1px solid #F3F4F6", margin: "0" }} />
-                          )}
-                          <div className="py-[8px]">
-                            {/* Subject + external link */}
-                            <div className="flex items-center justify-between gap-[8px]">
-                              <span
-                                className="text-[14px] font-medium text-[#1e252a] truncate"
-                                style={{
-                                  fontFamily: "var(--font-geist-sans), 'Geist', sans-serif",
-                                  height: "20px",
-                                  lineHeight: "20px",
-                                }}
-                              >
-                                {item.title}
-                              </span>
-                              {threadUrl && (
-                                <a
-                                  href={threadUrl}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="shrink-0 hover:opacity-60 transition-opacity"
-                                >
-                                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                    <path d="M7 17l9.2-9.2M17 17V7H7" />
-                                  </svg>
-                                </a>
-                              )}
-                            </div>
-                            {/* Body preview — 2 lines */}
-                            {item.body && (
-                              <p
-                                className="text-[14px] text-[#6B7280] mt-[2px]"
-                                style={{
-                                  fontFamily: "var(--font-geist-sans), 'Geist', sans-serif",
-                                  height: "34px",
-                                  lineHeight: "17px",
-                                  overflow: "hidden",
-                                  display: "-webkit-box",
-                                  WebkitLineClamp: 2,
-                                  WebkitBoxOrient: "vertical",
-                                }}
-                              >
-                                {item.body}
-                              </p>
-                            )}
-                            {/* Time */}
+                        <div
+                          key={item.id}
+                          className="rounded-[4px]"
+                          style={{
+                            backgroundColor: "rgba(255,255,255,0.5)",
+                            paddingLeft: "12px",
+                            paddingRight: "12px",
+                            paddingTop: "6px",
+                            paddingBottom: "6px",
+                            width: "360px",
+                            maxWidth: "100%",
+                          }}
+                        >
+                          {/* Subject row */}
+                          <div className="flex items-center justify-between w-full">
                             <span
-                              className="text-[12px] text-[#9CA3AF] mt-[2px] block"
+                              className="font-semibold text-black truncate"
                               style={{
-                                fontFamily: "var(--font-geist-sans), 'Geist', sans-serif",
-                                height: "17px",
-                                lineHeight: "17px",
-                                paddingLeft: "12px",
+                                fontFamily: geist,
+                                fontSize: "16px",
+                                lineHeight: "20px",
                               }}
                             >
-                              {timeAgoShort(item.created_at)} ago
+                              {item.title}
                             </span>
+                            {threadUrl && (
+                              <a
+                                href={threadUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="shrink-0 hover:opacity-60 transition-opacity ml-[8px]"
+                              >
+                                <IconArrowUpRight size={16} stroke="#1e252a" />
+                              </a>
+                            )}
                           </div>
+                          {/* Body preview */}
+                          {item.body && (
+                            <p
+                              className="font-normal w-full"
+                              style={{
+                                fontFamily: geist,
+                                fontSize: "14px",
+                                color: "#6e7b80",
+                                lineHeight: "1.2",
+                                overflow: "hidden",
+                                textOverflow: "ellipsis",
+                                display: "-webkit-box",
+                                WebkitLineClamp: 2,
+                                WebkitBoxOrient: "vertical",
+                              }}
+                            >
+                              {item.body}
+                            </p>
+                          )}
+                          {/* Time */}
+                          <span
+                            className="font-normal block"
+                            style={{
+                              fontFamily: geist,
+                              fontSize: "12px",
+                              color: "#6e7b80",
+                              lineHeight: "1.417",
+                            }}
+                          >
+                            {timeAgoShort(item.created_at)} ago
+                          </span>
                         </div>
                       );
                     })}
@@ -799,41 +945,61 @@ export default function ContactPanel({ contactId, onDismiss }: ContactPanelProps
                     {correspondence.length > 3 && !showAllCorrespondence && (
                       <button
                         onClick={() => setShowAllCorrespondence(true)}
-                        className="flex items-center gap-[6px] px-[12px] py-[4px] rounded-[8px] mt-[4px] self-start"
-                        style={{ backgroundColor: "#f4efea" }}
+                        className="flex items-center gap-[6px] rounded-[8px] self-start hover:opacity-80 transition-opacity"
+                        style={{
+                          height: "26px",
+                          paddingLeft: "12px",
+                          paddingRight: "12px",
+                          paddingTop: "4px",
+                          paddingBottom: "4px",
+                        }}
                       >
                         <span
-                          className="text-[14px] font-medium text-[#1e252a]"
-                          style={{ fontFamily: "var(--font-geist-sans), 'Geist', sans-serif" }}
+                          className="font-medium"
+                          style={{
+                            fontFamily: geist,
+                            fontSize: "12px",
+                            color: "#1e252a",
+                            lineHeight: "14px",
+                          }}
                         >
                           Read More
                         </span>
-                        <svg width="10" height="5" viewBox="0 0 10 5" fill="none">
-                          <path d="M1 1L5 4L9 1" stroke="#1e252a" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                        </svg>
+                        <IconChevronDown />
                       </button>
                     )}
                     {showAllCorrespondence && correspondence.length > 3 && (
                       <button
                         onClick={() => setShowAllCorrespondence(false)}
-                        className="flex items-center gap-[6px] px-[12px] py-[4px] rounded-[8px] mt-[4px] self-start"
-                        style={{ backgroundColor: "#f4efea" }}
+                        className="flex items-center gap-[6px] rounded-[8px] self-start hover:opacity-80 transition-opacity"
+                        style={{
+                          height: "26px",
+                          paddingLeft: "12px",
+                          paddingRight: "12px",
+                          paddingTop: "4px",
+                          paddingBottom: "4px",
+                        }}
                       >
                         <span
-                          className="text-[14px] font-medium text-[#1e252a]"
-                          style={{ fontFamily: "var(--font-geist-sans), 'Geist', sans-serif" }}
+                          className="font-medium"
+                          style={{
+                            fontFamily: geist,
+                            fontSize: "12px",
+                            color: "#1e252a",
+                            lineHeight: "14px",
+                          }}
                         >
                           Show Less
                         </span>
-                        <svg width="10" height="5" viewBox="0 0 10 5" fill="none" style={{ transform: "scaleY(-1)" }}>
-                          <path d="M1 1L5 4L9 1" stroke="#1e252a" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                        </svg>
+                        <div style={{ transform: "scaleY(-1)" }}>
+                          <IconChevronDown />
+                        </div>
                       </button>
                     )}
                   </div>
                 )}
               </div>
-            </div>
+            </>
           ) : null}
         </div>
       </div>
