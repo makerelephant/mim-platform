@@ -11,10 +11,10 @@ export async function GET() {
 
 export async function POST(request: Request) {
   const body = await request.json().catch(() => ({}));
-  return runScanner(body.scanHours || 24);
+  return runScanner(body.scanHours || 24, { skipDupeCheck: !!body.rescan });
 }
 
-async function runScanner(scanHours: number) {
+async function runScanner(scanHours: number, options?: { skipDupeCheck?: boolean }) {
   try {
 
     // Validate required env vars
@@ -46,7 +46,7 @@ async function runScanner(scanHours: number) {
     const sb = createClient(supabaseUrl, supabaseServiceKey);
 
     // Run the scanner
-    const result = await runGmailScanner(sb, scanHours);
+    const result = await runGmailScanner(sb, scanHours, options);
 
     return NextResponse.json(result, { status: result.success ? 200 : 500 });
   } catch (err) {

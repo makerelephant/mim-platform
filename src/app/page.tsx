@@ -83,7 +83,7 @@ export default function MotionFeedPage() {
       await fetch("/api/agents/gmail-scanner", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ scanHours: 8 }),
+        body: JSON.stringify({ scanHours: 8, rescan: true }),
       });
       // Show final stage briefly
       setScanStage(scanStages.length - 1);

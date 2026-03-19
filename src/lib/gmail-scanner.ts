@@ -635,6 +635,7 @@ function getMessageBody(payload: Record<string, unknown>): string {
 export async function runGmailScanner(
   sb: SupabaseClient,
   scanHoursParam: number = 24,
+  options?: { skipDupeCheck?: boolean },
 ): Promise<ScannerResult> {
   let scanHours = scanHoursParam;
   const log: string[] = [];
@@ -816,15 +817,17 @@ export async function runGmailScanner(
       recordsProcessed++;
       const msgId = msgRef.id!;
 
-      // ── Deduplication check ──
-      const { data: dupeCheck } = await sb
-        .schema('brain').from("correspondence")
-        .select("id")
-        .contains("metadata", { gmail_message_id: msgId })
-        .limit(1);
-      if (dupeCheck && dupeCheck.length > 0) {
-        skippedDupes++;
-        continue;
+      // ── Deduplication check (skip if force re-scan) ──
+      if (!options?.skipDupeCheck) {
+        const { data: dupeCheck } = await sb
+          .schema('brain').from("correspondence")
+          .select("id")
+          .contains("metadata", { gmail_message_id: msgId })
+          .limit(1);
+        if (dupeCheck && dupeCheck.length > 0) {
+          skippedDupes++;
+          continue;
+        }
       }
 
       // ── Get full message ──
