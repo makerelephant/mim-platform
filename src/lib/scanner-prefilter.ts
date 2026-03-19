@@ -65,20 +65,7 @@ export function preFilterGmail(
     h[key.toLowerCase()] = value;
   }
 
-  // 1. Noreply sender detection
-  const emailLower = fromEmail.toLowerCase();
-  for (const pattern of NOREPLY_PATTERNS) {
-    if (pattern.test(emailLower)) {
-      return {
-        action: "skip",
-        reason: `Sender matches noreply pattern: ${emailLower}`,
-        category: "noreply",
-        auto_tags: ["automated", "noreply"],
-      };
-    }
-  }
-
-  // 2. Auto-reply detection (most specific — check first)
+  // 1. Auto-reply detection (most specific — check first)
   if (h["auto-submitted"] && h["auto-submitted"] !== "no") {
     return {
       action: "skip",
@@ -114,26 +101,7 @@ export function preFilterGmail(
     };
   }
 
-  // 3. Newsletter detection (List-Unsubscribe is the gold standard)
-  if (h["list-unsubscribe"] || h["list-unsubscribe-post"]) {
-    return {
-      action: "skip",
-      reason: "List-Unsubscribe header present",
-      category: "newsletter",
-      auto_tags: ["newsletter"],
-    };
-  }
-
-  if (h["list-id"]) {
-    return {
-      action: "skip",
-      reason: `List-Id header: ${h["list-id"]}`,
-      category: "newsletter",
-      auto_tags: ["newsletter", "mailing-list"],
-    };
-  }
-
-  // 4. Marketing/bulk detection
+  // 3. Marketing/bulk detection
   const precedence = (h["precedence"] || "").toLowerCase();
   if (precedence === "bulk" || precedence === "list" || precedence === "junk") {
     return {
