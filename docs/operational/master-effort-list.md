@@ -93,7 +93,7 @@
 
 41. **Unified Classifier — Prompt Surface Layer** — ✅ COMPLETE. `src/lib/unified-classifier.ts` implements P0-P3/S0-S3 attention labels. Both gmail-scanner and slack-scanner use `buildUnifiedClassifierPrompt()`. Card type mapped from attention class (P0→decision, P1→action, P2→signal, P3→suppressed). Task creation gated on `qualifiesForTaskCreation() + should_create_task`. Pre-filter still handles obvious noise; classifier handles nuanced P3/S3 judgment.
 
-42. **Measurement Layer** — IN PROGRESS. `brain.events` table for lightweight event tracking. `/api/brain/track` endpoint for card_expanded, card_action, filter_changed events. `/api/brain/metrics` computes SNR, priority calibration, category trends, volume stats, autonomy readiness. FeedCard fires expansion tracking. Engine Room Metrics tab displays all metrics. **Status: Building.**
+42. **Measurement Layer** — ✅ COMPLETE. `brain.events` table (step-29). `/api/brain/track` for card_expanded/card_action/filter_changed events. `/api/brain/metrics` computes SNR, priority calibration, category accuracy trends, volume stats, expansion rate, autonomy readiness. FeedCard fires expansion tracking. Engine Room Metrics tab with full dashboard.
 
 43. **Market Intelligence Gophers** — External data internalisation: competitive intelligence, content concepts, M&A/strategic, customer/partner acquisition, consumer insights. Start with one, prove the pipeline.
 
@@ -101,7 +101,7 @@
 
 45. **Automated Report Generation** — Monthly report endpoint `/api/agents/monthly-report` built and scheduled via Vercel cron (1st of each month at 8am EST). Still needed: custom report types, export to PDF/email.
 
-46. **Prompt Surface Layer — Engine Room Editing** — Extract all agent prompts (daily briefing, weekly synthesis, monthly report, Gmail Gopher classifier) into `src/lib/prompts/` and surface as editable fields in the Engine Room. CEO can modify report scope, tone, and instructions without touching code.
+46. **Prompt Surface Layer — Engine Room Editing** — ✅ COMPLETE. 6 agent prompts extracted to `src/lib/prompts/` (daily-briefing, weekly-synthesis, monthly-report, brain-ask, brain-ingest, brain-snapshot). `/api/engine/prompts` GET/PATCH for reading and overriding. Overrides stored in `brain.instructions` with type='prompt_override'. All route handlers import from prompts/.
 
 ---
 
