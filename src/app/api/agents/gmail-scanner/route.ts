@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { runGmailScanner } from "@/lib/gmail-scanner";
 
-export const maxDuration = 120; // Allow up to 2 minutes for scanner
+export const maxDuration = 300; // Allow up to 5 minutes for scanner (Pro plan)
 
 // GET handler for Vercel cron jobs
 export async function GET() {
