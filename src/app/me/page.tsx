@@ -198,6 +198,9 @@ export default function MePage() {
               </div>
             )}
 
+            {/* ── Generate Report ── */}
+            <ReportGenerator />
+
             {/* ── Quick Actions ── */}
             <div className="w-full rounded-[12px] bg-white shadow-[0px_0px_60px_0px_rgba(0,0,0,0.12)] p-[16px]">
               <h3
@@ -269,6 +272,215 @@ function LinkAction({ label, href, icon }: { label: string; href: string; icon: 
       </span>
       <span className="text-[10px] text-[#9ca5a9]" style={{ fontFamily: "var(--font-geist-sans), 'Geist', sans-serif" }}>→</span>
     </a>
+  );
+}
+
+function ReportGenerator() {
+  const [generating, setGenerating] = useState(false);
+  const [reportType, setReportType] = useState<"weekly" | "monthly" | "custom" | null>(null);
+  const [customFocus, setCustomFocus] = useState("");
+  const [customPeriod, setCustomPeriod] = useState(30);
+  const [reportResult, setReportResult] = useState<{ title: string; markdown: string } | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  async function generate(type: "weekly" | "monthly" | "custom") {
+    setGenerating(true);
+    setReportType(type);
+    setReportResult(null);
+    setError(null);
+
+    try {
+      const payload: Record<string, unknown> = { type };
+      if (type === "custom") {
+        if (!customFocus.trim()) {
+          setError("Enter a focus area for the custom report.");
+          setGenerating(false);
+          return;
+        }
+        payload.focus = customFocus.trim();
+        payload.period_days = customPeriod;
+      }
+
+      const res = await fetch("/api/agents/report", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await res.json();
+
+      if (data.success) {
+        setReportResult({ title: data.title, markdown: data.report_markdown });
+      } else {
+        setError(data.error || "Report generation failed.");
+      }
+    } catch {
+      setError("Network error generating report.");
+    } finally {
+      setGenerating(false);
+    }
+  }
+
+  return (
+    <div className="w-full rounded-[12px] bg-white shadow-[0px_0px_60px_0px_rgba(0,0,0,0.12)] p-[16px]">
+      <h3
+        className="text-[14px] font-semibold text-[#1e252a] mb-[12px]"
+        style={{ fontFamily: "var(--font-geist-sans), 'Geist', sans-serif" }}
+      >
+        Generate Report
+      </h3>
+      <p
+        className="text-[11px] text-[#6e7b80] mb-[12px]"
+        style={{ fontFamily: "var(--font-geist-sans), 'Geist', sans-serif" }}
+      >
+        Reports are emitted as briefing cards in Your Motion.
+      </p>
+
+      {/* Quick buttons */}
+      <div className="flex gap-[8px] mb-[12px]">
+        <button
+          onClick={() => generate("weekly")}
+          disabled={generating}
+          className="flex-1 px-[12px] py-[8px] rounded-[8px] text-[12px] font-medium transition-colors disabled:opacity-50"
+          style={{
+            fontFamily: "var(--font-geist-sans), 'Geist', sans-serif",
+            backgroundColor: generating && reportType === "weekly" ? "#e2e8f0" : "#f0f9ff",
+            color: "#1e40af",
+            border: "1px solid #bfdbfe",
+          }}
+        >
+          {generating && reportType === "weekly" ? "Generating..." : "Weekly Report"}
+        </button>
+        <button
+          onClick={() => generate("monthly")}
+          disabled={generating}
+          className="flex-1 px-[12px] py-[8px] rounded-[8px] text-[12px] font-medium transition-colors disabled:opacity-50"
+          style={{
+            fontFamily: "var(--font-geist-sans), 'Geist', sans-serif",
+            backgroundColor: generating && reportType === "monthly" ? "#e2e8f0" : "#f0fdf4",
+            color: "#166534",
+            border: "1px solid #bbf7d0",
+          }}
+        >
+          {generating && reportType === "monthly" ? "Generating..." : "Monthly Report"}
+        </button>
+      </div>
+
+      {/* Custom report */}
+      <div
+        className="rounded-[8px] p-[10px] mb-[8px]"
+        style={{ backgroundColor: "#fafafa", border: "1px solid #e5e7eb" }}
+      >
+        <label
+          className="text-[11px] font-medium text-[#64748b] block mb-[6px]"
+          style={{ fontFamily: "var(--font-geist-sans), 'Geist', sans-serif" }}
+        >
+          Custom Report
+        </label>
+        <input
+          type="text"
+          placeholder="Focus area (e.g. partnerships, fundraising, customer pipeline)"
+          value={customFocus}
+          onChange={(e) => setCustomFocus(e.target.value)}
+          disabled={generating}
+          className="w-full px-[8px] py-[6px] rounded-[6px] text-[12px] border border-[#d1d5db] mb-[8px] outline-none focus:border-[#93c5fd] transition-colors"
+          style={{ fontFamily: "var(--font-geist-sans), 'Geist', sans-serif" }}
+        />
+        <div className="flex gap-[8px] items-center">
+          <select
+            value={customPeriod}
+            onChange={(e) => setCustomPeriod(Number(e.target.value))}
+            disabled={generating}
+            className="px-[8px] py-[6px] rounded-[6px] text-[12px] border border-[#d1d5db] outline-none focus:border-[#93c5fd] bg-white"
+            style={{ fontFamily: "var(--font-geist-sans), 'Geist', sans-serif" }}
+          >
+            <option value={7}>7 days</option>
+            <option value={14}>14 days</option>
+            <option value={30}>30 days</option>
+            <option value={90}>90 days</option>
+          </select>
+          <button
+            onClick={() => generate("custom")}
+            disabled={generating || !customFocus.trim()}
+            className="flex-1 px-[12px] py-[6px] rounded-[6px] text-[12px] font-medium transition-colors disabled:opacity-40"
+            style={{
+              fontFamily: "var(--font-geist-sans), 'Geist', sans-serif",
+              backgroundColor: generating && reportType === "custom" ? "#e2e8f0" : "#f5f3ff",
+              color: "#5b21b6",
+              border: "1px solid #ddd6fe",
+            }}
+          >
+            {generating && reportType === "custom" ? "Generating..." : "Generate"}
+          </button>
+        </div>
+      </div>
+
+      {/* Loading state */}
+      {generating && (
+        <div className="flex items-center gap-[8px] py-[12px]">
+          <div className="w-4 h-4 border-2 border-slate-300 border-t-transparent rounded-full animate-spin" />
+          <span
+            className="text-[11px] text-[#9ca5a9]"
+            style={{ fontFamily: "var(--font-geist-sans), 'Geist', sans-serif" }}
+          >
+            Generating {reportType} report... this may take 30-60 seconds.
+          </span>
+        </div>
+      )}
+
+      {/* Error */}
+      {error && (
+        <div
+          className="mt-[8px] px-[10px] py-[8px] rounded-[6px] text-[11px]"
+          style={{
+            fontFamily: "var(--font-geist-sans), 'Geist', sans-serif",
+            backgroundColor: "#fef2f2",
+            color: "#991b1b",
+            border: "1px solid #fecaca",
+          }}
+        >
+          {error}
+        </div>
+      )}
+
+      {/* Report result */}
+      {reportResult && (
+        <div className="mt-[12px]">
+          <div className="flex items-center justify-between mb-[8px]">
+            <span
+              className="text-[12px] font-semibold text-[#1e252a]"
+              style={{ fontFamily: "var(--font-geist-sans), 'Geist', sans-serif" }}
+            >
+              {reportResult.title}
+            </span>
+            <button
+              onClick={() => setReportResult(null)}
+              className="text-[10px] text-[#9ca5a9] hover:text-[#64748b] transition-colors"
+              style={{ fontFamily: "var(--font-geist-sans), 'Geist', sans-serif" }}
+            >
+              Dismiss
+            </button>
+          </div>
+          <div
+            className="rounded-[8px] p-[12px] text-[11px] leading-[16px] max-h-[400px] overflow-y-auto whitespace-pre-wrap"
+            style={{
+              fontFamily: "var(--font-geist-sans), 'Geist', sans-serif",
+              backgroundColor: "#f8fafc",
+              border: "1px solid #e2e8f0",
+              color: "#334155",
+            }}
+          >
+            {reportResult.markdown}
+          </div>
+          <p
+            className="mt-[6px] text-[10px] text-[#9ca5a9]"
+            style={{ fontFamily: "var(--font-geist-sans), 'Geist', sans-serif" }}
+          >
+            This report has also been emitted as a briefing card in Your Motion.
+          </p>
+        </div>
+      )}
+    </div>
   );
 }
 

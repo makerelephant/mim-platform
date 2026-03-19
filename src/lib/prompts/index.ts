@@ -31,6 +31,14 @@ import {
 } from "./monthly-report";
 
 import {
+  PROMPT_ID as customReportId,
+  PROMPT_NAME as customReportName,
+  PROMPT_DESCRIPTION as customReportDesc,
+  PROMPT_AGENT as customReportAgent,
+  getCustomReportPrompt,
+} from "./custom-report";
+
+import {
   PROMPT_ID as brainAskId,
   PROMPT_NAME as brainAskName,
   PROMPT_DESCRIPTION as brainAskDesc,
@@ -87,6 +95,13 @@ export const PROMPT_REGISTRY: PromptDefinition[] = [
     getDefaultText: () => getMonthlyReportPrompt("{{DATA_PACKAGE_JSON}}"),
   },
   {
+    id: customReportId,
+    name: customReportName,
+    description: customReportDesc,
+    agent: customReportAgent,
+    getDefaultText: () => getCustomReportPrompt("{{FOCUS}}", 30, "{{DATA_PACKAGE_JSON}}"),
+  },
+  {
     id: brainAskId,
     name: brainAskName,
     description: brainAskDesc,
@@ -119,6 +134,7 @@ export {
   getDailyBriefingPrompt,
   getWeeklySynthesisPrompt,
   getMonthlyReportPrompt,
+  getCustomReportPrompt,
   getBrainAskPrompt,
   getBrainIngestPrompt,
   getSnapshotPlanPrompt,
