@@ -95,11 +95,11 @@
 
 42. **Measurement Layer** — ✅ COMPLETE. `brain.events` table (step-29). `/api/brain/track` for card_expanded/card_action/filter_changed events. `/api/brain/metrics` computes SNR, priority calibration, category accuracy trends, volume stats, expansion rate, autonomy readiness. FeedCard fires expansion tracking. Engine Room Metrics tab with full dashboard.
 
-43. **Market Intelligence Gophers** — External data internalisation: competitive intelligence, content concepts, M&A/strategic, customer/partner acquisition, consumer insights. Start with one, prove the pipeline.
+43. **Market Intelligence Gophers** — ✅ COMPLETE (MVP). Web Intelligence Gopher: `src/lib/web-intelligence-scanner.ts` fetches configured URLs, Claude analyses for insights, emits intelligence cards. Content hash dedup. Default monitors for youth sports, generative commerce, MiM mentions. `/api/agents/web-intelligence` route. Vercel cron daily 9am EST. Pipeline proven — add more sources as needed.
 
 44. **Commerce Integration** — Connect Printify/Drop data to platform. Real KPI values (revenue, items sold, AOV, conversion). Product creation event capture with design detail logging.
 
-45. **Automated Report Generation** — Monthly report endpoint `/api/agents/monthly-report` built and scheduled via Vercel cron (1st of each month at 8am EST). Still needed: custom report types, export to PDF/email.
+45. **Automated Report Generation** — ✅ COMPLETE. Unified `/api/agents/report` endpoint accepts weekly/monthly/custom types. Custom reports take focus area + period (7/14/30/90 days). All reports emit briefing cards. Me page has "Generate Report" section with quick buttons + custom input. PDF export TODO.
 
 46. **Prompt Surface Layer — Engine Room Editing** — ✅ COMPLETE. 6 agent prompts extracted to `src/lib/prompts/` (daily-briefing, weekly-synthesis, monthly-report, brain-ask, brain-ingest, brain-snapshot). `/api/engine/prompts` GET/PATCH for reading and overriding. Overrides stored in `brain.instructions` with type='prompt_override'. All route handlers import from prompts/.
 
