@@ -31,9 +31,9 @@
 
 12. **Classifier Training at Scale** — ✅ COMPLETE (infrastructure). `/api/brain/accuracy` computes per-category accuracy from CEO feed actions (Do=correct, No=incorrect). Daily cron scheduling via Vercel (Gopher at 6am EST, briefing at 7am EST). Training velocity depends on CEO daily review cadence.
 
-13. **Daily Synthesis Loop** — ✅ COMPLETE. `/api/agents/daily-briefing` reads all feed cards from last 24 hours, sends to Claude for synthesis, emits a briefing card with: top line, needs attention, decisions made, patterns, heads up. Runs automatically via Vercel cron.
+13. **Daily Synthesis Loop** — ✅ COMPLETE. `/api/agents/daily-briefing` runs 7 parallel queries (feed_cards, correspondence, tasks created/completed, open tasks, activity, CEO actions) from last 24h. Skips generation when genuinely nothing to report. Claude synthesises into concise briefing card. Runs automatically via Vercel cron at 7am EST.
 
-14. **Behavioral Adaptation / Autonomy Engine** — ✅ COMPLETE. `/api/brain/autonomy` evaluates which categories have earned autonomous operation (20+ reviews, 90%+ accuracy). POST auto-acts on qualifying cards and emits reflection cards. `brain.behavioral_rules` table with adaptation agent (`src/lib/adaptation-agent.ts`). Autonomy tab in Engine Room shows progress.
+14. **Behavioral Adaptation / Autonomy Engine** — ✅ COMPLETE. Real learning loop: corrections cluster into rules via Claude, stored in `brain.behavioral_rules`, injected into classifier prompts. Gmail scanner checks autonomous categories at scan start, auto-acts qualifying cards (CEO never sees them). Reflection card summarises autonomous actions per scan. `getAutonomousCategories()` shared utility. Autonomy tab in Engine Room shows progress. Thresholds: 20+ reviews, 90%+ accuracy.
 
 15. **Knowledge Ingestion Enhancement** — ✅ COMPLETE. `/api/brain/ingest` emits feed cards for ingested documents. Canvas uses this for file drop ingestion.
 
@@ -91,9 +91,9 @@
 
 ## Near-Term Efforts (Operational Phase)
 
-41. **Unified Classifier — Prompt Surface Layer** — Replace the current scanner prompts with the unified attention + operational enrichment schema defined in `docs/technical/specs/unified-classifier-spec.md`. Introduces P0/P1/P2/P3 (email) and S0/S1/S2/S3 (Slack) attention labels. Gates task creation on `should_create_task`. Maps card type directly from attention label. Eliminates noise at the classification level rather than as post-processing heuristics. **Status: Spec complete. Build not started.**
+41. **Unified Classifier — Prompt Surface Layer** — ✅ COMPLETE. `src/lib/unified-classifier.ts` implements P0-P3/S0-S3 attention labels. Both gmail-scanner and slack-scanner use `buildUnifiedClassifierPrompt()`. Card type mapped from attention class (P0→decision, P1→action, P2→signal, P3→suppressed). Task creation gated on `qualifiesForTaskCreation() + should_create_task`. Pre-filter still handles obvious noise; classifier handles nuanced P3/S3 judgment.
 
-42. **Measurement Layer** — Track card expansion clicks. Aggregate `should_not_exist` corrections into SNR metric. Compute priority calibration curve. Surface compound metrics (SNR, priority calibration, summary quality, confidence calibration) in Engine Room. **Status: Metrics defined in unified-classifier-spec.md. Build not started.**
+42. **Measurement Layer** — IN PROGRESS. `brain.events` table for lightweight event tracking. `/api/brain/track` endpoint for card_expanded, card_action, filter_changed events. `/api/brain/metrics` computes SNR, priority calibration, category trends, volume stats, autonomy readiness. FeedCard fires expansion tracking. Engine Room Metrics tab displays all metrics. **Status: Building.**
 
 43. **Market Intelligence Gophers** — External data internalisation: competitive intelligence, content concepts, M&A/strategic, customer/partner acquisition, consumer insights. Start with one, prove the pipeline.
 

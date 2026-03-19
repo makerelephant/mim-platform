@@ -1,7 +1,7 @@
 # CLAUDE.md — Read This First
 > **Author:** Mark Slater, Co-founder & CEO — Made in Motion PBC
 > **Status:** Active session instructions. Must be read before any work begins.
-> **Last updated:** 2026-03-18
+> **Last updated:** 2026-03-19
 
 ---
 
@@ -99,10 +99,10 @@ There is also a **Me page** (`/me`) showing brain accuracy stats, manual scan tr
 ### What Is Not Working Yet
 
 - **Training volume** — Autonomy requires 20+ reviewed cards per category at 90%+ accuracy. Currently near zero reviews. Infrastructure built, needs consistent daily use.
-- **Unified Classifier** — Current classifier measures category accuracy only. The Unified Classifier spec (docs/technical/specs/unified-classifier-spec.md) defines the attention classification + operational enrichment architecture. Not yet built into the scanner prompts.
-- **Measurement Layer** — Signal-to-noise, priority calibration, expansion rate not yet tracked or surfaced. Metrics dashboard defined in spec, not built.
 - **MCP Server deployment** — 28 tools built, not yet deployed to a host.
 - **Entity intelligence depth** — Contacts are name + email only. No enrichment, no derived profile building.
+- **Visual snapshots** — Snapshot cards are text/markdown. No chart/graph rendering (Recharts etc.) integrated yet.
+- **Prompt editing in Engine Room** — Prompts extracted to `src/lib/prompts/` but UI editing not yet wired.
 
 ---
 
