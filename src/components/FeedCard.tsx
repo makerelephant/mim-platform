@@ -456,13 +456,16 @@ export default function FeedCard({ card, onAction, onDismiss, onContactTap }: Fe
   // Resolved state: bg changes per card type, entire card at opacity 60%, NO shadow
   const cardBg = isResolved ? badge.resolvedBg : "white";
   const cardOpacity = isResolved ? "opacity-60" : "";
-  const cardShadow = isResolved ? "" : "shadow-[0px_0px_60px_0px_rgba(0,0,0,0.12)]";
+  const cardShadow = isResolved
+    ? ""
+    : "shadow-[0px_1px_2px_rgba(0,0,0,0.05),0px_4px_12px_rgba(0,0,0,0.06),0px_16px_40px_rgba(0,0,0,0.07)]";
 
   return (
     <div
-      className={`flex flex-col gap-[6px] p-[12px] rounded-[12px] ${cardShadow} transition-all w-full overflow-hidden ${cardOpacity}`}
+      className={`w-full rounded-[12px] ${cardShadow} transition-all ${cardOpacity}`}
       style={{ backgroundColor: cardBg }}
     >
+      <div className="flex w-full flex-col gap-[6px] overflow-hidden rounded-[12px] p-[12px]">
       {/* ══════════════════════════════════════════════════════════════════
           ZONE 1: HEADER ROW — Badge + Source Pill + Actions
           ══════════════════════════════════════════════════════════════════ */}
@@ -1227,6 +1230,7 @@ export default function FeedCard({ card, onAction, onDismiss, onContactTap }: Fe
           </p>
         </div>
       )}
+      </div>
     </div>
   );
 }
