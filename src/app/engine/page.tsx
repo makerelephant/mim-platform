@@ -63,7 +63,7 @@ interface AccuracyData {
 // ─── Component ──────────────────────────────────────────────────────────────
 
 export default function EngineRoomPage() {
-  const [activeTab, setActiveTab] = useState<"map" | "accuracy" | "metrics" | "integrations" | "autonomy" | "health">("map");
+  const [activeTab, setActiveTab] = useState<"map" | "accuracy" | "metrics" | "gophers" | "integrations" | "autonomy" | "health">("map");
   const [harness, setHarness] = useState<HarnessFile[]>([]);
   const [harnessSections, setHarnessSections] = useState<HarnessSection[]>([]);
   const [integrations, setIntegrations] = useState<Array<{ name: string; icon: string; status: string; description: string }>>([]);
@@ -131,6 +131,7 @@ export default function EngineRoomPage() {
           { key: "map" as const, label: "Motion Map" },
           { key: "accuracy" as const, label: "Brain Accuracy" },
           { key: "metrics" as const, label: "Metrics" },
+          { key: "gophers" as const, label: "Gophers" },
           { key: "autonomy" as const, label: "Autonomy" },
           { key: "integrations" as const, label: "Integrations" },
           { key: "health" as const, label: "Health" },
@@ -386,6 +387,9 @@ export default function EngineRoomPage() {
         ) : activeTab === "metrics" ? (
           /* ── Metrics ── */
           <MetricsPanel />
+        ) : activeTab === "gophers" ? (
+          /* ── Gophers ── */
+          <GophersPanel />
         ) : activeTab === "autonomy" ? (
           /* ── Autonomy ── */
           <AutonomyPanel />
@@ -855,6 +859,386 @@ function MetricsPanel() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// ─── Gophers Panel ──────────────────────────────────────────────────────────
+
+interface GopherConfig {
+  id: string;
+  name: string;
+  icon: string;
+  endpoint: string;
+  promptId: string | null; // matches PROMPT_REGISTRY id
+  cronPath: string;
+  schedule: string; // current cron expression description
+  scheduleOptions: { label: string; cron: string }[];
+}
+
+const GOPHER_CONFIGS: GopherConfig[] = [
+  {
+    id: "gmail",
+    name: "Gmail Gopher",
+    icon: "📧",
+    endpoint: "/api/agents/gmail-scanner",
+    promptId: null, // classifier prompt is in unified-classifier, not editable here
+    cronPath: "/api/agents/gmail-scanner",
+    schedule: "Daily at 6am EST",
+    scheduleOptions: [
+      { label: "Every 2 hours", cron: "0 */2 * * *" },
+      { label: "Every 4 hours", cron: "0 */4 * * *" },
+      { label: "Every 6 hours", cron: "0 */6 * * *" },
+      { label: "Daily at 6am EST", cron: "0 11 * * *" },
+      { label: "Twice daily (6am, 2pm EST)", cron: "0 11,19 * * *" },
+    ],
+  },
+  {
+    id: "daily-briefing",
+    name: "Daily Briefing",
+    icon: "📊",
+    endpoint: "/api/agents/daily-briefing",
+    promptId: "daily-briefing",
+    cronPath: "/api/agents/daily-briefing",
+    schedule: "Daily at 7am EST",
+    scheduleOptions: [
+      { label: "Daily at 6am EST", cron: "0 11 * * *" },
+      { label: "Daily at 7am EST", cron: "0 12 * * *" },
+      { label: "Daily at 8am EST", cron: "0 13 * * *" },
+      { label: "Daily at 9am EST", cron: "0 14 * * *" },
+      { label: "Twice daily (7am, 4pm EST)", cron: "0 12,21 * * *" },
+    ],
+  },
+  {
+    id: "weekly-synthesis",
+    name: "Weekly Synthesis",
+    icon: "🧠",
+    endpoint: "/api/agents/synthesis",
+    promptId: "weekly-synthesis",
+    cronPath: "/api/agents/synthesis",
+    schedule: "Sundays at 3am EST",
+    scheduleOptions: [
+      { label: "Sundays at 3am EST", cron: "0 8 * * 0" },
+      { label: "Mondays at 6am EST", cron: "0 11 * * 1" },
+      { label: "Fridays at 5pm EST", cron: "0 22 * * 5" },
+      { label: "Twice weekly (Mon + Fri)", cron: "0 11 * * 1,5" },
+    ],
+  },
+  {
+    id: "monthly-report",
+    name: "Monthly Report",
+    icon: "📋",
+    endpoint: "/api/agents/monthly-report",
+    promptId: "monthly-report",
+    cronPath: "/api/agents/monthly-report",
+    schedule: "1st of month at 8am EST",
+    scheduleOptions: [
+      { label: "1st of month at 8am EST", cron: "0 13 1 * *" },
+      { label: "1st of month at 6am EST", cron: "0 11 1 * *" },
+      { label: "15th of month at 8am EST", cron: "0 13 15 * *" },
+      { label: "1st and 15th at 8am EST", cron: "0 13 1,15 * *" },
+    ],
+  },
+  {
+    id: "web-intelligence",
+    name: "Web Intelligence",
+    icon: "🌐",
+    endpoint: "/api/agents/web-intelligence",
+    promptId: null,
+    cronPath: "/api/agents/web-intelligence",
+    schedule: "Daily at 9am EST",
+    scheduleOptions: [
+      { label: "Daily at 9am EST", cron: "0 14 * * *" },
+      { label: "Daily at 6am EST", cron: "0 11 * * *" },
+      { label: "Twice daily (6am, 2pm EST)", cron: "0 11,19 * * *" },
+      { label: "Every 6 hours", cron: "0 */6 * * *" },
+    ],
+  },
+  {
+    id: "feed-resurface",
+    name: "Feed Resurface",
+    icon: "🔄",
+    endpoint: "/api/feed/resurface",
+    promptId: null,
+    cronPath: "/api/feed/resurface",
+    schedule: "Every 4 hours",
+    scheduleOptions: [
+      { label: "Every 2 hours", cron: "0 */2 * * *" },
+      { label: "Every 4 hours", cron: "0 */4 * * *" },
+      { label: "Every 6 hours", cron: "0 */6 * * *" },
+      { label: "Every 12 hours", cron: "0 */12 * * *" },
+    ],
+  },
+  {
+    id: "autonomy",
+    name: "Autonomy Engine",
+    icon: "🤖",
+    endpoint: "/api/brain/autonomy",
+    promptId: null,
+    cronPath: "/api/brain/autonomy",
+    schedule: "Daily at 8am EST",
+    scheduleOptions: [
+      { label: "Daily at 8am EST", cron: "0 13 * * *" },
+      { label: "Daily at 6am EST", cron: "0 11 * * *" },
+      { label: "Twice daily", cron: "0 11,23 * * *" },
+    ],
+  },
+];
+
+interface PromptData {
+  id: string;
+  name: string;
+  description: string;
+  agent: string;
+  default_text: string;
+  override_text: string | null;
+  is_overridden: boolean;
+}
+
+function GophersPanel() {
+  const [prompts, setPrompts] = useState<PromptData[]>([]);
+  const [expandedGopher, setExpandedGopher] = useState<string | null>(null);
+  const [editingPrompt, setEditingPrompt] = useState<string | null>(null);
+  const [promptText, setPromptText] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [running, setRunning] = useState<string | null>(null);
+  const [runResult, setRunResult] = useState<{ id: string; success: boolean; message: string } | null>(null);
+  const [scheduleNote, setScheduleNote] = useState<string | null>(null);
+
+  // Load prompts
+  useEffect(() => {
+    fetch("/api/engine/prompts")
+      .then((r) => r.json())
+      .then((d) => { if (d.success) setPrompts(d.prompts); })
+      .catch(() => {});
+  }, []);
+
+  // Run gopher now
+  async function runNow(gopher: GopherConfig) {
+    setRunning(gopher.id);
+    setRunResult(null);
+    try {
+      const res = await fetch(gopher.endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(gopher.id === "gmail" ? { scanHours: 8, rescan: true } : {}),
+      });
+      const data = await res.json();
+      setRunResult({
+        id: gopher.id,
+        success: res.ok,
+        message: res.ok ? (data.title || data.message || "Completed successfully") : (data.error || "Failed"),
+      });
+    } catch {
+      setRunResult({ id: gopher.id, success: false, message: "Network error" });
+    } finally {
+      setRunning(null);
+    }
+  }
+
+  // Save prompt override
+  async function savePrompt(promptId: string) {
+    setSaving(true);
+    try {
+      const res = await fetch("/api/engine/prompts", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ promptId, text: promptText }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        // Update local state
+        setPrompts((prev) =>
+          prev.map((p) =>
+            p.id === promptId
+              ? { ...p, override_text: promptText || null, is_overridden: !!promptText }
+              : p
+          )
+        );
+        setEditingPrompt(null);
+      }
+    } catch { /* silent */ }
+    finally { setSaving(false); }
+  }
+
+  // Revert to default
+  async function revertPrompt(promptId: string) {
+    setSaving(true);
+    try {
+      await fetch("/api/engine/prompts", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ promptId, text: "" }),
+      });
+      setPrompts((prev) =>
+        prev.map((p) =>
+          p.id === promptId ? { ...p, override_text: null, is_overridden: false } : p
+        )
+      );
+      setEditingPrompt(null);
+    } catch { /* silent */ }
+    finally { setSaving(false); }
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="bg-white rounded-xl shadow-sm p-5">
+        <h3 className="text-sm font-bold text-[#1e252a] mb-1">Gopher Schedule & Prompts</h3>
+        <p className="text-xs text-[#6e7b80] mb-4">
+          Run any gopher on demand, adjust frequency, or edit the prompt that shapes its output.
+          Schedule changes require a Vercel redeploy to take effect.
+        </p>
+      </div>
+
+      {GOPHER_CONFIGS.map((g) => {
+        const prompt = g.promptId ? prompts.find((p) => p.id === g.promptId) : null;
+        const isExpanded = expandedGopher === g.id;
+        const isRunning = running === g.id;
+        const result = runResult?.id === g.id ? runResult : null;
+
+        return (
+          <div key={g.id} className="bg-white rounded-xl shadow-sm overflow-hidden">
+            {/* Header row */}
+            <div className="flex items-center justify-between p-4">
+              <div className="flex items-center gap-3">
+                <span className="text-xl">{g.icon}</span>
+                <div>
+                  <h4 className="text-sm font-semibold text-[#1e252a]">{g.name}</h4>
+                  <p className="text-[10px] text-[#94A3B8]">{g.schedule}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => runNow(g)}
+                  disabled={isRunning}
+                  className="px-3 py-1.5 text-[11px] font-semibold rounded-lg transition-colors bg-[#ecfaff] text-[#1e252a] border border-[#b9e6ff] hover:bg-[#dbeafe] disabled:opacity-50"
+                >
+                  {isRunning ? "Running..." : "Run Now"}
+                </button>
+                <button
+                  onClick={() => setExpandedGopher(isExpanded ? null : g.id)}
+                  className="px-3 py-1.5 text-[11px] font-medium rounded-lg transition-colors text-[#6e7b80] hover:bg-[#f6f5f5]"
+                >
+                  {isExpanded ? "Close" : "Configure"}
+                </button>
+              </div>
+            </div>
+
+            {/* Run result */}
+            {result && (
+              <div className={`mx-4 mb-3 px-3 py-2 rounded-lg text-xs ${result.success ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700"}`}>
+                {result.success ? "✓ " : "✗ "}{result.message}
+              </div>
+            )}
+
+            {/* Expanded config */}
+            {isExpanded && (
+              <div className="border-t border-[#f0f0f0] p-4 space-y-4">
+                {/* Schedule selector */}
+                <div>
+                  <label className="text-xs font-semibold text-[#1e252a] block mb-1.5">Frequency</label>
+                  <select
+                    className="w-full text-xs border border-[#e0e0e0] rounded-lg px-3 py-2 bg-white text-[#1e252a] focus:outline-none focus:border-[#a9d8ff]"
+                    defaultValue={g.scheduleOptions.find((o) => o.label === g.schedule)?.cron || g.scheduleOptions[0].cron}
+                    onChange={(e) => {
+                      const selected = g.scheduleOptions.find((o) => o.cron === e.target.value);
+                      if (selected) {
+                        setScheduleNote(`To apply "${selected.label}" for ${g.name}, update vercel.json cron for ${g.cronPath} to: "${selected.cron}" and redeploy.`);
+                      }
+                    }}
+                  >
+                    {g.scheduleOptions.map((opt) => (
+                      <option key={opt.cron} value={opt.cron}>
+                        {opt.label}
+                      </option>
+                    ))}
+                  </select>
+                  {scheduleNote && scheduleNote.includes(g.name) && (
+                    <p className="text-[10px] text-amber-600 mt-1.5 bg-amber-50 px-2 py-1 rounded">
+                      {scheduleNote}
+                    </p>
+                  )}
+                </div>
+
+                {/* Prompt editor */}
+                {prompt && (
+                  <div>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <label className="text-xs font-semibold text-[#1e252a]">
+                        System Prompt
+                        {prompt.is_overridden && (
+                          <span className="ml-2 text-[10px] font-medium text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded">Customised</span>
+                        )}
+                      </label>
+                      <div className="flex gap-2">
+                        {editingPrompt === g.promptId ? (
+                          <>
+                            <button
+                              onClick={() => savePrompt(g.promptId!)}
+                              disabled={saving}
+                              className="text-[10px] font-semibold text-emerald-600 hover:text-emerald-700 disabled:opacity-50"
+                            >
+                              {saving ? "Saving..." : "Save"}
+                            </button>
+                            <button
+                              onClick={() => setEditingPrompt(null)}
+                              className="text-[10px] font-medium text-[#94A3B8] hover:text-[#6e7b80]"
+                            >
+                              Cancel
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <button
+                              onClick={() => {
+                                setEditingPrompt(g.promptId);
+                                setPromptText(prompt.override_text || prompt.default_text);
+                              }}
+                              className="text-[10px] font-semibold text-[#289bff] hover:text-[#1a7fd4]"
+                            >
+                              Edit
+                            </button>
+                            {prompt.is_overridden && (
+                              <button
+                                onClick={() => revertPrompt(g.promptId!)}
+                                disabled={saving}
+                                className="text-[10px] font-medium text-red-500 hover:text-red-600 disabled:opacity-50"
+                              >
+                                Revert to Default
+                              </button>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    </div>
+
+                    {editingPrompt === g.promptId ? (
+                      <textarea
+                        value={promptText}
+                        onChange={(e) => setPromptText(e.target.value)}
+                        className="w-full h-64 text-xs text-[#1e252a] border border-[#e0e0e0] rounded-lg p-3 bg-[#fafafa] focus:outline-none focus:border-[#a9d8ff] resize-y font-mono leading-relaxed"
+                        style={{ fontFamily: "'Geist Mono', monospace" }}
+                      />
+                    ) : (
+                      <pre className="w-full max-h-48 overflow-y-auto text-[10px] text-[#64748B] bg-[#fafafa] rounded-lg p-3 whitespace-pre-wrap font-mono leading-relaxed border border-[#f0f0f0]">
+                        {(prompt.override_text || prompt.default_text).slice(0, 500)}
+                        {(prompt.override_text || prompt.default_text).length > 500 && "..."}
+                      </pre>
+                    )}
+                    <p className="text-[10px] text-[#94A3B8] mt-1">{prompt.description}</p>
+                  </div>
+                )}
+
+                {!prompt && g.promptId === null && (
+                  <p className="text-[10px] text-[#94A3B8]">
+                    This gopher uses a built-in prompt that cannot be edited from here.
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }
