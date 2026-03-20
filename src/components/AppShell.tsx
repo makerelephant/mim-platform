@@ -3,6 +3,11 @@
 import { usePathname } from "next/navigation";
 import { Sidebar } from "@/components/Sidebar";
 import { LegacySidebar } from "@/components/LegacySidebar";
+import {
+  LEGACY_PAGE_BACKGROUND_DEFAULT,
+  MOTION_PAGE_BACKGROUND_DEFAULT,
+  PageBackgroundProvider,
+} from "@/components/PageBackgroundContext";
 import { Suspense } from "react";
 
 /** Routes that should NOT show any sidebar */
@@ -23,29 +28,34 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     return <>{children}</>;
   }
 
-  // New Motion layout — sidebar floats over full-width content
+  // Motion layout — full-viewport background + floating sidebar; main inset = nav + 24px gap
   if (isMotionRoute(pathname)) {
     return (
-      <div className="relative h-screen overflow-hidden bg-[#f6f5f5]">
-        <main className="h-full w-full overflow-y-auto">
-          {children}
-        </main>
-        <Suspense>
-          <Sidebar />
-        </Suspense>
+      <div className="relative h-screen overflow-hidden">
+        <PageBackgroundProvider defaultSpec={MOTION_PAGE_BACKGROUND_DEFAULT}>
+          <Suspense>
+            <Sidebar />
+          </Suspense>
+          <main className="relative z-10 h-full w-full overflow-y-auto pl-[88px] lg:pl-[240px]">
+            {children}
+          </main>
+        </PageBackgroundProvider>
       </div>
     );
   }
 
-  // Everything else — old dark sidebar
   return (
-    <div className="flex h-screen overflow-hidden">
-      <Suspense>
-        <LegacySidebar />
-      </Suspense>
-      <main className="flex-1 overflow-y-auto bg-[#f3f3f3] p-4 sm:p-6">
-        {children}
-      </main>
+    <div className="relative h-screen overflow-hidden">
+      <PageBackgroundProvider defaultSpec={LEGACY_PAGE_BACKGROUND_DEFAULT}>
+        <div className="relative z-10 flex h-full min-h-0 min-w-0">
+          <Suspense>
+            <LegacySidebar />
+          </Suspense>
+          <main className="min-h-0 flex-1 overflow-y-auto bg-transparent p-4 sm:p-6">
+            {children}
+          </main>
+        </div>
+      </PageBackgroundProvider>
     </div>
   );
 }
