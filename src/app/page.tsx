@@ -183,29 +183,29 @@ export default function MotionFeedPage() {
             bg: rgba(255,244,224,0.2), p-12, rounded-12, shadow
             ══════════════════════════════════════════════════════════════════ */}
         <div
-          className="w-full rounded-[12px] shadow-[0px_1px_2px_rgba(0,0,0,0.05),0px_4px_12px_rgba(0,0,0,0.06),0px_16px_40px_rgba(0,0,0,0.07)]"
-          style={{ backgroundColor: "rgba(236,250,255,0.6)" }}
+          className="w-full rounded-[12px] shadow-[0px_0px_60px_0px_rgba(0,0,0,0.12)]"
+          style={{ backgroundColor: "rgba(255,244,224,0.2)" }}
         >
           <div className="flex w-full flex-col items-start gap-[12px] p-[12px]">
-          {/* Top row: same horizontal inset as search bar (px-14) so edges line up */}
-          <div className="flex w-full min-w-0 items-center justify-between gap-[12px] px-[14px]">
-            <div className="flex min-w-0 items-center gap-[6px]">
+          {/* Top row: avatar + name left, updated + refresh right */}
+          <div className="flex w-full min-w-0 items-center justify-between pr-[6px]">
+            <div className="flex min-w-0 items-center gap-[12px]">
               <img
                 src="/icons/mark-avatar.png"
                 alt="Mark Slater"
                 className="h-[34px] w-[34px] shrink-0 rounded-full object-cover"
               />
               <span
-                className="truncate text-[16px] font-medium leading-[20px] text-[#3e4c60]"
+                className="truncate text-[16px] font-semibold leading-[20px] text-[#3e4c60]"
                 style={{
                   fontFamily: "var(--font-geist-sans), 'Geist', sans-serif",
                   letterSpacing: "-0.32px",
                 }}
               >
-                Mark Slater, CEO.
+                Mark Slater&apos;s Motion Space.
               </span>
             </div>
-            <div className="flex shrink-0 items-center justify-end gap-[12px]">
+            <div className="flex shrink-0 items-center gap-[18px] h-[20px]">
               <span
                 className="whitespace-nowrap text-[10px] font-medium leading-[10px] text-[#9ca5a9]"
                 style={{ fontFamily: "var(--font-geist-sans), 'Geist', sans-serif" }}

@@ -8,7 +8,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { LucideIcon } from "lucide-react";
-import { Cog, LayoutGrid, MessageSquareText, UserRound } from "lucide-react";
+import { Layers, PenLine, Settings, Ghost, User } from "lucide-react";
 
 /* eslint-disable @next/next/no-img-element */
 
@@ -19,10 +19,10 @@ interface NavItem {
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { href: "/", label: "Motion", Icon: LayoutGrid },
-  { href: "/clearing", label: "Canvas", Icon: MessageSquareText },
-  { href: "/engine", label: "Engine", Icon: Cog },
-  { href: "/me", label: "Me", Icon: UserRound },
+  { href: "/", label: "Motion", Icon: Layers },
+  { href: "/clearing", label: "Canvas", Icon: PenLine },
+  { href: "/engine", label: "Engine", Icon: Settings },
+  { href: "/me", label: "Me", Icon: Ghost },
 ];
 
 export function Sidebar() {
@@ -124,7 +124,7 @@ export function Sidebar() {
 
           <div
             className="absolute flex flex-col items-start gap-[2px]"
-            style={{ left: "11px", top: "299px", width: "142px" }}
+            style={{ left: "11px", top: "275px", width: "142px" }}
           >
             <div className="flex w-full items-end justify-between">
               <span
@@ -159,6 +159,34 @@ export function Sidebar() {
               >
                 Technical Docs
               </span>
+              <img
+                src="/icons/arrow-right.svg"
+                alt=""
+                className="shrink-0"
+                style={{ width: "9px", height: "9px" }}
+              />
+            </div>
+
+            {/* Separator */}
+            <div className="my-[6px] h-px w-full" style={{ backgroundColor: "#e0e0e0" }} />
+
+            {/* Account */}
+            <div className="flex w-full items-center justify-between">
+              <div className="flex items-center gap-[4px]">
+                <User className="h-[10px] w-[10px] shrink-0 text-[#9ca5a9]" strokeWidth={1.5} />
+                <span
+                  className="whitespace-nowrap"
+                  style={{
+                    fontFamily: "var(--font-geist-sans), 'Geist', sans-serif",
+                    fontSize: "10px",
+                    fontWeight: 500,
+                    lineHeight: "12px",
+                    color: "#9ca5a9",
+                  }}
+                >
+                  Account
+                </span>
+              </div>
               <img
                 src="/icons/arrow-right.svg"
                 alt=""
