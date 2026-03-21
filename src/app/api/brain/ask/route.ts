@@ -206,28 +206,52 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // ── 0b. Recently ingested documents (last 24 hours) — works even without session context ──
-    // This ensures the brain knows about files uploaded today, regardless of session
+    // ── 0b. Recently ingested documents (last 7 days) — guaranteed recall window ──
+    // BULLETPROOF RECALL: anything submitted in the last 7 days must be recallable
     if (contextParts.length === 0 || !contextParts.some(p => p.includes("HIGHEST PRIORITY"))) {
       try {
-        const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+        const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
         const { data: recentKb } = await sb
           .schema("brain")
           .from("knowledge_base")
-          .select("id, title, content_text, summary")
+          .select("id, title, content_text, summary, source_type, processed_at")
           .eq("processed", true)
-          .gte("processed_at", twentyFourHoursAgo)
+          .gte("processed_at", sevenDaysAgo)
           .order("processed_at", { ascending: false })
-          .limit(5);
+          .limit(15);
 
         if (recentKb && recentKb.length > 0) {
-          contextParts.push("## Recently Ingested Documents (last 24 hours)\n");
-          contextParts.push("IMPORTANT: These documents were uploaded today. If the user asks about information 'submitted earlier' or 'from today', this is what they mean.\n");
-          for (const doc of recentKb) {
-            contextParts.push(`**${doc.title}**`);
+          // Rank by relevance to question — include all but prioritize matches
+          const questionLower = question.toLowerCase();
+          const qWords = questionLower.split(/\s+/).filter((w: string) => w.length > 3);
+
+          const scored = recentKb.map((doc: any) => {
+            let score = 0;
+            const titleLower = (doc.title || "").toLowerCase();
+            const summaryLower = (doc.summary || "").toLowerCase();
+            for (const w of qWords) {
+              if (titleLower.includes(w)) score += 3;
+              if (summaryLower.includes(w)) score += 2;
+            }
+            // Recency bonus: docs from last 24h get +5
+            const age = Date.now() - new Date(doc.processed_at).getTime();
+            if (age < 24 * 60 * 60 * 1000) score += 5;
+            else if (age < 3 * 24 * 60 * 60 * 1000) score += 2;
+            return { ...doc, _score: score };
+          });
+
+          scored.sort((a: any, b: any) => b._score - a._score);
+
+          // Take top 8 by relevance
+          const topDocs = scored.slice(0, 8);
+
+          contextParts.push("## Recently Ingested Documents (last 7 days)\n");
+          contextParts.push("IMPORTANT: These documents were recently submitted. If the user asks about information 'submitted earlier', 'from this week', or 'recently', this is what they mean.\n");
+          for (const doc of topDocs) {
+            contextParts.push(`**${doc.title}** [${doc.source_type || "unknown"}]`);
             if (doc.summary) contextParts.push(`Summary: ${doc.summary}`);
             if (doc.content_text) {
-              const maxChars = 30000;
+              const maxChars = 20000;
               contextParts.push(doc.content_text.slice(0, maxChars));
               if (doc.content_text.length > maxChars) {
                 contextParts.push(`... [Showing first ${maxChars} chars of ${doc.content_text.length} total]`);
@@ -235,7 +259,7 @@ export async function POST(request: NextRequest) {
             }
             contextParts.push("");
           }
-          sourceNotes.push(`${recentKb.length} recently ingested doc(s)`);
+          sourceNotes.push(`${topDocs.length} recently ingested doc(s) (7-day window)`);
         }
       } catch (recentErr) {
         console.warn("Recent document lookup failed (non-fatal):", recentErr);
@@ -303,13 +327,13 @@ export async function POST(request: NextRequest) {
         const [kbResult, corrResult] = await Promise.all([
           sb.schema("brain").rpc("search_knowledge", {
             query_embedding: embeddingStr,
-            match_threshold: 0.3,
-            match_count: 8,
+            match_threshold: 0.18,
+            match_count: 15,
           }),
           sb.schema("brain").rpc("search_correspondence", {
             query_embedding: embeddingStr,
-            match_threshold: 0.3,
-            match_count: 8,
+            match_threshold: 0.18,
+            match_count: 12,
           }),
         ]);
 
@@ -355,16 +379,21 @@ export async function POST(request: NextRequest) {
       console.error("Vector search exception (falling back to keyword):", vecErr);
     }
 
-    // ── 3. Knowledge keyword search ──
+    // ── 3. Knowledge keyword search (title + summary + tags) ──
     const words = question.split(/\s+/).filter((w: string) => w.length > 3).slice(0, 5);
     if (words.length > 0) {
+      // Search across title AND summary for broader recall
+      const orConditions = words.flatMap((w: string) => [
+        `title.ilike.%${w}%`,
+        `summary.ilike.%${w}%`,
+      ]);
       const { data: kbResults } = await sb
         .schema("brain")
         .from("knowledge_base")
-        .select("title, summary, source_type, taxonomy_categories")
+        .select("title, summary, source_type, taxonomy_categories, tags")
         .eq("processed", true)
-        .or(words.map((w: string) => `title.ilike.%${w}%`).join(","))
-        .limit(5);
+        .or(orConditions.join(","))
+        .limit(10);
 
       if (kbResults && kbResults.length > 0) {
         // Deduplicate: skip results already found via vector search
@@ -373,7 +402,8 @@ export async function POST(request: NextRequest) {
           contextParts.push("## Knowledge Base (Keyword)\n");
           for (const kb of filtered) {
             contextParts.push(`**${kb.title}** [${kb.source_type}]`);
-            if (kb.summary) contextParts.push(kb.summary.slice(0, 300));
+            if (kb.summary) contextParts.push(kb.summary.slice(0, 500));
+            if (kb.tags?.length) contextParts.push(`Tags: ${kb.tags.join(", ")}`);
             contextParts.push("");
           }
           sourceNotes.push(`${filtered.length} keyword knowledge docs`);
@@ -381,15 +411,20 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // ── 4. Recent correspondence ──
+    // ── 4. Recent correspondence (subject + summary + from_address) ──
     if (words.length > 0) {
+      const corrConditions = words.flatMap((w: string) => [
+        `subject.ilike.%${w}%`,
+        `summary.ilike.%${w}%`,
+        `from_address.ilike.%${w}%`,
+      ]);
       const { data: corr } = await sb
         .schema("brain")
         .from("correspondence")
         .select("subject, direction, channel, sent_at, from_address, summary")
-        .or(words.map((w: string) => `subject.ilike.%${w}%`).join(","))
+        .or(corrConditions.join(","))
         .order("sent_at", { ascending: false })
-        .limit(8);
+        .limit(12);
 
       if (corr && corr.length > 0) {
         // Deduplicate: skip results already found via vector search
@@ -408,7 +443,40 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // ── 4b. Derived insights ──
+    // ── 4b. Recent feed cards (brain's own output — last 7 days) ──
+    try {
+      const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+      const feedConditions = words.length > 0
+        ? words.flatMap((w: string) => [`title.ilike.%${w}%`, `body.ilike.%${w}%`]).join(",")
+        : null;
+
+      if (feedConditions) {
+        const { data: feedResults } = await sb
+          .schema("brain")
+          .from("feed_cards")
+          .select("card_type, title, body, source_type, entity_name, priority, created_at")
+          .gte("created_at", sevenDaysAgo)
+          .or(feedConditions)
+          .order("created_at", { ascending: false })
+          .limit(8);
+
+        if (feedResults && feedResults.length > 0) {
+          contextParts.push("## Recent Feed Cards (Brain Output — Last 7 Days)\n");
+          for (const fc of feedResults) {
+            const date = new Date(fc.created_at).toLocaleDateString();
+            contextParts.push(`- [${fc.card_type}/${fc.priority || "medium"}] **${fc.title}** (${date}, from ${fc.source_type})`);
+            if (fc.entity_name) contextParts.push(`  Entity: ${fc.entity_name}`);
+            if (fc.body) contextParts.push(`  ${fc.body.slice(0, 300)}`);
+          }
+          contextParts.push("");
+          sourceNotes.push(`${feedResults.length} recent feed cards`);
+        }
+      }
+    } catch (feedErr) {
+      console.warn("Feed card search failed (non-fatal):", feedErr);
+    }
+
+    // ── 4c. Derived insights ──
     try {
       // Query active insights that match the question's entities or categories
       const entityIds = entities.map((e) => e.id);

@@ -496,7 +496,7 @@ export async function runWebIntelligenceScan(
           await logIngestion(sb, {
             source_type: "web_intelligence",
             source_ref: sourceItem?.url || undefined,
-            raw_content: sourceItem?.content?.slice(0, 2000) || undefined,
+            raw_content: sourceItem?.content?.slice(0, 8000) || undefined,
             normalized_content: insight.summary,
             classification: {
               insight_type: insight.insight_type,
