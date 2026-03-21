@@ -735,28 +735,167 @@ export async function POST(request: NextRequest) {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type SB = any;
 
+/**
+ * Levenshtein distance for fuzzy matching.
+ * Returns edit distance between two strings (case-insensitive).
+ */
+function levenshtein(a: string, b: string): number {
+  const al = a.toLowerCase(), bl = b.toLowerCase();
+  const m = al.length, n = bl.length;
+  const dp: number[][] = Array.from({ length: m + 1 }, () => Array(n + 1).fill(0));
+  for (let i = 0; i <= m; i++) dp[i][0] = i;
+  for (let j = 0; j <= n; j++) dp[0][j] = j;
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      dp[i][j] = al[i - 1] === bl[j - 1]
+        ? dp[i - 1][j - 1]
+        : 1 + Math.min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1]);
+    }
+  }
+  return dp[m][n];
+}
+
+/**
+ * Check if candidate is a fuzzy match for any word/phrase in the question.
+ * Allows up to ~20% edit distance for names 5+ chars.
+ */
+function fuzzyMatch(questionLower: string, candidate: string): boolean {
+  if (!candidate || candidate.length < 3) return false;
+  const candLower = candidate.toLowerCase();
+
+  // Exact substring match (fast path)
+  if (questionLower.includes(candLower)) return true;
+
+  // Extract question words and bigrams for fuzzy comparison
+  const qWords = questionLower.split(/\s+/);
+
+  // For short names (< 5 chars), require exact word match only
+  if (candLower.length < 5) {
+    return qWords.some(w => w === candLower);
+  }
+
+  // Check each question word and consecutive pairs against candidate
+  for (const w of qWords) {
+    if (w.length >= 4) {
+      const maxDist = Math.floor(Math.max(w.length, candLower.length) * 0.2);
+      if (levenshtein(w, candLower) <= maxDist) return true;
+    }
+  }
+
+  // Check consecutive word pairs (for multi-word names like "Nathan Eagle")
+  const candParts = candLower.split(/\s+/);
+  if (candParts.length > 1) {
+    for (let i = 0; i < qWords.length - 1; i++) {
+      const pair = qWords[i] + " " + qWords[i + 1];
+      const maxDist = Math.floor(Math.max(pair.length, candLower.length) * 0.15);
+      if (levenshtein(pair, candLower) <= maxDist) return true;
+    }
+  }
+
+  // First name only match (for contacts) — e.g. "what did Nathan say"
+  if (candParts.length > 1) {
+    const firstName = candParts[0];
+    if (firstName.length >= 4 && qWords.some(w => w === firstName)) return true;
+    // Last name only match — e.g. "talk to Eagle"
+    const lastName = candParts[candParts.length - 1];
+    if (lastName.length >= 4 && qWords.some(w => w === lastName)) return true;
+  }
+
+  return false;
+}
+
 async function resolveEntities(
   sb: SB,
   question: string,
 ): Promise<Array<{ type: string; id: string; name: string }>> {
   const entities: Array<{ type: string; id: string; name: string }> = [];
   const questionLower = question.toLowerCase();
+  const seenIds = new Set<string>();
 
   const [{ data: orgs }, { data: contacts }] = await Promise.all([
-    sb.schema("core").from("organizations").select("id, name").limit(200),
-    sb.schema("core").from("contacts").select("id, first_name, last_name").limit(200),
+    sb.schema("core").from("organizations").select("id, name, website, domain").limit(500),
+    sb.schema("core").from("contacts").select("id, first_name, last_name, email, title").limit(500),
   ]);
 
+  // Organization matching: name + domain + fuzzy
   for (const org of orgs ?? []) {
-    if (org.name && org.name.length > 2 && questionLower.includes(org.name.toLowerCase())) {
+    if (!org.name || org.name.length < 2) continue;
+
+    let matched = false;
+
+    // Exact name match
+    if (questionLower.includes(org.name.toLowerCase())) {
+      matched = true;
+    }
+
+    // Domain match — e.g. "nfl.com" or "the NFL"
+    if (!matched && org.domain) {
+      const domainBase = org.domain.replace(/^www\./, "").split(".")[0].toLowerCase();
+      if (domainBase.length >= 3 && questionLower.includes(domainBase)) {
+        matched = true;
+      }
+    }
+
+    // Fuzzy match for org names > 4 chars
+    if (!matched) {
+      matched = fuzzyMatch(questionLower, org.name);
+    }
+
+    // Acronym match — e.g. "MiM" for "Made in Motion"
+    if (!matched && org.name.includes(" ")) {
+      const acronym = org.name
+        .split(/\s+/)
+        .filter((w: string) => w.length > 0 && w[0] === w[0].toUpperCase())
+        .map((w: string) => w[0])
+        .join("");
+      if (acronym.length >= 2) {
+        // Case-sensitive acronym match (acronyms are usually uppercase)
+        const qWordsRaw = question.split(/\s+/);
+        if (qWordsRaw.some(w => w === acronym || w === acronym.toUpperCase())) {
+          matched = true;
+        }
+      }
+    }
+
+    if (matched && !seenIds.has(org.id)) {
       entities.push({ type: "organizations", id: org.id, name: org.name });
+      seenIds.add(org.id);
     }
   }
 
+  // Contact matching: full name + first/last name + email + fuzzy
   for (const c of contacts ?? []) {
     const fullName = [c.first_name, c.last_name].filter(Boolean).join(" ");
-    if (fullName.length > 2 && questionLower.includes(fullName.toLowerCase())) {
+    if (fullName.length < 2) continue;
+
+    let matched = false;
+
+    // Exact full name match
+    if (questionLower.includes(fullName.toLowerCase())) {
+      matched = true;
+    }
+
+    // Email address match
+    if (!matched && c.email) {
+      const emailLower = c.email.toLowerCase();
+      if (questionLower.includes(emailLower)) {
+        matched = true;
+      }
+      // Email prefix match — "mark.slater" in "mark.slater@..."
+      const emailPrefix = emailLower.split("@")[0];
+      if (emailPrefix.length >= 5 && questionLower.includes(emailPrefix)) {
+        matched = true;
+      }
+    }
+
+    // Fuzzy match
+    if (!matched) {
+      matched = fuzzyMatch(questionLower, fullName);
+    }
+
+    if (matched && !seenIds.has(c.id)) {
       entities.push({ type: "contacts", id: c.id, name: fullName });
+      seenIds.add(c.id);
     }
   }
 
@@ -775,25 +914,46 @@ async function buildMiniDossier(
       { data: types },
       { data: pipeline },
       { data: tasks },
+      { data: recentCorr },
+      { data: orgContacts },
     ] = await Promise.all([
       sb.schema("core").from("organizations").select("*").eq("id", entity.id).single(),
       sb.schema("core").from("org_types").select("type").eq("org_id", entity.id),
-      sb.schema("crm").from("pipeline").select("status, stage, amount, next_action").eq("organization_id", entity.id).limit(3),
+      sb.schema("crm").from("pipeline").select("status, stage, amount, next_action, notes").eq("organization_id", entity.id).limit(3),
       sb.schema("brain").from("tasks").select("title, status, priority").eq("entity_id", entity.id).neq("status", "done").limit(5),
+      sb.schema("brain").from("correspondence")
+        .select("subject, direction, channel, sent_at, from_address, summary")
+        .eq("entity_id", entity.id)
+        .order("sent_at", { ascending: false })
+        .limit(5),
+      sb.schema("core").from("contacts")
+        .select("first_name, last_name, title, email")
+        .eq("organization_id", entity.id)
+        .limit(10),
     ]);
 
     if (!org) return null;
 
     parts.push(`## ${org.name}`);
     if (types?.length) parts.push(`Types: ${types.map((t: { type: string }) => t.type).join(", ")}`);
-    if (org.description) parts.push(org.description.slice(0, 200));
+    if (org.description) parts.push(org.description.slice(0, 400));
     if (org.website) parts.push(`Website: ${org.website}`);
+
+    // People at this org
+    if (orgContacts?.length) {
+      parts.push("\n**People:**");
+      for (const c of orgContacts) {
+        const name = [c.first_name, c.last_name].filter(Boolean).join(" ");
+        parts.push(`- ${name}${c.title ? ` (${c.title})` : ""}${c.email ? ` — ${c.email}` : ""}`);
+      }
+    }
 
     if (pipeline?.length) {
       parts.push("\n**Pipeline:**");
       for (const p of pipeline) {
         parts.push(`- ${p.status} / ${p.stage} — $${p.amount || "TBD"}`);
         if (p.next_action) parts.push(`  Next: ${p.next_action}`);
+        if (p.notes) parts.push(`  Notes: ${p.notes.slice(0, 150)}`);
       }
     }
 
@@ -803,18 +963,69 @@ async function buildMiniDossier(
         parts.push(`- [${t.priority}] ${t.title} (${t.status})`);
       }
     }
+
+    if (recentCorr?.length) {
+      parts.push("\n**Recent Correspondence:**");
+      for (const c of recentCorr) {
+        const dir = c.direction === "outbound" ? "SENT" : "RECEIVED";
+        const date = c.sent_at ? new Date(c.sent_at).toLocaleDateString() : "";
+        parts.push(`- [${dir}] "${c.subject}" (${date})`);
+        if (c.summary) parts.push(`  ${c.summary.slice(0, 150)}`);
+      }
+    }
   } else if (entity.type === "contacts") {
-    const { data: contact } = await sb.schema("core").from("contacts")
-      .select("*")
-      .eq("id", entity.id)
-      .single();
+    const [
+      { data: contact },
+      { data: contactCorr },
+      { data: contactCards },
+    ] = await Promise.all([
+      sb.schema("core").from("contacts").select("*").eq("id", entity.id).single(),
+      sb.schema("brain").from("correspondence")
+        .select("subject, direction, channel, sent_at, summary")
+        .eq("entity_id", entity.id)
+        .order("sent_at", { ascending: false })
+        .limit(5),
+      sb.schema("brain").from("feed_cards")
+        .select("card_type, title, body, created_at")
+        .eq("entity_id", entity.id)
+        .order("created_at", { ascending: false })
+        .limit(3),
+    ]);
 
     if (!contact) return null;
 
     parts.push(`## ${contact.first_name} ${contact.last_name}`);
     if (contact.email) parts.push(`Email: ${contact.email}`);
     if (contact.title) parts.push(`Title: ${contact.title}`);
-    if (contact.notes) parts.push(contact.notes.slice(0, 200));
+    if (contact.phone) parts.push(`Phone: ${contact.phone}`);
+    if (contact.notes) parts.push(contact.notes.slice(0, 300));
+
+    // Organization relationship
+    if (contact.organization_id) {
+      const { data: org } = await sb.schema("core").from("organizations")
+        .select("name")
+        .eq("id", contact.organization_id)
+        .single();
+      if (org) parts.push(`Organization: ${org.name}`);
+    }
+
+    if (contactCorr?.length) {
+      parts.push("\n**Recent Correspondence:**");
+      for (const c of contactCorr) {
+        const dir = c.direction === "outbound" ? "SENT" : "RECEIVED";
+        const date = c.sent_at ? new Date(c.sent_at).toLocaleDateString() : "";
+        parts.push(`- [${dir}] "${c.subject}" (${date})`);
+        if (c.summary) parts.push(`  ${c.summary.slice(0, 150)}`);
+      }
+    }
+
+    if (contactCards?.length) {
+      parts.push("\n**Recent Brain Activity:**");
+      for (const fc of contactCards) {
+        const date = new Date(fc.created_at).toLocaleDateString();
+        parts.push(`- [${fc.card_type}] ${fc.title} (${date})`);
+      }
+    }
   }
 
   parts.push("");
