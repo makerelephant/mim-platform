@@ -111,7 +111,7 @@ export default function EngineRoomPage() {
   const selectedHarness = harness.find((h) => h.slug === selectedFile);
 
   return (
-    <div className="h-full flex flex-col bg-[#f6f5f5]">
+    <div className="h-full flex flex-col bg-[#f6f5f5]" style={{ backgroundImage: "url('/icons/background.png')", backgroundSize: "cover", backgroundPosition: "center", backgroundRepeat: "no-repeat" }}>
       {/* ── Header ── */}
       <div className="px-6 pt-6 pb-4">
         <h1
@@ -395,20 +395,23 @@ export default function EngineRoomPage() {
           <AutonomyPanel />
         ) : activeTab === "integrations" ? (
           /* ── Integrations ── */
-          <div className="grid grid-cols-2 gap-4">
-            {integrations.length > 0
-              ? integrations.map((i) => (
-                  <IntegrationCard key={i.name} name={i.name} status={i.status} description={i.description} icon={i.icon} />
-                ))
-              : <>
-                  <IntegrationCard name="Gmail" status="connected" description="Scanning every day at 6am EST" icon="📧" />
-                  <IntegrationCard name="Slack" status="planned" description="Not yet connected" icon="💬" />
-                  <IntegrationCard name="Google Drive" status="planned" description="Not yet connected" icon="📁" />
-                  <IntegrationCard name="Stripe" status="planned" description="Not yet connected" icon="💳" />
-                  <IntegrationCard name="Calendar" status="planned" description="Not yet connected" icon="📅" />
-                  <IntegrationCard name="Notion" status="planned" description="Not yet connected" icon="📝" />
-                </>
-            }
+          <div className="space-y-6">
+            <div className="grid grid-cols-2 gap-4">
+              {integrations.length > 0
+                ? integrations.map((i) => (
+                    <IntegrationCard key={i.name} name={i.name} status={i.status} description={i.description} icon={i.icon} />
+                  ))
+                : <>
+                    <IntegrationCard name="Gmail" status="connected" description="Scanning every day at 6am EST" icon="📧" />
+                    <IntegrationCard name="Slack" status="planned" description="Not yet connected" icon="💬" />
+                    <IntegrationCard name="Google Drive" status="planned" description="Not yet connected" icon="📁" />
+                    <IntegrationCard name="Stripe" status="planned" description="Not yet connected" icon="💳" />
+                    <IntegrationCard name="Calendar" status="planned" description="Not yet connected" icon="📅" />
+                    <IntegrationCard name="Notion" status="planned" description="Not yet connected" icon="📝" />
+                  </>
+              }
+            </div>
+            <WebSourcesPanel />
           </div>
         ) : (
           /* ── Health ── */
@@ -1367,6 +1370,178 @@ function HealthRow({ name, status, detail }: { name: string; status: string; det
       <div>
         <p className="text-xs font-medium text-[#1e252a]">{name}</p>
         <p className="text-[10px] text-[#6e7b80]">{detail}</p>
+      </div>
+    </div>
+  );
+}
+
+// ─── Web Intelligence Sources Manager ────────────────────────────────────────
+
+interface WebSource {
+  url: string;
+  label: string;
+  type: "rss" | "webpage";
+  category: string;
+  instruction_id: string | null;
+}
+
+function WebSourcesPanel() {
+  const [sources, setSources] = useState<WebSource[]>([]);
+  const [usingDefaults, setUsingDefaults] = useState(true);
+  const [loading, setLoading] = useState(true);
+  const [showAdd, setShowAdd] = useState(false);
+  const [newUrl, setNewUrl] = useState("");
+  const [newLabel, setNewLabel] = useState("");
+  const [newType, setNewType] = useState<"rss" | "webpage">("rss");
+  const [newCategory, setNewCategory] = useState("custom");
+  const [adding, setAdding] = useState(false);
+  const [deleting, setDeleting] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch("/api/engine/web-sources")
+      .then((r) => r.json())
+      .then((d) => {
+        setSources(d.sources || []);
+        setUsingDefaults(d.using_defaults || false);
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  async function addSource() {
+    if (!newUrl.trim() || !newLabel.trim()) return;
+    setAdding(true);
+    try {
+      const res = await fetch("/api/engine/web-sources", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: newUrl, label: newLabel, type: newType, category: newCategory }),
+      });
+      const data = await res.json();
+      if (data.success && data.source) {
+        setSources((prev) => [...prev, data.source]);
+        setUsingDefaults(false);
+        setNewUrl("");
+        setNewLabel("");
+        setShowAdd(false);
+      }
+    } catch { /* silent */ }
+    finally { setAdding(false); }
+  }
+
+  async function removeSource(instructionId: string) {
+    setDeleting(instructionId);
+    try {
+      const res = await fetch("/api/engine/web-sources", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ instruction_id: instructionId }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setSources((prev) => prev.filter((s) => s.instruction_id !== instructionId));
+      }
+    } catch { /* silent */ }
+    finally { setDeleting(null); }
+  }
+
+  if (loading) return <div className="text-sm text-[#94A3B8]">Loading web sources...</div>;
+
+  return (
+    <div className="bg-white rounded-xl shadow-sm p-5">
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <h3 className="text-sm font-bold text-[#1e252a]">🌐 Web Intelligence Sources</h3>
+          <p className="text-[10px] text-[#6e7b80] mt-0.5">
+            URLs and RSS feeds the Web Intelligence Gopher monitors daily.
+            {usingDefaults && " (Using defaults — add a source to customize)"}
+          </p>
+        </div>
+        <button
+          onClick={() => setShowAdd(!showAdd)}
+          className="px-3 py-1.5 text-[11px] font-semibold rounded-lg transition-colors bg-[#ecfaff] text-[#1e252a] border border-[#b9e6ff] hover:bg-[#dbeafe]"
+        >
+          {showAdd ? "Cancel" : "+ Add Source"}
+        </button>
+      </div>
+
+      {/* Add form */}
+      {showAdd && (
+        <div className="bg-[#f8f8f8] rounded-lg p-4 mb-4 space-y-3">
+          <input
+            type="text"
+            value={newLabel}
+            onChange={(e) => setNewLabel(e.target.value)}
+            placeholder="Label (e.g. TechCrunch AI)"
+            className="w-full text-[12px] px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-300"
+          />
+          <input
+            type="url"
+            value={newUrl}
+            onChange={(e) => setNewUrl(e.target.value)}
+            placeholder="URL (RSS feed or webpage)"
+            className="w-full text-[12px] px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-300"
+          />
+          <div className="flex gap-3">
+            <select
+              value={newType}
+              onChange={(e) => setNewType(e.target.value as "rss" | "webpage")}
+              className="text-[12px] px-3 py-2 border border-gray-200 rounded-lg focus:outline-none"
+            >
+              <option value="rss">RSS Feed</option>
+              <option value="webpage">Webpage</option>
+            </select>
+            <select
+              value={newCategory}
+              onChange={(e) => setNewCategory(e.target.value)}
+              className="text-[12px] px-3 py-2 border border-gray-200 rounded-lg focus:outline-none flex-1"
+            >
+              <option value="custom">Custom</option>
+              <option value="youth_sports">Youth Sports</option>
+              <option value="ai_commerce">AI / Commerce</option>
+              <option value="press_mentions">Press Mentions</option>
+              <option value="competitor">Competitor</option>
+              <option value="industry_news">Industry News</option>
+            </select>
+            <button
+              onClick={addSource}
+              disabled={adding || !newUrl.trim() || !newLabel.trim()}
+              className="px-4 py-2 text-[12px] font-semibold rounded-lg bg-[#627c9e] text-white hover:opacity-80 disabled:opacity-50"
+            >
+              {adding ? "Adding..." : "Add"}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Source list */}
+      <div className="space-y-2">
+        {sources.length === 0 ? (
+          <p className="text-xs text-[#94A3B8]">No web sources configured.</p>
+        ) : sources.map((s, i) => (
+          <div key={s.instruction_id || i} className="flex items-center justify-between py-2 px-3 rounded-lg hover:bg-[#f8f8f8] transition-colors group">
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] font-semibold text-[#1e252a] truncate">{s.label}</span>
+                <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-medium ${
+                  s.type === "rss" ? "bg-blue-50 text-blue-600" : "bg-purple-50 text-purple-600"
+                }`}>{s.type}</span>
+                <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-gray-100 text-[#6e7b80] font-medium">{s.category}</span>
+              </div>
+              <p className="text-[10px] text-[#94A3B8] truncate mt-0.5">{s.url}</p>
+            </div>
+            {s.instruction_id && (
+              <button
+                onClick={() => removeSource(s.instruction_id!)}
+                disabled={deleting === s.instruction_id}
+                className="opacity-0 group-hover:opacity-100 transition-opacity text-[#94A3B8] hover:text-red-400 text-[14px] ml-2 shrink-0"
+                title="Remove source"
+              >
+                {deleting === s.instruction_id ? "..." : "×"}
+              </button>
+            )}
+          </div>
+        ))}
       </div>
     </div>
   );

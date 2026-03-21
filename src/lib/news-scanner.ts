@@ -202,8 +202,8 @@ SOURCE: ${article.sourceName}
 RSS CATEGORIES: ${article.categories.join(", ") || "none"}
 PUBLISHED: ${article.pubDate}
 
-ARTICLE TEXT (first 3000 chars):
-${articleText.slice(0, 3000)}
+FULL ARTICLE TEXT:
+${articleText.slice(0, 12000)}
 
 TAXONOMY CATEGORIES FOR CONTEXT:
 ${taxonomyContext}

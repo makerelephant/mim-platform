@@ -1,225 +1,364 @@
 "use client";
 
 /**
- * Motion route sidebar — nav with per-item icons.
- * lg+: full card with labels (Figma-inspired). <lg: icon-only rail to free center width.
+ * Sidebar — Pixel-perfect match to Figma node 94:4010
+ * lg+: expanded card (169px) with labels + icons. <lg: icon-only rail.
+ * Active state: #289bff blue. Semi-transparent white bg with glass effect.
  */
 
+import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import type { LucideIcon } from "lucide-react";
-import { Layers, PenLine, Settings, Ghost, User } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
 
 /* eslint-disable @next/next/no-img-element */
+
+const geist = "var(--font-geist-sans), 'Geist', sans-serif";
 
 interface NavItem {
   href: string;
   label: string;
-  Icon: LucideIcon;
+  icon: string;
+  iconSm?: string; // collapsed version icon (if different)
 }
 
 const NAV_ITEMS: NavItem[] = [
-  { href: "/", label: "Motion", Icon: Layers },
-  { href: "/clearing", label: "Canvas", Icon: PenLine },
-  { href: "/engine", label: "Engine", Icon: Settings },
-  { href: "/me", label: "Me", Icon: Ghost },
+  { href: "/", label: "Motion", icon: "/icons/sidebar-motion.svg" },
+  { href: "/clearing", label: "Canvas", icon: "/icons/sidebar-canvas.svg", iconSm: "/icons/sidebar-canvas-sm.svg" },
+  { href: "/engine", label: "Engine", icon: "/icons/sidebar-engine.svg" },
+  { href: "/me", label: "Me", icon: "/icons/sidebar-ghost.svg" },
 ];
 
 export function Sidebar() {
   const pathname = usePathname();
+  const router = useRouter();
+  const [showAccountMenu, setShowAccountMenu] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   function isActive(item: NavItem): boolean {
     if (item.href === "/") return pathname === "/";
     return pathname === item.href || pathname.startsWith(item.href + "/");
   }
 
+  // Close menu on outside click
+  useEffect(() => {
+    if (!showAccountMenu) return;
+    function handleClick(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setShowAccountMenu(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [showAccountMenu]);
+
+  async function handleLogout() {
+    setLoggingOut(true);
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+    } catch {
+      // still redirect even if the call fails
+    }
+    router.push("/login");
+  }
+
   return (
     <aside
-      className="fixed left-3 top-1/2 z-50 -translate-y-1/2 lg:left-[47px]"
+      className="fixed left-3 top-1/2 z-50 -translate-y-1/2 lg:left-[50px]"
       aria-label="Primary navigation"
     >
-      <div className="relative w-[52px] overflow-hidden rounded-[8px] bg-white shadow-[0px_0px_40px_0px_rgba(0,0,0,0.08)] transition-[width] duration-200 ease-out lg:w-[169px]">
-        {/* Collapsed rail */}
-        <div className="flex w-[52px] flex-col items-center gap-1 py-3 lg:hidden">
+      {/* ════════════════════════════════════════════════════════════
+          COLLAPSED RAIL (< lg) — icon-only, transparent bg
+          ════════════════════════════════════════════════════════════ */}
+      <div
+        className="flex flex-col items-center rounded-[12px] px-[14px] py-[12px] shadow-[0px_0px_40px_0px_rgba(0,0,0,0.08)] lg:hidden"
+      >
+        <div className="flex flex-col items-center gap-[5px]">
           {NAV_ITEMS.map((item) => {
             const active = isActive(item);
-            const Icon = item.Icon;
+            const iconSrc = item.iconSm || item.icon;
             return (
               <Link
                 key={item.href}
                 href={item.href}
                 title={item.label}
                 aria-label={item.label}
-                className={`flex h-10 w-10 items-center justify-center rounded-[6px] transition-colors ${
-                  active
-                    ? "bg-[#3e4c60]/60 text-white"
-                    : "text-[#1e252a] hover:bg-black/[0.04]"
-                }`}
+                className="relative"
               >
-                <Icon className="h-5 w-5 shrink-0" strokeWidth={1.75} aria-hidden />
+                {active && (
+                  <div className="absolute inset-0 rounded-[4px] bg-[#289bff]" />
+                )}
+                <div className="relative flex items-center justify-center size-[18px]">
+                  <img
+                    src={iconSrc}
+                    alt=""
+                    className="size-[16px] shrink-0"
+                    style={{ filter: active ? "brightness(0) invert(1)" : "brightness(0)" }}
+                  />
+                </div>
               </Link>
             );
           })}
-          <div className="mt-2 flex w-full justify-center border-t border-[#e9e9e9] pt-3">
-            <img
-              src="/icons/MiMbrain Icon.png"
-              alt=""
-              className="h-[22px] w-auto opacity-80"
-            />
-          </div>
         </div>
 
-        {/* Expanded card (lg+) */}
-        <div
-          className="relative hidden h-[432px] w-[169px] lg:block"
-          style={{ backgroundColor: "#ffffff" }}
-        >
-          <div
-            className="absolute flex flex-col items-start"
-            style={{ left: "11px", top: "16px", width: "137px" }}
-          >
-            <div className="flex w-full flex-col items-start gap-[2px] pl-[6px]">
-              {NAV_ITEMS.map((item) => {
-                const active = isActive(item);
-                const Icon = item.Icon;
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    className="relative flex h-10 w-full items-center"
-                    title={item.label}
-                  >
-                    {active && (
-                      <div
-                        className="absolute rounded-br-[18px] rounded-tr-[18px]"
-                        style={{
-                          backgroundColor: "#3e4c60",
-                          opacity: 0.6,
-                          height: "40px",
-                          width: "137px",
-                          left: "-6px",
-                          top: "0px",
-                        }}
-                      />
-                    )}
-                    <span
-                      className="relative flex h-10 w-full items-center gap-[8px] capitalize whitespace-nowrap"
-                      style={{
-                        fontFamily: "var(--font-geist-sans), 'Geist', sans-serif",
-                        fontSize: "12px",
-                        fontWeight: 500,
-                        lineHeight: "18px",
-                        letterSpacing: "-0.36px",
-                        color: active ? "white" : "#1e252a",
-                      }}
-                    >
-                      <Icon className="h-5 w-5 shrink-0" strokeWidth={2} aria-hidden />
-                      {item.label}
-                    </span>
-                  </Link>
-                );
-              })}
-            </div>
-          </div>
+        {/* MiMbrain icon */}
+        <div className="mt-[36px] flex items-center justify-center">
+          <img
+            src="/icons/MiMbrain Icon.png"
+            alt="MiMBrain"
+            className="w-[25px] h-[17.8px]"
+          />
+        </div>
+      </div>
 
-          <div
-            className="absolute flex flex-col items-start gap-[2px]"
-            style={{ left: "11px", top: "275px", width: "142px" }}
-          >
-            <div className="flex w-full items-end justify-between">
+      {/* ════════════════════════════════════════════════════════════
+          EXPANDED CARD (lg+) — full nav with labels
+          ════════════════════════════════════════════════════════════ */}
+      <div
+        className="relative hidden h-[410px] w-[169px] rounded-[12px] shadow-[0px_0px_40px_0px_rgba(0,0,0,0.12)] lg:block"
+        style={{
+          backgroundColor: "rgba(255,255,255,0.4)",
+          backdropFilter: "blur(4px)",
+          WebkitBackdropFilter: "blur(4px)",
+        }}
+      >
+        {/* ── Nav items ── */}
+        <div
+          className="absolute flex flex-col items-start"
+          style={{ left: "15px", top: "17px", width: "140px" }}
+        >
+          {NAV_ITEMS.map((item) => {
+            const active = isActive(item);
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className="relative flex h-[22px] w-full items-center justify-between"
+                title={item.label}
+              >
+                {active && (
+                  <div
+                    className="absolute rounded-br-[18px] rounded-tr-[18px]"
+                    style={{
+                      backgroundColor: "#289bff",
+                      height: "22px",
+                      width: "156px",
+                      left: "-6px",
+                      top: "0px",
+                    }}
+                  />
+                )}
+                <span
+                  className="relative capitalize whitespace-nowrap"
+                  style={{
+                    fontFamily: geist,
+                    fontSize: "12px",
+                    fontWeight: 500,
+                    lineHeight: "18px",
+                    letterSpacing: "-0.24px",
+                    color: active ? "white" : "#1e252a",
+                  }}
+                >
+                  {item.label}
+                </span>
+                <img
+                  src={item.icon}
+                  alt=""
+                  className="relative size-[16px] shrink-0"
+                  style={{ filter: active ? "brightness(0) invert(1)" : "brightness(0)" }}
+                />
+              </Link>
+            );
+          })}
+        </div>
+
+        {/* ── Account / Glossary / Technical Docs ── */}
+        <div
+          className="absolute flex flex-col items-start gap-[9px]"
+          style={{ left: "15px", top: "218px", width: "140px" }}
+        >
+
+          {/* Account — opens logout menu */}
+          <div className="relative w-full" ref={menuRef}>
+            <button
+              onClick={() => setShowAccountMenu((v) => !v)}
+              className="flex h-[18px] w-full items-center justify-between cursor-pointer hover:opacity-80 transition-opacity"
+              style={{ background: "none", border: "none", padding: 0 }}
+            >
               <span
                 className="whitespace-nowrap"
                 style={{
-                  fontFamily: "var(--font-geist-sans), 'Geist', sans-serif",
-                  fontSize: "10px",
+                  fontFamily: geist,
+                  fontSize: "12px",
                   fontWeight: 500,
                   lineHeight: "12px",
+                  letterSpacing: "-0.24px",
+                  color: "#3e4c60",
+                }}
+              >
+                Account
+              </span>
+              <img
+                src="/icons/sidebar-user-square.svg"
+                alt=""
+                className="shrink-0 size-[16px]"
+              />
+            </button>
+
+            {/* Dropdown menu */}
+            {showAccountMenu && (
+              <div
+                className="absolute left-0 bottom-[26px] w-[155px] rounded-[8px] shadow-[0px_4px_20px_rgba(0,0,0,0.12)] overflow-hidden z-50"
+                style={{
+                  backgroundColor: "rgba(255,255,255,0.95)",
+                  backdropFilter: "blur(8px)",
+                  WebkitBackdropFilter: "blur(8px)",
+                }}
+              >
+                {/* User info */}
+                <div className="px-[12px] py-[10px] border-b border-[#e0e0e0]">
+                  <p
+                    style={{
+                      fontFamily: geist,
+                      fontSize: "11px",
+                      fontWeight: 600,
+                      color: "#1e252a",
+                      lineHeight: "14px",
+                    }}
+                  >
+                    Mark Slater
+                  </p>
+                  <p
+                    style={{
+                      fontFamily: geist,
+                      fontSize: "10px",
+                      fontWeight: 400,
+                      color: "#9ca5a9",
+                      lineHeight: "14px",
+                    }}
+                  >
+                    CEO
+                  </p>
+                </div>
+
+                {/* Log Out button */}
+                <button
+                  onClick={handleLogout}
+                  disabled={loggingOut}
+                  className="flex w-full items-center gap-[8px] px-[12px] py-[8px] hover:bg-[#f6f5f5] transition-colors cursor-pointer"
+                  style={{ background: "none", border: "none" }}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#e53e3e" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                    <polyline points="16 17 21 12 16 7" />
+                    <line x1="21" y1="12" x2="9" y2="12" />
+                  </svg>
+                  <span
+                    style={{
+                      fontFamily: geist,
+                      fontSize: "11px",
+                      fontWeight: 500,
+                      color: "#e53e3e",
+                      lineHeight: "14px",
+                    }}
+                  >
+                    {loggingOut ? "Logging out..." : "Log Out"}
+                  </span>
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Separator */}
+          <div className="h-px w-full" style={{ backgroundColor: "#e0e0e0" }} />
+
+          {/* Glossary / Technical Docs */}
+          <div className="flex w-full flex-col items-start">
+            <div className="flex h-[18px] w-full items-center justify-between">
+              <span
+                className="whitespace-nowrap"
+                style={{
+                  fontFamily: geist,
+                  fontSize: "12px",
+                  fontWeight: 400,
+                  lineHeight: "12px",
+                  letterSpacing: "-0.24px",
                   color: "#9ca5a9",
                 }}
               >
                 Glossary
               </span>
               <img
-                src="/icons/arrow-right.svg"
+                src="/icons/sidebar-arrow-right.svg"
                 alt=""
-                className="shrink-0"
-                style={{ width: "9px", height: "9px" }}
+                className="shrink-0 size-[12px]"
               />
             </div>
-            <div className="flex w-full items-end justify-between">
+            <div className="flex h-[18px] w-full items-center justify-between">
               <span
                 className="whitespace-nowrap"
                 style={{
-                  fontFamily: "var(--font-geist-sans), 'Geist', sans-serif",
-                  fontSize: "10px",
-                  fontWeight: 500,
+                  fontFamily: geist,
+                  fontSize: "12px",
+                  fontWeight: 400,
                   lineHeight: "12px",
+                  letterSpacing: "-0.24px",
                   color: "#9ca5a9",
                 }}
               >
                 Technical Docs
               </span>
               <img
-                src="/icons/arrow-right.svg"
+                src="/icons/sidebar-arrow-right.svg"
                 alt=""
-                className="shrink-0"
-                style={{ width: "9px", height: "9px" }}
-              />
-            </div>
-
-            {/* Separator */}
-            <div className="my-[6px] h-px w-full" style={{ backgroundColor: "#e0e0e0" }} />
-
-            {/* Account */}
-            <div className="flex w-full items-center justify-between">
-              <div className="flex items-center gap-[4px]">
-                <User className="h-[10px] w-[10px] shrink-0 text-[#9ca5a9]" strokeWidth={1.5} />
-                <span
-                  className="whitespace-nowrap"
-                  style={{
-                    fontFamily: "var(--font-geist-sans), 'Geist', sans-serif",
-                    fontSize: "10px",
-                    fontWeight: 500,
-                    lineHeight: "12px",
-                    color: "#9ca5a9",
-                  }}
-                >
-                  Account
-                </span>
-              </div>
-              <img
-                src="/icons/arrow-right.svg"
-                alt=""
-                className="shrink-0"
-                style={{ width: "9px", height: "9px" }}
+                className="shrink-0 size-[12px]"
               />
             </div>
           </div>
+        </div>
 
-          <div
-            className="absolute flex flex-col items-start gap-[12px]"
-            style={{ left: "17px", top: "346px", width: "142px" }}
-          >
+        {/* ── MiMbrain + Release V.0.1 ── */}
+        <div
+          className="absolute flex items-end gap-[45px]"
+          style={{ left: "15px", top: "375px", width: "138px" }}
+        >
+          <div className="flex items-center shrink-0">
             <img
               src="/icons/MiMbrain Icon.png"
               alt="MiMBrain"
-              style={{ width: "36px", height: "25.63px" }}
+              className="w-[25px] h-[17.8px]"
             />
-            <p
-              style={{
-                fontFamily: "var(--font-geist-sans), 'Geist', sans-serif",
-                fontSize: "10px",
-                fontWeight: 500,
-                lineHeight: "20px",
-                color: "#3e4c60",
-                letterSpacing: "0px",
-              }}
-            >
-              © 2026 Made In Motion PBC
-            </p>
           </div>
+          <span
+            className="whitespace-nowrap shrink-0"
+            style={{
+              fontFamily: geist,
+              fontSize: "12px",
+              fontWeight: 400,
+              lineHeight: "12px",
+              letterSpacing: "-0.24px",
+              color: "#289bff",
+            }}
+          >
+            Release V.0.1
+          </span>
         </div>
       </div>
+
+      {/* ── Copyright — outside the card ── */}
+      <p
+        className="mt-[8px] hidden lg:block"
+        style={{
+          fontFamily: geist,
+          fontSize: "10px",
+          fontWeight: 500,
+          lineHeight: "14px",
+          letterSpacing: "0px",
+          color: "#1e252a",
+        }}
+      >
+        ©️ Made In Motion PBC, 2026.
+      </p>
     </aside>
   );
 }

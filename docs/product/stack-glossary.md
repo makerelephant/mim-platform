@@ -1,7 +1,7 @@
 # Stack Glossary
 > **Author:** Mark Slater, Co-founder & CEO — Made in Motion PBC
 > **Status:** Active strategic document.
-> **Last updated:** 2026-03-18
+> **Last updated:** 2026-03-20
 
 ---
 
@@ -180,6 +180,38 @@ SNR is the single most important quality metric. Category accuracy (is the brain
 ## MCP Server
 
 **The tool belt.** MCP (Model Context Protocol) is how the brain interacts with the platform's data. It exposes 28 tools across 9 domains — contacts, organisations, tasks, knowledge, correspondence, and more. When the brain needs to look something up, create a task, or update a record, it uses an MCP tool. Built, not yet deployed to a host.
+
+---
+
+## Intent Suggestions (Planned)
+
+**The action layer pivot.** Instead of presenting Do/Hold/No action buttons (which demand the brain be perfectly correct), feed cards will suggest an **intent** — what the CEO should do next with this information. Four intent verbs:
+
+| Intent | Meaning |
+|--------|---------|
+| **Read** | This needs your attention — review it |
+| **Respond** | This requires a reply or acknowledgment |
+| **Write** | This needs you to draft or create something |
+| **Schedule** | This needs a meeting, call, or calendar action |
+
+Intent suggestions are additive — the backend classification (Acumen categories, attention class, priority) continues unchanged. The intent is the user-facing action recommendation. The cost of a wrong intent suggestion is near zero compared to a wrong autonomous action.
+
+> **See:** `docs/strategic/platform-pivot-march-2026.md` for full decision context.
+
+---
+
+## Foundation Excellence
+
+**The prerequisite.** Six requirements that must be met before the intent suggestion UI ships:
+
+1. **Zero-breakage ingestion** — every format, every time, no silent failures
+2. **Full-body comprehension** — read the ENTIRE document, not just the first page
+3. **Complete storage** — all or nothing; partial comprehension = zero value
+4. **Permanent memory** — knowledge persists beyond sessions, permanently
+5. **Impeccable recall** — anything submitted must be recallable naturally
+6. **Entity resolution depth** — fuzzy matching, alias resolution, relationship inference
+
+> "The death of this product is when data is submitted and it cannot be recalled." — Mark Slater
 
 ---
 

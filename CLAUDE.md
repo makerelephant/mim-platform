@@ -1,7 +1,7 @@
 # CLAUDE.md — Read This First
 > **Author:** Mark Slater, Co-founder & CEO — Made in Motion PBC
 > **Status:** Active session instructions. Must be read before any work begins.
-> **Last updated:** 2026-03-19
+> **Last updated:** 2026-03-20
 
 ---
 
@@ -35,13 +35,14 @@ There is also a **Me page** (`/me`) showing brain accuracy stats, manual scan tr
 
 ## Doc Reading Order
 
-1. `docs/product/ui-requirements.md` — Governing architecture (Motion, Canvas/Clearing, Engine Room, card types, emotional design)
-2. `docs/product/design-brief.md` — Figma-actionable specs (card anatomy, screen layouts, visual language)
-3. `docs/technical/architecture-mimbrain-v2.md` — Backend architecture (entity-centric, three memory types, harness, autonomy layer) — north star
-4. `docs/operational/master-effort-list.md` — All efforts/epics with status
-5. `docs/product/stack-glossary.md` — Vocabulary definitions
-6. `docs/technical/specs/unified-classifier-spec.md` — Attention classification, signal quality, Decision/Action/Task ontology
-7. `docs/technical/specs/brain-intelligence-layer-spec.md` — RAG architecture, instruction persistence, MCP integration
+1. `docs/strategic/platform-pivot-march-2026.md` — **START HERE.** Strategic pivot from correctness to contextual suggestions. Foundation excellence requirements. Build order.
+2. `docs/product/ui-requirements.md` — Governing architecture (Motion, Canvas/Clearing, Engine Room, card types, emotional design)
+3. `docs/product/design-brief.md` — Figma-actionable specs (card anatomy, screen layouts, visual language)
+4. `docs/technical/architecture-mimbrain-v2.md` — Backend architecture (entity-centric, three memory types, harness, autonomy layer) — north star
+5. `docs/operational/master-effort-list.md` — All efforts/epics with status
+6. `docs/product/stack-glossary.md` — Vocabulary definitions
+7. `docs/technical/specs/unified-classifier-spec.md` — Attention classification, signal quality, Decision/Action/Task ontology
+8. `docs/technical/specs/brain-intelligence-layer-spec.md` — RAG architecture, instruction persistence, MCP integration
 
 ---
 
@@ -74,35 +75,52 @@ There is also a **Me page** (`/me`) showing brain accuracy stats, manual scan tr
 
 ---
 
-## Current State (March 18, 2026)
+## Strategic Direction (March 20, 2026)
+
+> **Full decision document:** `docs/strategic/platform-pivot-march-2026.md`
+
+The platform is pivoting from **zero-tolerance correctness** (Do/Hold/No) to **contextual intent suggestions** (Read/Respond/Write/Schedule). The backend intelligence (Acumen categories, embeddings, classification log, behavioral rules, autonomy engine) continues unchanged — the shift is in how suggestions are presented to the CEO.
+
+**Before building the intent suggestion UI, the foundation must be bulletproof:**
+1. Full-body comprehension (read entire documents, not just first 3K chars) — 🔴 IN PROGRESS
+2. Bulletproof recall (anything submitted in last 7 days instantly recallable) — 🔴 IN PROGRESS
+3. Entity resolution depth (fuzzy matching, alias resolution, relationship inference) — 🟡 PLANNED
+4. Intent suggestion UI (Read/Respond/Write/Schedule) — 🟡 AFTER FOUNDATION
+
+**Key principle:** The death of this product is when data is submitted and it cannot be recalled, or is incomplete in its recollection. All or nothing — partial comprehension has zero value.
+
+---
+
+## Current State (March 20, 2026)
 
 ### What Is Built and Working
 
 - **Gmail Gopher** — Classifying live email with 11 Acumen categories, emitting feed cards with full email metadata (from/to/subject), thread consolidation, deduplication via `source_ref`
 - **Slack Gopher** — Scanning Slack with the same Acumen classifier, assistant prefill for reliable JSON output, noise filter (P3/S3 cards suppressed), action extraction rules
-- **Feed cards** (`brain.feed_cards`) — 7 card types, priority-based styling, Do/Hold/No/Noted/Dismiss actions, More About This expansion, action recommendations, training mode framing, Train button on all cards
+- **Feed cards** (`brain.feed_cards`) — 7 card types, priority-based styling, Do/Hold/No/Noted/Dismiss actions (transitioning to Read/Respond/Write/Schedule), More About This expansion, action recommendations, training mode framing, Train button on all cards
 - **Your Motion** — Feed-first architecture complete at `/`. Filter pills (All, Decisions, Actions, Signals, Intel, Briefings, Old). Actioned cards disappear immediately from active view.
-- **Your Canvas** — Persistent sessions/messages at `/clearing`. Brain Q&A routed to `/api/brain/ask` for all inputs. File ingestion via drag-and-drop (pdf-parse for text PDFs, Claude Vision for image-based PDFs < 5MB, direct Supabase Storage upload bypass for files > 4MB). Sessions persist to `brain.clearing_sessions` / `brain.clearing_messages`. Prior Conversations panel.
+- **Your Canvas** — Persistent sessions/messages at `/clearing`. Brain Q&A with multi-turn conversation history. File ingestion via drag-and-drop (pdf-parse, Claude Vision, Supabase Storage). Auto-embedding of all substantive messages into permanent knowledge base. Cross-session memory retrieval.
 - **Engine Room** — Motion Map (harness classifier MDs), Brain Accuracy (per-category stats), Autonomy progress, Integrations status, Platform Health, Signal Quality metrics
-- **Decision logging** — `brain.classification_log` records every classification. CEO review via feed actions.
-- **Correction learning** — `/api/brain/learn` stores corrections as institutional memory. Feed card PATCH auto-fires learning.
+- **Decision logging** — `brain.classification_log` records every classification. Every CEO action (Do/No/Hold) logged to `brain.decision_log` as training data.
+- **Correction learning** — `/api/brain/learn` stores corrections as institutional memory with vector embeddings for RAG retrieval. Feed card PATCH auto-fires learning.
 - **Daily briefing** — Vercel cron at 7am EST synthesises last 24h into briefing card
 - **Gmail Gopher cron** — Vercel cron at 6am EST scans last 4 hours
 - **Autonomy engine** — Categories earn self-governance at 20+ reviews / 90%+ accuracy
 - **Behavioral rules engine** — `brain.behavioral_rules` table with adaptation agent
 - **Instruction loader** — `src/lib/instruction-loader.ts` loads CEO standing orders into scanner prompts
-- **Snapshotting** — Natural language → data query → snapshot card in feed
+- **Snapshotting** — Natural language → data query → snapshot card in feed. Visual charts (bar, line, area, pie) via Recharts when data supports visualization.
+- **Visual chart rendering** — `src/components/FeedChart.tsx` + Recharts. Claude generates ` ```chart` JSON blocks in snapshots, briefings, and reports. Supports bar, line, area, pie, horizontal bar, multi-series. Dynamic import (no SSR).
+- **Web Intelligence source configuration** — Engine Room Integrations tab has source manager UI. Add/remove RSS feeds and webpage URLs. `/api/engine/web-sources` CRUD API. Auto-migrates defaults on first custom add.
 - **Bulk Data Import Gopher** — `/engine/import` for historical email ingestion. Also accessible as a row on the Me page.
-- **Embedding/RAG pipeline** — `brain.knowledge_chunks` table with pgvector. `search_knowledge` and `search_correspondence` RPC functions. OpenAI `text-embedding-3-small` embeddings generating on ingestion. Semantic search active.
-- **Document ingestion** — pdf-parse (text PDFs), Claude Vision fallback (image-based PDFs < 5MB), direct Supabase Storage signed upload (files > 4MB), PPTX/DOCX/TXT support
+- **Embedding/RAG pipeline** — `brain.knowledge_chunks` table with pgvector. `search_knowledge` and `search_correspondence` RPC functions. OpenAI `text-embedding-3-small` embeddings generating on ingestion. Semantic search active. Canvas messages auto-embedded.
+- **Document ingestion** — pdf-parse (text PDFs), Claude Vision fallback (image-based PDFs < 5MB), direct Supabase Storage signed upload (files > 4MB), XLSX/PPTX/DOCX/TXT/CSV support
 
-### What Is Not Working Yet
+### Active Gaps (Foundation Excellence)
 
-- **Training volume** — Autonomy requires 20+ reviewed cards per category at 90%+ accuracy. Currently near zero reviews. Infrastructure built, needs consistent daily use.
+- **Full-body comprehension** — Classifier reads only first 3,000 chars of documents. Must process entire content. This is the #1 priority.
+- **Recall reliability** — Vector search can miss recent submissions. Must guarantee recall of anything from last 7 days.
+- **Entity resolution depth** — Contacts are name + email only. No fuzzy matching, no alias resolution, no relationship inference.
 - **MCP Server deployment** — 28 tools built, not yet deployed to a host.
-- **Entity intelligence depth** — Contacts are name + email only. No enrichment, no derived profile building.
-- **Visual snapshots** — Snapshot cards are text/markdown. No chart/graph rendering (Recharts etc.) integrated yet.
-- **Prompt editing in Engine Room** — Prompts extracted to `src/lib/prompts/` but UI editing not yet wired.
 
 ---
 

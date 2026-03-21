@@ -4,9 +4,9 @@ import Anthropic from "@anthropic-ai/sdk";
 import { processDocument, processTextInput, validateFileSize, EXTENSION_TO_TYPE } from "@/lib/document-processor";
 import { loadTaxonomy, matchTaxonomyCategory } from "@/lib/taxonomy-loader";
 import { chunkText, embedBatch, estimateTokens } from "@/lib/embeddings";
-import { getBrainIngestPrompt } from "@/lib/prompts";
+import { getBrainIngestPrompt, getBrainIngestChunkPrompt, getBrainIngestSynthesisPrompt } from "@/lib/prompts";
 
-export const maxDuration = 120;
+export const maxDuration = 300; // Extended for full-body comprehension of large documents
 
 /**
  * Universal Brain Ingestion Endpoint
@@ -269,13 +269,17 @@ export async function POST(request: NextRequest) {
         chunks = processed.chunks;
       }
 
-      // ── 4. Classify via taxonomy + summarize (Claude) ──
+      // ── 4. FULL-BODY COMPREHENSION — classify the ENTIRE document ──
+      // For documents ≤ 12K chars: send everything in one shot
+      // For documents > 12K chars: multi-pass chunked analysis → synthesis
       let summary = "";
       let taxonomyCategories: string[] = [];
       let extractedTags: string[] = [...userTags];
 
       const anthropicKey = process.env.ANTHROPIC_API_KEY;
       const taxonomy = await loadTaxonomy(sb);
+      const SINGLE_PASS_LIMIT = 12000; // ~3K tokens — safe for single Claude call
+      const CHUNK_SIZE = 8000; // ~2K tokens per chunk for multi-pass
 
       if (anthropicKey && contentText.length > 20) {
         try {
@@ -286,26 +290,91 @@ export async function POST(request: NextRequest) {
             .map((t) => `- ${t.category} (${t.slug}): ${t.signal_keywords.join(", ")}`)
             .join("\n");
 
-          const classifyPrompt = getBrainIngestPrompt(
-            taxonomyContext,
-            title,
-            contentText.slice(0, 3000),
-          );
+          let parsed: { summary?: string; categories?: string[]; tags?: string[]; mentioned_entities?: string[] };
 
-          const response = await anthropic.messages.create({
-            model: "claude-sonnet-4-6",
-            max_tokens: 600,
-            messages: [{ role: "user", content: classifyPrompt }],
-          });
+          if (contentText.length <= SINGLE_PASS_LIMIT) {
+            // ── Single-pass: send the full document ──
+            const classifyPrompt = getBrainIngestPrompt(
+              taxonomyContext,
+              title,
+              contentText,
+            );
 
-          let responseText = (response.content[0] as { type: "text"; text: string }).text.trim();
-          if (responseText.startsWith("```")) {
-            responseText = responseText.split("```")[1];
-            if (responseText.startsWith("json")) responseText = responseText.slice(4);
-            responseText = responseText.trim();
+            const response = await anthropic.messages.create({
+              model: "claude-sonnet-4-6",
+              max_tokens: 800,
+              messages: [{ role: "user", content: classifyPrompt }],
+            });
+
+            let responseText = (response.content[0] as { type: "text"; text: string }).text.trim();
+            if (responseText.startsWith("```")) {
+              responseText = responseText.split("```")[1];
+              if (responseText.startsWith("json")) responseText = responseText.slice(4);
+              responseText = responseText.trim();
+            }
+            parsed = JSON.parse(responseText);
+          } else {
+            // ── Multi-pass: chunk → analyze each → synthesize ──
+            console.log(`[ingest] Full-body comprehension: ${contentText.length} chars → multi-pass (${Math.ceil(contentText.length / CHUNK_SIZE)} chunks)`);
+
+            // Split content into chunks
+            const contentChunks: string[] = [];
+            for (let i = 0; i < contentText.length; i += CHUNK_SIZE) {
+              contentChunks.push(contentText.slice(i, i + CHUNK_SIZE));
+            }
+
+            // Analyze each chunk in parallel (max 5 concurrent)
+            const chunkAnalyses: string[] = [];
+            const CONCURRENCY = 5;
+            for (let batch = 0; batch < contentChunks.length; batch += CONCURRENCY) {
+              const batchChunks = contentChunks.slice(batch, batch + CONCURRENCY);
+              const batchResults = await Promise.all(
+                batchChunks.map(async (chunk, batchIdx) => {
+                  const idx = batch + batchIdx;
+                  const prompt = getBrainIngestChunkPrompt(title, idx, contentChunks.length, chunk);
+                  try {
+                    const resp = await anthropic.messages.create({
+                      model: "claude-sonnet-4-6",
+                      max_tokens: 600,
+                      messages: [{ role: "user", content: prompt }],
+                    });
+                    return (resp.content[0] as { type: "text"; text: string }).text.trim();
+                  } catch (chunkErr) {
+                    console.warn(`[ingest] Chunk ${idx + 1} analysis failed:`, chunkErr);
+                    return `{"key_points": ["Chunk ${idx + 1} analysis failed"], "entities": [], "action_items": [], "metrics": [], "tags": []}`;
+                  }
+                })
+              );
+              chunkAnalyses.push(...batchResults);
+            }
+
+            // Synthesize all chunk analyses into unified classification
+            const synthesisInput = chunkAnalyses
+              .map((analysis, idx) => `--- CHUNK ${idx + 1}/${contentChunks.length} ---\n${analysis}`)
+              .join("\n\n");
+
+            const synthesisPrompt = getBrainIngestSynthesisPrompt(
+              taxonomyContext,
+              title,
+              synthesisInput,
+            );
+
+            const synthesisResponse = await anthropic.messages.create({
+              model: "claude-sonnet-4-6",
+              max_tokens: 1000,
+              messages: [{ role: "user", content: synthesisPrompt }],
+            });
+
+            let responseText = (synthesisResponse.content[0] as { type: "text"; text: string }).text.trim();
+            if (responseText.startsWith("```")) {
+              responseText = responseText.split("```")[1];
+              if (responseText.startsWith("json")) responseText = responseText.slice(4);
+              responseText = responseText.trim();
+            }
+            parsed = JSON.parse(responseText);
+            console.log(`[ingest] Full-body synthesis complete: ${chunkAnalyses.length} chunks → unified classification`);
           }
 
-          const parsed = JSON.parse(responseText);
           summary = parsed.summary || "";
           taxonomyCategories = parsed.categories || [];
           const aiTags = parsed.tags || [];

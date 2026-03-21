@@ -34,5 +34,17 @@ Write a clear, professional report. Structure:
 Data:
 ${dataPackageJson}
 
-Keep it under 800 words. Use markdown formatting. Be specific — use real numbers and entity names from the data. If there is limited data relevant to the focus area, say so honestly rather than padding with irrelevant content. Write in first person plural ("we" = Made in Motion).`;
+Keep it under 800 words. Use markdown formatting. Be specific — use real numbers and entity names from the data. If there is limited data relevant to the focus area, say so honestly rather than padding with irrelevant content. Write in first person plural ("we" = Made in Motion).
+
+VISUAL CHARTS: When there is meaningful numeric data (trends, comparisons, distributions), include chart blocks:
+
+\`\`\`chart
+{
+  "type": "bar",
+  "title": "Chart Title",
+  "data": [{"label": "Category A", "value": 42}, {"label": "Category B", "value": 28}]
+}
+\`\`\`
+
+Chart types: "bar", "line", "area", "pie", "horizontal_bar". Include charts when they genuinely add clarity. Don't force them.`;
 }

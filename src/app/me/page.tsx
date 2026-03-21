@@ -65,43 +65,40 @@ export default function MePage() {
     <div
       className="min-h-full"
       style={{
+        backgroundColor: "#f6f5f5",
         backgroundImage: "url('/icons/background.png')",
         backgroundSize: "cover",
         backgroundPosition: "center",
         backgroundRepeat: "no-repeat",
       }}
     >
-      <div className="mx-auto py-6 flex flex-col gap-[24px] items-center" style={{ width: "550px" }}>
+      <div className="mx-auto py-6 flex flex-col gap-[24px] items-center" style={{ maxWidth: "550px", width: "100%" }}>
         {/* Header card */}
         <div
-          className="flex flex-col gap-[12px] items-start p-[12px] rounded-[12px] shadow-[0px_0px_40px_0px_rgba(0,0,0,0.08)] w-full"
-          style={{ backgroundColor: "rgba(236,250,255,0.6)" }}
+          className="w-full rounded-[12px] shadow-[0px_0px_60px_0px_rgba(0,0,0,0.12)]"
+          style={{ backgroundColor: "rgba(255,244,224,0.2)" }}
         >
-          <div className="flex gap-[6px] items-end pr-[6px] w-full">
-            <img
-              src="/icons/mark-avatar.png"
-              alt="Mark Slater"
-              className="w-[34px] h-[34px] rounded-full object-cover shrink-0"
-            />
-            <span
-              className="text-[18px] font-medium text-[#9ca5a9] leading-[20px] text-center whitespace-nowrap"
-              style={{ fontFamily: "var(--font-geist-sans), 'Geist', sans-serif", letterSpacing: "-0.36px" }}
+          <div className="flex w-full flex-col items-start gap-[12px] p-[12px]">
+            <div className="flex min-w-0 items-center gap-[12px]">
+              <img
+                src="/icons/mark-avatar.png"
+                alt="Mark Slater"
+                className="h-[34px] w-[34px] shrink-0 rounded-full object-cover"
+              />
+              <span
+                className="truncate text-[16px] font-semibold leading-[20px] text-[#3e4c60]"
+                style={{ fontFamily: "var(--font-geist-sans), 'Geist', sans-serif", letterSpacing: "-0.32px" }}
+              >
+                Your Brain Training
+              </span>
+            </div>
+            <p
+              className="text-[12px] font-medium leading-[14px] w-full"
+              style={{ fontFamily: "var(--font-geist-sans), 'Geist', sans-serif", color: "#627c9e" }}
             >
-              Mark Slater, CEO
-            </span>
+              Every action you take in Motion teaches the brain. Here&apos;s how it&apos;s learning.
+            </p>
           </div>
-          <span
-            className="text-[18px] font-semibold text-[#1e252a] leading-[20px] whitespace-nowrap"
-            style={{ fontFamily: "var(--font-geist-sans), 'Geist', sans-serif", letterSpacing: "-0.36px" }}
-          >
-            Your Brain Training
-          </span>
-          <p
-            className="text-[12px] font-medium leading-[14px] w-full"
-            style={{ fontFamily: "var(--font-geist-sans), 'Geist', sans-serif", color: "#627c9e" }}
-          >
-            Every action you take in Motion teaches the brain. Here&apos;s how it&apos;s learning.
-          </p>
         </div>
 
         {loading ? (

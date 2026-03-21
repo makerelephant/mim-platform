@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { synthesizeRules } from "@/lib/behavioral-rules";
+import { embedText, chunkText } from "@/lib/embeddings";
 
 /**
  * POST /api/brain/learn
@@ -204,16 +205,18 @@ export async function POST(request: NextRequest) {
         `This correction should inform future classification decisions for similar content.`,
       ].join("\n");
 
-      await (sb as any)
+      const { data: kbInsert } = await (sb as any)
+        .schema("brain")
         .from("knowledge_base")
         .insert({
           title: title.slice(0, 200),
           source_type: "ceo_correction",
           source_ref: card_id,
-          content: fullSummary,
+          content_text: fullSummary,
           summary: summaryParts.join(" "),
           tags: ["correction", "learning", "institutional-memory"],
           processed: true,
+          processed_at: now,
           metadata: {
             correction_type: correction.wrong_category
               ? "wrong_category"
@@ -231,9 +234,36 @@ export async function POST(request: NextRequest) {
             should_suppress: correction.should_not_exist || false,
             feed_card_id: card_id,
           },
-        });
+        })
+        .select("id")
+        .single();
 
-      learned.push("Correction stored as institutional memory in knowledge_base");
+      // Generate embeddings for permanent retrieval via RAG
+      if (kbInsert?.id) {
+        try {
+          const chunks = chunkText(fullSummary, 500);
+          for (let i = 0; i < chunks.length; i++) {
+            const embedding = await embedText(chunks[i]);
+            if (embedding) {
+              await (sb as any)
+                .schema("brain")
+                .from("knowledge_chunks")
+                .insert({
+                  kb_id: kbInsert.id,
+                  chunk_index: i,
+                  content: chunks[i],
+                  token_count: Math.ceil(chunks[i].length / 4),
+                  embedding: `[${embedding.join(",")}]`,
+                  metadata: { title: title.slice(0, 200), source_type: "ceo_correction" },
+                });
+            }
+          }
+        } catch (embedErr) {
+          console.warn("[brain/learn] Embedding generation failed (non-fatal):", embedErr);
+        }
+      }
+
+      learned.push("Correction stored and embedded as institutional memory");
     }
 
     // ── 6. Synthesize behavioral rules every 5th correction (not every time) ──

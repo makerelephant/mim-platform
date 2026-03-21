@@ -68,5 +68,24 @@ Write a clear, concise snapshot for the CEO. Use markdown formatting:
 - Include counts and totals where relevant
 - If data is empty, say so clearly
 - Keep it under 600 words
-- Be direct — no fluff`;
+- Be direct — no fluff
+
+VISUAL CHARTS: When the data has numeric values that would benefit from visualization (trends over time, comparisons, distributions, breakdowns), include a chart block using this exact format:
+
+\`\`\`chart
+{
+  "type": "bar",
+  "title": "Chart Title",
+  "data": [{"label": "Category A", "value": 42}, {"label": "Category B", "value": 28}]
+}
+\`\`\`
+
+Chart types: "bar", "line", "area", "pie", "horizontal_bar"
+- Use "line" or "area" for trends over time
+- Use "bar" for comparisons between categories
+- Use "horizontal_bar" when labels are long
+- Use "pie" for percentage breakdowns (max 8 slices)
+- For multi-series: add "series": [{"key": "revenue", "color": "#627c9e", "name": "Revenue"}, {"key": "costs", "color": "#e57373", "name": "Costs"}]
+- Chart data must be valid JSON
+- Only include charts when they genuinely add clarity — don't force one`;
 }

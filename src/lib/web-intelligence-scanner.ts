@@ -188,7 +188,7 @@ async function analyzeContent(
   const itemsText = items
     .map(
       (item, i) =>
-        `--- ITEM ${i + 1} ---\nSOURCE: ${item.source} (${item.category})\nURL: ${item.url}\nTITLE: ${item.title}\nCONTENT: ${item.content.slice(0, 2000)}`,
+        `--- ITEM ${i + 1} ---\nSOURCE: ${item.source} (${item.category})\nURL: ${item.url}\nTITLE: ${item.title}\nFULL CONTENT:\n${item.content.slice(0, 12000)}`,
     )
     .join("\n\n");
 

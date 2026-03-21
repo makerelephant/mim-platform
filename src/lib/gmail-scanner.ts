@@ -501,7 +501,8 @@ async function classifyMessage(
     entityContext = "No matching entities found in our database for the sender/recipients.";
   }
 
-  const msgContent = `Source: Email\nFrom: ${message.from}\nSubject: ${message.subject}\nBody:\n${message.body.slice(0, 1500)}`;
+  // Include full email body — up to 8K chars for complete comprehension
+  const msgContent = `Source: Email\nFrom: ${message.from}\nSubject: ${message.subject}\nBody:\n${message.body.slice(0, 8000)}`;
 
   // Build enriched prompt with dossier, thread context, and org context
   let userPrompt = entityContext;
@@ -537,6 +538,9 @@ async function classifyMessage(
     result.completion_tokens = response.usage?.output_tokens;
     return result;
   } catch (e) {
+    // Log the classification error so we can diagnose and fix
+    const errMsg = e instanceof Error ? e.message : String(e);
+    console.error(`[gmail-scanner] CLASSIFICATION ERROR for "${message.subject?.slice(0, 60)}": ${errMsg}`);
     // Fallback classification
     const primaryEntity = resolvedEntities[0];
     return {
@@ -854,7 +858,8 @@ export async function runGmailScanner(
         }
       }
 
-      const bodyText = getMessageBody(msg.payload as Record<string, unknown>).slice(0, 2000);
+      // Full body extraction — no truncation, let classifier see everything
+      const bodyText = getMessageBody(msg.payload as Record<string, unknown>);
 
       const details: MessageDetails = {
         id: msgId,

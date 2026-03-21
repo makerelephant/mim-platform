@@ -1,31 +1,27 @@
 "use client";
 
 /**
- * MiMbrain Login Page
- * src/app/login/page.tsx
+ * Login Page — Pixel-perfect match to Figma node 72:578
  *
- * Split layout: form left, animated brand panel right.
- * - No Google OAuth (internal tool, 4 users)
- * - No sign-up link (invite-only)
- * - Forgot password → /login/reset (placeholder)
- * - Enter key submits form
- *
+ * Split layout: white form panel left (460px), background image right.
  * Auth is placeholder until Phase 5. Currently navigates straight to dashboard.
  */
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
+
+/* eslint-disable @next/next/no-img-element */
+
+const geist = "var(--font-geist-sans), 'Geist', sans-serif";
 
 export default function LoginPage() {
   const router = useRouter();
 
-  const [email, setEmail]       = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError]       = useState<string | null>(null);
-  const [loading, setLoading]   = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
   async function handleLogin() {
     if (!email || !password) {
@@ -57,213 +53,350 @@ export default function LoginPage() {
   }
 
   return (
-    <>
-      <style>{`
-        @keyframes mesh-shift {
-          0%   { background-position: 0% 50%; }
-          50%  { background-position: 100% 50%; }
-          100% { background-position: 0% 50%; }
-        }
-        @keyframes float-mark {
-          0%, 100% { transform: translateY(0px) rotate(-4deg); }
-          50%       { transform: translateY(-18px) rotate(-4deg); }
-        }
-        @keyframes fade-up {
-          from { opacity: 0; transform: translateY(16px); }
-          to   { opacity: 1; transform: translateY(0); }
-        }
-        .animate-fade-up          { animation: fade-up 0.5s ease forwards; }
-        .animate-fade-up-delay-1  { animation: fade-up 0.5s 0.08s ease both; }
-        .animate-fade-up-delay-2  { animation: fade-up 0.5s 0.16s ease both; }
-        .animate-fade-up-delay-3  { animation: fade-up 0.5s 0.24s ease both; }
-        .animate-fade-up-delay-4  { animation: fade-up 0.5s 0.32s ease both; }
-        .animate-fade-up-delay-5  { animation: fade-up 0.5s 0.40s ease both; }
+    <div className="relative flex h-screen w-full overflow-hidden">
 
-        .mesh-bg {
-          background: linear-gradient(
-            135deg,
-            #0f172a 0%,
-            #1e3a5f 20%,
-            #0f172a 40%,
-            #1a2e4a 60%,
-            #0f172a 80%,
-            #162032 100%
-          );
-          background-size: 400% 400%;
-          animation: mesh-shift 12s ease infinite;
-        }
+      {/* ══════════════════════════════════════════════════════════════
+          BACKGROUND — Full viewport image with gradient overlay
+          ══════════════════════════════════════════════════════════════ */}
+      <div aria-hidden="true" className="absolute inset-0 pointer-events-none">
+        <img
+          alt=""
+          className="absolute inset-0 w-full h-full object-cover"
+          src="/icons/login-bg.png"
+        />
+        <div
+          className="absolute inset-0"
+          style={{
+            backgroundImage: `linear-gradient(
+              -90deg,
+              rgba(255, 255, 255, 0.4) 7.5%,
+              rgba(230, 241, 255, 0.4) 11.2%,
+              rgba(255, 255, 255, 0.4) 15.7%,
+              rgba(238, 242, 245, 0.4) 20.3%,
+              rgba(236, 250, 255, 0.4) 23%,
+              rgba(242, 233, 250, 0.4) 26.3%,
+              rgba(255, 255, 255, 0.4) 30%
+            )`,
+          }}
+        />
+      </div>
 
-        .grid-overlay {
-          background-image:
-            linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
-          background-size: 48px 48px;
-        }
+      {/* ══════════════════════════════════════════════════════════════
+          LEFT PANEL — White form area (460px)
+          ══════════════════════════════════════════════════════════════ */}
+      <div
+        className="relative z-10 flex flex-col h-full shrink-0 bg-white"
+        style={{ width: "460px" }}
+      >
+        {/* ── MiMbrain Logo ── */}
+        <div
+          className="flex items-center"
+          style={{ paddingLeft: "37px", paddingTop: "34px", height: "64px" }}
+        >
+          <img
+            src="/icons/MiMbrain Icon.png"
+            alt="MiMBrain"
+            style={{ width: "62.7px", height: "44.6px" }}
+          />
+        </div>
 
-        .float-mark {
-          animation: float-mark 7s ease-in-out infinite;
-        }
-
-        .mim-input {
-          height: 44px;
-          border-radius: 8px;
-          border: 1px solid #e2e8f0;
-          background: #ffffff;
-          font-size: 14px;
-          transition: border-color 0.15s, box-shadow 0.15s;
-        }
-        .mim-input:focus {
-          border-color: #2563eb;
-          box-shadow: 0 0 0 3px rgba(37,99,235,0.1);
-          outline: none;
-        }
-        .mim-input::placeholder { color: #94a3b8; }
-      `}</style>
-
-      <div className="flex h-screen w-full overflow-hidden bg-[#f8fafc]">
-
-        {/* ── Left: Form panel ── */}
-        <div className="flex flex-col justify-between w-full max-w-[520px] px-12 py-10 bg-white border-r border-slate-100">
-
-          {/* Logo */}
-          <div className="animate-fade-up">
-            <div className="flex items-center gap-2.5">
-              <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
-                <path d="M4 22L10 6" stroke="#1e293b" strokeWidth="2.5" strokeLinecap="round"/>
-                <path d="M10 22L16 6" stroke="#1e293b" strokeWidth="2.5" strokeLinecap="round"/>
-                <path d="M16 22L22 6" stroke="#1e293b" strokeWidth="2.5" strokeLinecap="round"/>
-              </svg>
-              <span
-                style={{ fontFamily: "'Geist', system-ui, sans-serif", letterSpacing: "0.12em" }}
-                className="text-[15px] font-semibold text-slate-800 uppercase tracking-widest"
+        {/* ── Form ── */}
+        <div
+          className="flex flex-col"
+          style={{ paddingLeft: "37px", paddingTop: "279px", width: "421px" }}
+        >
+          <div className="flex flex-col" style={{ gap: "32px" }}>
+            {/* Heading */}
+            <div className="flex flex-col" style={{ gap: "6px", width: "230px" }}>
+              <h1
+                style={{
+                  fontFamily: geist,
+                  fontSize: "24px",
+                  fontWeight: 600,
+                  lineHeight: "1.2",
+                  letterSpacing: "-0.48px",
+                  color: "#1e252a",
+                }}
               >
-                MiMbrain
-              </span>
-            </div>
-          </div>
-
-          {/* Form */}
-          <div className="flex-1 flex flex-col justify-center max-w-[360px]">
-
-            <div className="animate-fade-up-delay-1 mb-8">
-              <h1 className="text-2xl font-semibold text-slate-900 mb-1">
-                Welcome back
+                Welcome Back
               </h1>
-              <p className="text-sm text-slate-500">
-                Sign in to your MiMbrain account
+              <p
+                style={{
+                  fontFamily: geist,
+                  fontSize: "16px",
+                  fontWeight: 400,
+                  lineHeight: "1.2",
+                  color: "#7b7f81",
+                }}
+              >
+                Sign in to your motion account.
               </p>
             </div>
 
-            <div className="space-y-4">
-
-              <div className="animate-fade-up-delay-2">
-                <label className="block text-sm font-medium text-slate-700 mb-1.5">
+            {/* Fields */}
+            <div className="flex flex-col" style={{ gap: "24px", width: "384px" }}>
+              {/* Email */}
+              <div className="flex flex-col" style={{ gap: "8px" }}>
+                <label
+                  style={{
+                    fontFamily: geist,
+                    fontSize: "16px",
+                    fontWeight: 500,
+                    lineHeight: "normal",
+                    letterSpacing: "-0.16px",
+                    color: "#020618",
+                  }}
+                >
                   Email
                 </label>
-                <Input
+                <input
                   type="email"
-                  placeholder="you@madeinmotionapp.com"
+                  placeholder="team@madeinmotionapp.com"
                   value={email}
-                  onChange={e => setEmail(e.target.value)}
-                  onKeyDown={e => e.key === "Enter" && handleLogin()}
-                  className="mim-input w-full"
+                  onChange={(e) => setEmail(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleLogin()}
                   autoComplete="email"
                   autoFocus
+                  className="w-full"
+                  style={{
+                    fontFamily: geist,
+                    fontSize: "16px",
+                    fontWeight: 300,
+                    lineHeight: "normal",
+                    color: "#020618",
+                    height: "40px",
+                    borderRadius: "10px",
+                    border: "1px solid #e2e8f0",
+                    backgroundColor: "white",
+                    paddingLeft: "12px",
+                    paddingRight: "12px",
+                    outline: "none",
+                  }}
                 />
               </div>
 
-              <div className="animate-fade-up-delay-3">
-                <div className="flex items-center justify-between mb-1.5">
-                  <label className="block text-sm font-medium text-slate-700">
+              {/* Password + Forgot */}
+              <div className="flex flex-col" style={{ gap: "6px" }}>
+                <div className="flex flex-col" style={{ gap: "8px" }}>
+                  <label
+                    style={{
+                      fontFamily: geist,
+                      fontSize: "16px",
+                      fontWeight: 500,
+                      lineHeight: "normal",
+                      letterSpacing: "-0.16px",
+                      color: "#020618",
+                    }}
+                  >
                     Password
                   </label>
-                  <a
-                    href="/login/reset"
-                    className="text-xs text-blue-600 hover:text-blue-700 hover:underline transition-colors"
-                  >
-                    Forgot password?
-                  </a>
+                  <input
+                    type="password"
+                    placeholder="••••••••••"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && handleLogin()}
+                    autoComplete="current-password"
+                    className="w-full"
+                    style={{
+                      fontFamily: geist,
+                      fontSize: "14px",
+                      fontWeight: 400,
+                      lineHeight: "20px",
+                      color: "#020618",
+                      height: "40px",
+                      borderRadius: "10px",
+                      border: "1px solid #e2e8f0",
+                      backgroundColor: "white",
+                      paddingLeft: "12px",
+                      paddingRight: "12px",
+                      outline: "none",
+                    }}
+                  />
                 </div>
-                <Input
-                  type="password"
-                  placeholder="••••••••••"
-                  value={password}
-                  onChange={e => setPassword(e.target.value)}
-                  onKeyDown={e => e.key === "Enter" && handleLogin()}
-                  className="mim-input w-full"
-                  autoComplete="current-password"
-                />
+                <span
+                  className="cursor-pointer"
+                  style={{
+                    fontFamily: geist,
+                    fontSize: "14px",
+                    fontWeight: 300,
+                    lineHeight: "normal",
+                    color: "#020618",
+                  }}
+                >
+                  Forgot your password?
+                </span>
               </div>
 
-              {/* Error state */}
+              {/* Error */}
               {error && (
-                <div className="animate-fade-up rounded-lg bg-red-50 border border-red-200 px-4 py-3">
-                  <p className="text-sm text-red-600">{error}</p>
+                <div
+                  className="rounded-[10px] px-3 py-2"
+                  style={{ backgroundColor: "#fef2f2", border: "1px solid #fecaca" }}
+                >
+                  <p style={{ fontFamily: geist, fontSize: "14px", color: "#dc2626" }}>
+                    {error}
+                  </p>
                 </div>
               )}
 
-              <div className="animate-fade-up-delay-4 pt-1">
-                <Button
-                  onClick={handleLogin}
-                  disabled={loading}
-                  className="w-full h-11 rounded-lg bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-medium text-sm transition-all duration-150 shadow-sm"
-                >
-                  {loading ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    "Sign in"
-                  )}
-                </Button>
-              </div>
-
+              {/* Login button */}
+              <button
+                onClick={handleLogin}
+                disabled={loading}
+                className="w-full flex items-center justify-center"
+                style={{
+                  fontFamily: geist,
+                  fontSize: "14px",
+                  fontWeight: 500,
+                  lineHeight: "20px",
+                  color: "#f8fafc",
+                  height: "40px",
+                  borderRadius: "10px",
+                  backgroundColor: loading ? "#7ba3f7" : "#155dfc",
+                  border: "none",
+                  cursor: loading ? "wait" : "pointer",
+                }}
+              >
+                {loading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  "Login"
+                )}
+              </button>
             </div>
           </div>
-
-          {/* Footer */}
-          <div className="animate-fade-up-delay-5">
-            <p className="text-xs text-slate-400">
-              &copy; 2026 Made In Motion PBC &middot; Internal platform
-            </p>
-          </div>
-
         </div>
 
-        {/* ── Right: Brand panel ── */}
-        <div className="hidden lg:flex flex-1 relative overflow-hidden mesh-bg">
-
-          {/* Grid overlay */}
-          <div className="absolute inset-0 grid-overlay" />
-
-          {/* Glow blobs */}
-          <div className="absolute top-1/4 left-1/4 w-96 h-96 rounded-full opacity-20"
-            style={{ background: 'radial-gradient(circle, #3b82f6 0%, transparent 70%)', filter: 'blur(60px)' }}
-          />
-          <div className="absolute bottom-1/4 right-1/4 w-80 h-80 rounded-full opacity-15"
-            style={{ background: 'radial-gradient(circle, #818cf8 0%, transparent 70%)', filter: 'blur(60px)' }}
-          />
-
-          {/* Large floating MiM mark */}
-          <div className="absolute inset-0 flex items-center justify-center float-mark">
-            <svg width="180" height="180" viewBox="0 0 180 180" fill="none" opacity="0.12">
-              <path d="M30 148L70 32" stroke="white" strokeWidth="16" strokeLinecap="round"/>
-              <path d="M72 148L112 32" stroke="white" strokeWidth="16" strokeLinecap="round"/>
-              <path d="M114 148L154 32" stroke="white" strokeWidth="16" strokeLinecap="round"/>
-            </svg>
-          </div>
-
-          {/* Bottom tag */}
-          <div className="absolute bottom-10 left-10 right-10">
-            <p
-              className="text-white/30 text-xs uppercase tracking-[0.2em]"
-              style={{ fontFamily: "'Geist', system-ui, sans-serif" }}
-            >
-              Made In Motion &middot; Internal Intelligence Platform
-            </p>
-          </div>
-
+        {/* ── Copyright ── */}
+        <div className="mt-auto" style={{ paddingLeft: "24px", paddingBottom: "47px" }}>
+          <span
+            style={{
+              fontFamily: geist,
+              fontSize: "16px",
+              fontWeight: 400,
+              lineHeight: "1.2",
+              color: "#9ca5a9",
+            }}
+          >
+            ©️ 2026 Made In Motion PBC
+          </span>
         </div>
-
       </div>
-    </>
+
+      {/* ══════════════════════════════════════════════════════════════
+          RIGHT PANEL — Background image visible (no separate element needed)
+          ══════════════════════════════════════════════════════════════ */}
+      <div className="relative z-10 flex-1 hidden lg:block">
+        {/* ── Turbine animation — centered, slow spin ── */}
+        <div
+          className="absolute pointer-events-none"
+          style={{
+            top: "50%",
+            left: "50%",
+            transform: "translate(-50%, -50%)",
+            width: "min(70vh, 70%)",
+            aspectRatio: "1",
+          }}
+        >
+          {/* Outer glow ring */}
+          <div
+            className="absolute inset-0 rounded-full"
+            style={{
+              background: "radial-gradient(circle, rgba(40,155,255,0.08) 0%, transparent 70%)",
+              animation: "turbinePulse 6s ease-in-out infinite",
+            }}
+          />
+          {/* Primary turbine — spins slowly clockwise */}
+          <img
+            src="/icons/login-turbine.svg"
+            alt=""
+            className="absolute inset-0 w-full h-full"
+            style={{
+              animation: "turbineSpin 30s linear infinite",
+              filter: "drop-shadow(0 0 40px rgba(40,155,255,0.15))",
+            }}
+          />
+          {/* Secondary turbine — counter-rotate, slightly smaller, offset phase */}
+          <img
+            src="/icons/login-turbine.svg"
+            alt=""
+            className="absolute w-[60%] h-[60%]"
+            style={{
+              top: "20%",
+              left: "20%",
+              animation: "turbineSpinReverse 20s linear infinite",
+              opacity: 0.4,
+              filter: "drop-shadow(0 0 20px rgba(40,155,255,0.1))",
+            }}
+          />
+          {/* Innermost — fastest, smallest */}
+          <img
+            src="/icons/login-turbine.svg"
+            alt=""
+            className="absolute w-[30%] h-[30%]"
+            style={{
+              top: "35%",
+              left: "35%",
+              animation: "turbineSpin 12s linear infinite",
+              opacity: 0.25,
+            }}
+          />
+        </div>
+
+        {/* "THE MOTION PLATFORM" bottom text */}
+        <p
+          className="absolute whitespace-nowrap"
+          style={{
+            fontFamily: geist,
+            fontSize: "18px",
+            fontWeight: 600,
+            lineHeight: "normal",
+            letterSpacing: "2.52px",
+            color: "white",
+            bottom: "50px",
+            left: "25px",
+          }}
+        >
+          THE MOTION PLATFORM
+        </p>
+
+        {/* Turntable illustration — bottom-left */}
+        <div
+          className="absolute"
+          style={{
+            left: "0px",
+            bottom: "20px",
+            width: "89px",
+            height: "75px",
+            transform: "rotate(-11.73deg)",
+          }}
+        >
+          <img
+            src="/icons/login-turntable.png"
+            alt=""
+            className="w-full h-full object-cover pointer-events-none"
+          />
+        </div>
+
+        {/* Stencil figure — bottom-right */}
+        <div
+          className="absolute"
+          style={{
+            right: "20px",
+            bottom: "30px",
+            width: "78px",
+            height: "114px",
+            opacity: 0.2,
+          }}
+        >
+          <img
+            src="/icons/login-stencil.png"
+            alt=""
+            className="w-full h-full object-cover pointer-events-none"
+          />
+        </div>
+      </div>
+    </div>
   );
 }

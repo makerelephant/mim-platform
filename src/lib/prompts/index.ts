@@ -52,6 +52,8 @@ import {
   PROMPT_DESCRIPTION as brainIngestDesc,
   PROMPT_AGENT as brainIngestAgent,
   getBrainIngestPrompt,
+  getBrainIngestChunkPrompt,
+  getBrainIngestSynthesisPrompt,
 } from "./brain-ingest";
 
 import {
@@ -137,6 +139,8 @@ export {
   getCustomReportPrompt,
   getBrainAskPrompt,
   getBrainIngestPrompt,
+  getBrainIngestChunkPrompt,
+  getBrainIngestSynthesisPrompt,
   getSnapshotPlanPrompt,
   getSnapshotFormatPrompt,
 };

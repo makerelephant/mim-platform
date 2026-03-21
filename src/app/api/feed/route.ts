@@ -52,6 +52,7 @@ export async function GET(request: NextRequest) {
       .select("*", { count: "exact" })
       .eq("visibility_scope", scope)
       .in("status", statuses)
+      .neq("status", "dismissed")
       .order("created_at", { ascending: false })
       .range(offset, offset + limit - 1);
 
@@ -69,12 +70,20 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    return NextResponse.json({
-      cards: data || [],
-      total: count || 0,
-      limit,
-      offset,
-    });
+    return NextResponse.json(
+      {
+        cards: data || [],
+        total: count || 0,
+        limit,
+        offset,
+      },
+      {
+        headers: {
+          "Cache-Control": "no-store, no-cache, must-revalidate",
+          Pragma: "no-cache",
+        },
+      },
+    );
   } catch (err) {
     return NextResponse.json({ error: String(err) }, { status: 500 });
   }
@@ -151,6 +160,28 @@ export async function PATCH(request: NextRequest) {
         body: JSON.stringify({ card_id: id, correction }),
       }).catch((learnErr) => {
         console.error("Brain learn fire-and-forget failed:", learnErr);
+      });
+    }
+
+    // Fire-and-forget: log every CEO action as a decision in decision_log for training
+    if (ceo_action && data) {
+      const actionLabel = ceo_action === "do" ? "DO (approved/acted)" : ceo_action === "no" ? "NO (rejected)" : "HOLD (deferred)";
+      Promise.resolve(
+        sb.schema("brain")
+          .from("decision_log")
+          .insert({
+            decision_type: "ceo_action",
+            entity_id: data.entity_id || null,
+            entity_type: data.entity_type || null,
+            input_summary: `Feed card "${data.title || id}" (${data.card_type || "unknown"}, category: ${data.acumen_category || "uncategorized"}, priority: ${data.priority || "medium"}, source: ${data.source_type || "unknown"})`,
+            decision: `CEO action: ${actionLabel}`,
+            reasoning: `Card was surfaced to feed and CEO responded with "${ceo_action}"`,
+            outcome: actionLabel,
+            ceo_override: false,
+            outcome_recorded_at: new Date().toISOString(),
+          })
+      ).catch((logErr) => {
+        console.warn("Decision log insert failed (non-fatal):", logErr);
       });
     }
 

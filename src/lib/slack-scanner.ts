@@ -358,7 +358,8 @@ async function classifySlackMessage(
     entityContext = "No matching entities found in our database for the sender.";
   }
 
-  const msgContent = `Source: Slack\nChannel: #${message.channel}\nFrom: ${message.user}\nMessage:\n${message.text.slice(0, 1500)}`;
+  // Full message content — up to 8K chars for complete comprehension
+  const msgContent = `Source: Slack\nChannel: #${message.channel}\nFrom: ${message.user}\nMessage:\n${message.text.slice(0, 8000)}`;
 
   let userPrompt = entityContext;
   if (entityDossier) userPrompt += `\n\n${entityDossier}`;

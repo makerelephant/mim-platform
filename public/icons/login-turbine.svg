@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" fill="none">
+  <!-- Outer ring -->
+  <circle cx="200" cy="200" r="180" stroke="rgba(255,255,255,0.15)" stroke-width="2" fill="none"/>
+  <circle cx="200" cy="200" r="160" stroke="rgba(255,255,255,0.08)" stroke-width="1" fill="none"/>
+
+  <!-- Turbine blades group -->
+  <g opacity="0.6">
+    <!-- 12 blades radiating from center -->
+    <path d="M200 200 Q210 120 200 40 Q190 120 200 200" fill="rgba(255,255,255,0.3)" stroke="rgba(255,255,255,0.15)" stroke-width="0.5"/>
+    <path d="M200 200 Q280 210 360 200 Q280 190 200 200" fill="rgba(255,255,255,0.3)" stroke="rgba(255,255,255,0.15)" stroke-width="0.5"/>
+    <path d="M200 200 Q190 280 200 360 Q210 280 200 200" fill="rgba(255,255,255,0.3)" stroke="rgba(255,255,255,0.15)" stroke-width="0.5"/>
+    <path d="M200 200 Q120 190 40 200 Q120 210 200 200" fill="rgba(255,255,255,0.3)" stroke="rgba(255,255,255,0.15)" stroke-width="0.5"/>
+
+    <!-- Diagonal blades -->
+    <path d="M200 200 Q256 134 313 68 Q247 134 200 200" fill="rgba(255,255,255,0.25)" stroke="rgba(255,255,255,0.12)" stroke-width="0.5"/>
+    <path d="M200 200 Q266 256 332 313 Q266 247 200 200" fill="rgba(255,255,255,0.25)" stroke="rgba(255,255,255,0.12)" stroke-width="0.5"/>
+    <path d="M200 200 Q134 266 68 332 Q134 247 200 200" fill="rgba(255,255,255,0.25)" stroke="rgba(255,255,255,0.12)" stroke-width="0.5"/>
+    <path d="M200 200 Q134 134 68 68 Q147 147 200 200" fill="rgba(255,255,255,0.25)" stroke="rgba(255,255,255,0.12)" stroke-width="0.5"/>
+
+    <!-- Inner curved blades -->
+    <path d="M200 200 Q230 150 240 100 Q215 148 200 200" fill="rgba(255,255,255,0.2)" stroke="rgba(255,255,255,0.1)" stroke-width="0.5"/>
+    <path d="M200 200 Q250 230 300 240 Q252 215 200 200" fill="rgba(255,255,255,0.2)" stroke="rgba(255,255,255,0.1)" stroke-width="0.5"/>
+    <path d="M200 200 Q170 250 160 300 Q185 252 200 200" fill="rgba(255,255,255,0.2)" stroke="rgba(255,255,255,0.1)" stroke-width="0.5"/>
+    <path d="M200 200 Q150 170 100 160 Q148 185 200 200" fill="rgba(255,255,255,0.2)" stroke="rgba(255,255,255,0.1)" stroke-width="0.5"/>
+  </g>
+
+  <!-- Center hub -->
+  <circle cx="200" cy="200" r="25" fill="rgba(255,255,255,0.15)" stroke="rgba(255,255,255,0.25)" stroke-width="1.5"/>
+  <circle cx="200" cy="200" r="12" fill="rgba(255,255,255,0.2)" stroke="rgba(255,255,255,0.3)" stroke-width="1"/>
+  <circle cx="200" cy="200" r="4" fill="rgba(255,255,255,0.4)"/>
+
+  <!-- Concentric detail rings -->
+  <circle cx="200" cy="200" r="60" stroke="rgba(255,255,255,0.06)" stroke-width="0.5" fill="none"/>
+  <circle cx="200" cy="200" r="100" stroke="rgba(255,255,255,0.06)" stroke-width="0.5" fill="none"/>
+  <circle cx="200" cy="200" r="140" stroke="rgba(255,255,255,0.06)" stroke-width="0.5" fill="none"/>
+</svg>

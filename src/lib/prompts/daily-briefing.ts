@@ -38,5 +38,17 @@ Write a briefing with ONLY the sections that have real content:
 5. **Brain Performance** — CEO review stats and accuracy. Skip if no reviews happened.
 6. **Watch** — Anything the CEO should keep an eye on. Skip if nothing notable.
 
-Omit any section that would be empty or trivial. Be direct.`;
+Omit any section that would be empty or trivial. Be direct.
+
+VISUAL CHARTS: When there is meaningful numeric data (e.g. email counts by category, card type breakdown, activity over time), include a chart block:
+
+\`\`\`chart
+{
+  "type": "bar",
+  "title": "Chart Title",
+  "data": [{"label": "Category A", "value": 42}, {"label": "Category B", "value": 28}]
+}
+\`\`\`
+
+Chart types: "bar", "line", "area", "pie", "horizontal_bar". Only include when it adds genuine clarity — don't force a chart on thin data.`;
 }

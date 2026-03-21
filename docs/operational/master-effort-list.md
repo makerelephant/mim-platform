@@ -95,7 +95,7 @@
 
 42. **Measurement Layer** — ✅ COMPLETE. `brain.events` table (step-29). `/api/brain/track` for card_expanded/card_action/filter_changed events. `/api/brain/metrics` computes SNR, priority calibration, category accuracy trends, volume stats, expansion rate, autonomy readiness. FeedCard fires expansion tracking. Engine Room Metrics tab with full dashboard.
 
-43. **Market Intelligence Gophers** — ✅ COMPLETE (MVP). Web Intelligence Gopher: `src/lib/web-intelligence-scanner.ts` fetches configured URLs, Claude analyses for insights, emits intelligence cards. Content hash dedup. Default monitors for youth sports, generative commerce, MiM mentions. `/api/agents/web-intelligence` route. Vercel cron daily 9am EST. Pipeline proven — add more sources as needed.
+43. **Market Intelligence Gophers** — ✅ COMPLETE. Web Intelligence Gopher: `src/lib/web-intelligence-scanner.ts` fetches configured URLs, Claude analyses for insights, emits intelligence cards. Content hash dedup. Default monitors for youth sports, generative commerce, MiM mentions. `/api/agents/web-intelligence` route. Vercel cron daily 9am EST. Source URLs now configurable from Engine Room Integrations tab — `/api/engine/web-sources` CRUD API, add/remove sources, auto-migrates defaults on first custom add.
 
 44. **Commerce Integration** — Connect Printify/Drop data to platform. Real KPI values (revenue, items sold, AOV, conversion). Product creation event capture with design detail logging.
 
@@ -103,40 +103,76 @@
 
 46. **Prompt Surface Layer — Engine Room Editing** — ✅ COMPLETE. 6 agent prompts extracted to `src/lib/prompts/` (daily-briefing, weekly-synthesis, monthly-report, brain-ask, brain-ingest, brain-snapshot). `/api/engine/prompts` GET/PATCH for reading and overriding. Overrides stored in `brain.instructions` with type='prompt_override'. All route handlers import from prompts/.
 
+47. **Visual Chart Rendering** — ✅ COMPLETE. Recharts integration for feed cards. `src/components/FeedChart.tsx` renders bar, line, area, pie, and horizontal bar charts inside card bodies. Charts embedded via ` ```chart` JSON blocks in markdown — Claude generates them in snapshots, briefings, and reports when data supports visualization. Dynamic import (no SSR). Supports multi-series, custom colors, branded palette. All report/snapshot/briefing prompts updated with chart generation instructions.
+
+48. **Contact Panel Data Fix** — ✅ COMPLETE. Fixed `core.contacts` field mapping — DB uses `first_name`/`last_name`/`role`, frontend sends `name`/`title`. API now maps bidirectionally. Organization linking fixed to use `organization_contacts` junction table instead of nonexistent `organization_id` column. Proper error logging added to PATCH endpoint.
+
+49. **Canvas Layout Fix** — ✅ COMPLETE. Removed legacy 52px marginTop from Canvas chat card (was spacing for a removed header element). Chat card now sits at 24px from top.
+
+---
+
+## Strategic Pivot: Foundation Excellence → Intent Suggestions (March 20, 2026)
+
+> **See:** `docs/strategic/platform-pivot-march-2026.md` for full decision document.
+>
+> The platform is pivoting from zero-tolerance correctness (Do/Hold/No) to contextual intent suggestions (Read/Respond/Write/Schedule). Before the UI pivot ships, the data foundation must be bulletproof. The build order below reflects this priority.
+
+---
+
+## Active Efforts (Foundation Excellence — Current Priority)
+
+63. **Full-Body Comprehension Pipeline** — 🔴 IN PROGRESS. Classifier currently reads only first 3,000 chars of any document. Must read, classify, and understand the ENTIRETY of every document. Chunked multi-pass analysis with Claude. 50-page financial models must be understood end-to-end. All-or-nothing: partial comprehension = zero value.
+
+64. **Bulletproof Recall** — 🔴 IN PROGRESS. Guarantee that anything submitted in the last 7 days is instantly recallable. Lower vector search thresholds, increase result count, add keyword fallbacks, preload recent knowledge at session start. The brain must NEVER say "I don't have that" about something the user gave it. Canvas auto-embedding (effort 65) is the first piece.
+
+65. **Canvas Auto-Embedding & Multi-Turn Context** — ✅ COMPLETE. Every substantive Canvas message (50+ chars) auto-embeds into `brain.knowledge_base` + `brain.knowledge_chunks` with OpenAI embeddings. Brain Q&A exchanges also embedded as institutional memory. Multi-turn conversation history loaded into Claude API calls. Cross-session message retrieval (last 24h). Recent document window expanded from 2h → 24h.
+
+66. **Entity Resolution Depth** — 🟡 PLANNED. Full-document entity extraction (not just first 3K chars). Fuzzy matching against existing contacts/orgs. Alias resolution tables. Relationship inference. Probability-based linking acceptable — no linking is not.
+
+67. **CEO Action Decision Logging** — ✅ COMPLETE. Every Do/No/Hold action on feed cards now logs to `brain.decision_log` (not just corrections). Every CEO interaction is training data.
+
+68. **Learning Pipeline Embeddings** — ✅ COMPLETE. CEO corrections via `/api/brain/learn` now write to correct `brain` schema, generate vector embeddings for RAG retrieval, use correct `kb_id` column.
+
+---
+
+## Next: Intent Suggestion UI (After Foundation)
+
+69. **Card Action Pivot — Read/Respond/Write/Schedule** — 🟡 PLANNED. Replace Do/Hold/No action buttons with intent suggestion verbs. Additive change: backend classification (Acumen categories, P0-P3 priority) continues unchanged. Intent suggestions are the user-facing layer. Card layout update, feed PATCH handler update, intent accuracy tracking.
+
 ---
 
 ## Medium-Term Efforts
 
-47. **MCP Server Deployment** — Deploy the 28-tool MCP server to a host. Enable CEO to query the brain from Claude Desktop or any MCP client. Test all tools against production Supabase.
+70. **MCP Server Deployment** — Deploy the 28-tool MCP server to a host. Enable CEO to query the brain from Claude Desktop or any MCP client. Test all tools against production Supabase.
 
-48. **The MiMGina Notepad** — Mobile-first (iPhone) note capture. Minimal formatting, image/file attachment, voice dictation. Submits to In Motion with confidentiality rank, harness/category assignment, due date.
+71. **The MiMGina Notepad** — Mobile-first (iPhone) note capture. Minimal formatting, image/file attachment, voice dictation. Submits to In Motion with confidentiality rank, harness/category assignment, due date.
 
-49. **Teams** — Add a second user acting independently on the same brain. Prerequisite to any scaling. Not multi-tenant — shared brain, separate views.
+72. **Teams** — Add a second user acting independently on the same brain. Prerequisite to any scaling. Not multi-tenant — shared brain, separate views.
 
-50. **Long-Form Content & Research Publishing** — Brain-generated research papers, weekly industry newsletters, daily content bites.
+73. **Long-Form Content & Research Publishing** — Brain-generated research papers, weekly industry newsletters, daily content bites.
 
 ---
 
 ## Longer-Term Efforts
 
-51. **Harness Operating Model** — Structured MD behavioral contracts defining departments, processes, decision trees, Gopher logic. Needs its own discovery/scoping session.
+74. **Harness Operating Model** — Structured MD behavioral contracts defining departments, processes, decision trees, Gopher logic. Needs its own discovery/scoping session.
 
-52. **Autonomous Enrichment** — Self-directed Gopher activation where the brain identifies entities with low knowledge completeness and triggers enrichment without being asked.
+75. **Autonomous Enrichment** — Self-directed Gopher activation where the brain identifies entities with low knowledge completeness and triggers enrichment without being asked.
 
-53. **Asset/OCR Performance Intelligence** — Closed-loop system: capture product creation design decisions → correlate with performance data → derive actionable product insights.
+76. **Asset/OCR Performance Intelligence** — Closed-loop system: capture product creation design decisions → correlate with performance data → derive actionable product insights.
 
-54. **Model Abstraction Layer** — Abstract the LLM interface so Claude can be swapped for local models on high-volume structured tasks. Configuration not code changes.
+77. **Model Abstraction Layer** — Abstract the LLM interface so Claude can be swapped for local models on high-volume structured tasks. Configuration not code changes.
 
-55. **Multi-User / Auth** — Full login system, role-based access, team member permissions.
+78. **Multi-User / Auth** — Full login system, role-based access, team member permissions.
 
-56. **Calendaring Tools** — TBD, to be unpacked.
+79. **Calendaring Tools** — TBD, to be unpacked.
 
-57. **Game Event & Scheduling Tools** — TBD, to be unpacked.
+80. **Game Event & Scheduling Tools** — TBD, to be unpacked.
 
-58. **Team Chatting Tools** — TBD, to be unpacked.
+81. **Team Chatting Tools** — TBD, to be unpacked.
 
-59. **Person Feed Protocol** — AI-native identity standard (Phase 3). Design constraint only — don't build, don't block.
+82. **Person Feed Protocol** — AI-native identity standard (Phase 3). Design constraint only — don't build, don't block.
 
 ---
 
-*Last updated: 2026-03-18 (v6) — Gopher rename, In Motion rename, large file upload, Slack Gopher, unified classifier spec, measurement layer, adaptation agent all reflected.*
+*Last updated: 2026-03-20 (v8) — Strategic pivot decision (correctness → intent suggestions). Foundation excellence efforts (63-68). Canvas auto-embedding, multi-turn context, CEO action logging, learning pipeline embeddings complete. Full-body comprehension and bulletproof recall in progress.*

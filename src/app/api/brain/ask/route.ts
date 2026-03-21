@@ -84,6 +84,7 @@ export async function POST(request: NextRequest) {
         // Fetch full content of recently ingested documents
         if (recentDocTitles.length > 0) {
           const { data: recentDocs } = await sb
+            .schema("brain")
             .from("knowledge_base")
             .select("id, title, content_text, summary, taxonomy_categories, tags")
             .eq("processed", true)
@@ -92,24 +93,187 @@ export async function POST(request: NextRequest) {
             .limit(5);
 
           if (recentDocs && recentDocs.length > 0) {
-            contextParts.push("## Documents Uploaded In This Session (HIGHEST PRIORITY)\n");
+            contextParts.push("## Documents Uploaded In This Session (HIGHEST PRIORITY — USE THIS DATA TO ANSWER)\n");
+            contextParts.push("IMPORTANT: The user uploaded this document and is asking about it. Search through ALL the data below carefully. If the user says 'the model' or 'the file', they mean THIS document.\n");
             for (const doc of recentDocs) {
               contextParts.push(`**${doc.title}**`);
               if (doc.summary) contextParts.push(`Summary: ${doc.summary}`);
-              // Include substantial content — up to 6000 chars for session docs
+              // Include full content for session docs — up to 50000 chars
               if (doc.content_text) {
-                contextParts.push(doc.content_text.slice(0, 6000));
-                if (doc.content_text.length > 6000) {
-                  contextParts.push(`... [${Math.round(doc.content_text.length / 4)} total tokens — showing first 6000 chars]`);
+                const maxChars = 50000;
+                contextParts.push(doc.content_text.slice(0, maxChars));
+                if (doc.content_text.length > maxChars) {
+                  contextParts.push(`... [Content truncated at ${maxChars} chars of ${doc.content_text.length} total — searching chunks for remaining data]\n`);
                 }
               }
               contextParts.push("");
+
+              // If content was truncated, search document chunks for question-relevant content
+              // This ensures the brain can find data on later sheets / deeper in large files
+              if (doc.content_text && doc.content_text.length > 50000) {
+                try {
+                  // Extract key search terms from the question
+                  const searchTerms = question.split(/\s+/).filter((w: string) => w.length > 2);
+                  if (searchTerms.length > 0) {
+                    const { data: matchingChunks } = await sb
+                      .schema("brain")
+                      .from("knowledge_chunks")
+                      .select("content, chunk_index")
+                      .eq("knowledge_base_id", doc.id)
+                      .or(searchTerms.slice(0, 4).map((w: string) => `content.ilike.%${w}%`).join(","))
+                      .order("chunk_index")
+                      .limit(10);
+
+                    if (matchingChunks && matchingChunks.length > 0) {
+                      contextParts.push(`## Additional matching sections from ${doc.title} (chunks beyond truncation point):\n`);
+                      for (const chunk of matchingChunks) {
+                        contextParts.push(chunk.content);
+                        contextParts.push("");
+                      }
+                      sourceNotes.push(`${matchingChunks.length} targeted chunks from ${doc.title}`);
+                    }
+                  }
+                } catch (chunkErr) {
+                  console.warn("Chunk search for session doc failed (non-fatal):", chunkErr);
+                }
+              }
             }
             sourceNotes.push(`${recentDocs.length} session document(s)`);
           }
         }
+
+        // Also search for the document by keyword match if title parsing failed
+        if (recentDocTitles.length === 0) {
+          // Check if user is referencing a file by name in their question
+          const fileRefMatch = question.match(/(?:file|document|spreadsheet|model|xlsx|pdf|report)\s+(?:called\s+)?["']?([^"'\n,]+?)["']?(?:\s|$|\.)/i)
+            || question.match(/(?:in|from)\s+(?:this|the|my)\s+(?:file|document|spreadsheet|xlsx)\s+(.+?)(?:\s|$|\.)/i);
+          if (fileRefMatch) {
+            const searchTitle = fileRefMatch[1].trim();
+            const { data: matchedDocs } = await sb
+              .schema("brain")
+              .from("knowledge_base")
+              .select("id, title, content_text, summary")
+              .eq("processed", true)
+              .ilike("title", `%${searchTitle}%`)
+              .order("processed_at", { ascending: false })
+              .limit(2);
+
+            if (matchedDocs && matchedDocs.length > 0) {
+              contextParts.push("## Referenced Document (HIGHEST PRIORITY — USE THIS DATA TO ANSWER)\n");
+              contextParts.push("IMPORTANT: The user is asking about THIS document. Search through ALL the data below carefully.\n");
+              for (const doc of matchedDocs) {
+                contextParts.push(`**${doc.title}**`);
+                if (doc.summary) contextParts.push(`Summary: ${doc.summary}`);
+                if (doc.content_text) {
+                  const maxChars = 50000;
+                  contextParts.push(doc.content_text.slice(0, maxChars));
+                  if (doc.content_text.length > maxChars) {
+                    contextParts.push(`... [Content truncated — searching chunks for remaining data]\n`);
+                    // Search document chunks for question-relevant content
+                    try {
+                      const searchTerms = question.split(/\s+/).filter((w: string) => w.length > 2);
+                      if (searchTerms.length > 0) {
+                        const { data: matchingChunks } = await sb
+                          .schema("brain")
+                          .from("knowledge_chunks")
+                          .select("content, chunk_index")
+                          .eq("knowledge_base_id", doc.id)
+                          .or(searchTerms.slice(0, 4).map((w: string) => `content.ilike.%${w}%`).join(","))
+                          .order("chunk_index")
+                          .limit(10);
+
+                        if (matchingChunks && matchingChunks.length > 0) {
+                          contextParts.push(`## Additional matching sections:\n`);
+                          for (const chunk of matchingChunks) {
+                            contextParts.push(chunk.content);
+                            contextParts.push("");
+                          }
+                        }
+                      }
+                    } catch {
+                      // non-fatal
+                    }
+                  }
+                }
+                contextParts.push("");
+              }
+              sourceNotes.push(`${matchedDocs.length} referenced document(s)`);
+            }
+          }
+        }
       } catch (sessionErr) {
         console.warn("Session document lookup failed (non-fatal):", sessionErr);
+      }
+    }
+
+    // ── 0b. Recently ingested documents (last 24 hours) — works even without session context ──
+    // This ensures the brain knows about files uploaded today, regardless of session
+    if (contextParts.length === 0 || !contextParts.some(p => p.includes("HIGHEST PRIORITY"))) {
+      try {
+        const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+        const { data: recentKb } = await sb
+          .schema("brain")
+          .from("knowledge_base")
+          .select("id, title, content_text, summary")
+          .eq("processed", true)
+          .gte("processed_at", twentyFourHoursAgo)
+          .order("processed_at", { ascending: false })
+          .limit(5);
+
+        if (recentKb && recentKb.length > 0) {
+          contextParts.push("## Recently Ingested Documents (last 24 hours)\n");
+          contextParts.push("IMPORTANT: These documents were uploaded today. If the user asks about information 'submitted earlier' or 'from today', this is what they mean.\n");
+          for (const doc of recentKb) {
+            contextParts.push(`**${doc.title}**`);
+            if (doc.summary) contextParts.push(`Summary: ${doc.summary}`);
+            if (doc.content_text) {
+              const maxChars = 30000;
+              contextParts.push(doc.content_text.slice(0, maxChars));
+              if (doc.content_text.length > maxChars) {
+                contextParts.push(`... [Showing first ${maxChars} chars of ${doc.content_text.length} total]`);
+              }
+            }
+            contextParts.push("");
+          }
+          sourceNotes.push(`${recentKb.length} recently ingested doc(s)`);
+        }
+      } catch (recentErr) {
+        console.warn("Recent document lookup failed (non-fatal):", recentErr);
+      }
+    }
+
+    // ── 0c. Recent clearing session messages (last 24h) — persistent memory across sessions ──
+    // If user says "I submitted X earlier", search recent clearing messages for relevant content
+    if (scope === "clearing") {
+      try {
+        const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+        const { data: recentClearing } = await sb
+          .schema("brain")
+          .from("clearing_messages")
+          .select("content, role, created_at, session_id")
+          .in("role", ["user", "brain"])
+          .gte("created_at", twentyFourHoursAgo)
+          .neq("session_id", sessionId || "")
+          .order("created_at", { ascending: false })
+          .limit(30);
+
+        if (recentClearing && recentClearing.length > 0) {
+          // Filter to only user messages that are substantial (not just short questions)
+          const substantialMessages = recentClearing.filter(
+            (m: any) => m.role === "user" && m.content && m.content.length > 50
+          );
+          if (substantialMessages.length > 0) {
+            contextParts.push("## Earlier Canvas Submissions (today, other sessions)\n");
+            for (const msg of substantialMessages.slice(0, 10)) {
+              const time = new Date(msg.created_at).toLocaleTimeString();
+              contextParts.push(`[${time}] ${msg.content.slice(0, 3000)}`);
+              contextParts.push("");
+            }
+            sourceNotes.push(`${substantialMessages.length} earlier clearing message(s)`);
+          }
+        }
+      } catch (clearErr) {
+        console.warn("Recent clearing lookup failed (non-fatal):", clearErr);
       }
     }
 
@@ -166,7 +330,7 @@ export async function POST(request: NextRequest) {
             vectorKbTitles.add(title);
             const similarity = r.similarity ? ` (${(r.similarity * 100).toFixed(0)}% match)` : "";
             contextParts.push(`**${title}**${similarity}`);
-            contextParts.push(r.content?.slice(0, 400) || "");
+            contextParts.push(r.content?.slice(0, 1000) || "");
             contextParts.push("");
           }
           sourceNotes.push(`${kbVectorResults.length} vector knowledge matches`);
@@ -195,6 +359,7 @@ export async function POST(request: NextRequest) {
     const words = question.split(/\s+/).filter((w: string) => w.length > 3).slice(0, 5);
     if (words.length > 0) {
       const { data: kbResults } = await sb
+        .schema("brain")
         .from("knowledge_base")
         .select("title, summary, source_type, taxonomy_categories")
         .eq("processed", true)
@@ -365,16 +530,47 @@ export async function POST(request: NextRequest) {
 
     const anthropic = new Anthropic({ apiKey: anthropicKey });
 
+    // ── Build conversation history for clearing sessions ──
+    // Include prior messages so the brain maintains multi-turn context
+    const conversationMessages: Array<{ role: "user" | "assistant"; content: string }> = [];
+
+    if (scope === "clearing" && sessionId) {
+      try {
+        const { data: priorMessages } = await sb
+          .schema("brain")
+          .from("clearing_messages")
+          .select("role, content, message_type")
+          .eq("session_id", sessionId)
+          .in("role", ["user", "brain"])
+          .order("created_at", { ascending: true })
+          .limit(40); // last 40 messages for context window management
+
+        if (priorMessages && priorMessages.length > 0) {
+          for (const msg of priorMessages) {
+            // Skip ingestion system messages — they're noise
+            if (msg.message_type === "ingestion") continue;
+            conversationMessages.push({
+              role: msg.role === "brain" ? "assistant" : "user",
+              content: msg.content || "",
+            });
+          }
+        }
+      } catch (histErr) {
+        console.warn("Failed to fetch session history (non-fatal):", histErr);
+      }
+    }
+
+    // Add the current question with context as the final user message
+    conversationMessages.push({
+      role: "user",
+      content: `Question: ${question}\n\nContext:\n${context}`,
+    });
+
     const response = await anthropic.messages.create({
       model: "claude-sonnet-4-6",
       max_tokens: 1500,
       system: getBrainAskPrompt(),
-      messages: [
-        {
-          role: "user",
-          content: `Question: ${question}\n\nContext:\n${context}`,
-        },
-      ],
+      messages: conversationMessages,
     });
 
     const answer = (response.content[0] as { type: "text"; text: string }).text.trim();

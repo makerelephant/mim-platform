@@ -3,9 +3,14 @@
 import { useEffect, useState, useCallback } from "react";
 import { Loader2 } from "lucide-react";
 import FeedCard, { FeedCardData, CorrectionData } from "@/components/FeedCard";
+import MessageCard from "@/components/MessageCard";
 import ContactPanel from "@/components/ContactPanel";
-import { usePageBackground } from "@/components/PageBackgroundContext";
-import { MOTION_TEXTURE_BACKGROUND } from "@/lib/page-backgrounds";
+
+// Message-source cards use the new simplified MessageCard
+function isMessageCard(card: FeedCardData): boolean {
+  const src = (card.source_type || "").toLowerCase();
+  return src.includes("email") || src.includes("gmail") || src.includes("slack");
+}
 
 /* eslint-disable @next/next/no-img-element */
 
@@ -24,7 +29,7 @@ export default function MotionFeedPage() {
   const [searching, setSearching] = useState(false);
   const [activeFilter, setActiveFilter] = useState<string | null>(null);
   const [contactPanelId, setContactPanelId] = useState<string | null>(null);
-  usePageBackground(MOTION_TEXTURE_BACKGROUND);
+  const [contactPanelName, setContactPanelName] = useState<string | null>(null);
   const limit = 12;
   const scanStages = [
     "Connecting to Gmail...",
@@ -42,13 +47,20 @@ export default function MotionFeedPage() {
       const statusFilter = activeFilter === "old" ? "acted" : "unread,read";
       let feedUrl = `/api/feed?status=${statusFilter}&limit=${limit}&offset=${newOffset}`;
       if (typeParam && typeParam !== "old") feedUrl += `&card_type=${typeParam}`;
-      const res = await fetch(feedUrl);
+      const res = await fetch(feedUrl, { cache: "no-store" });
       const data = await res.json();
       if (data.cards) {
-        setCards((prev) => append ? [...prev, ...data.cards] : data.cards);
+        const allCards = append ? [...cards, ...data.cards] : data.cards;
+        setCards(allCards);
         setTotal(data.total || 0);
         setOffset(newOffset + data.cards.length);
-        if (!append) setLastUpdated(new Date());
+        // Use the most recent card's created_at as last updated time
+        if (allCards.length > 0) {
+          const newest = allCards.reduce((a: FeedCardData, b: FeedCardData) =>
+            new Date(b.created_at) > new Date(a.created_at) ? b : a
+          );
+          setLastUpdated(new Date(newest.created_at));
+        }
       }
     } catch (err) {
       console.error("Feed load error:", err);
@@ -62,6 +74,13 @@ export default function MotionFeedPage() {
     }
     init();
   }, [loadCards]);
+
+  // ── Re-render every 60s so "updated X ago" stays current ──
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => setTick((n) => n + 1), 60_000);
+    return () => clearInterval(t);
+  }, []);
 
   // ── Load more ──
   async function handleLoadMore() {
@@ -174,9 +193,18 @@ export default function MotionFeedPage() {
   // ─── RENDER ──────────────────────────────────────────────────────────────
 
   return (
-    <>
+    <div
+      className="min-h-full"
+      style={{
+        backgroundColor: "#f6f5f5",
+        backgroundImage: "url('/icons/background.png')",
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+        backgroundRepeat: "no-repeat",
+      }}
+    >
       {/* ── Feed container ── */}
-      <div className="mx-auto flex min-h-full flex-col items-center gap-[24px] py-6" style={{ width: "550px" }}>
+      <div className="mx-auto flex min-h-full flex-col items-center gap-[24px] py-6" style={{ maxWidth: "550px", width: "100%" }}>
 
         {/* ══════════════════════════════════════════════════════════════════
             CHAT HEADER — Card container per Figma (node 9:3665)
@@ -326,15 +354,24 @@ export default function MotionFeedPage() {
           </div>
         ) : (
           <>
-            {cards.map((card) => (
-              <FeedCard
-                key={card.id}
-                card={card}
-                onAction={handleAction}
-                onDismiss={handleDismiss}
-                onContactTap={(contactId) => setContactPanelId(contactId)}
-              />
-            ))}
+            {cards.map((card) =>
+              isMessageCard(card) ? (
+                <MessageCard
+                  key={card.id}
+                  card={card}
+                  onDismiss={handleDismiss}
+                  onContactTap={(contactId, name) => { setContactPanelId(contactId); setContactPanelName(name || null); }}
+                />
+              ) : (
+                <FeedCard
+                  key={card.id}
+                  card={card}
+                  onAction={handleAction}
+                  onDismiss={handleDismiss}
+                  onContactTap={(contactId, name) => { setContactPanelId(contactId); setContactPanelName(name || null); }}
+                />
+              )
+            )}
 
             {/* Load more */}
             {cards.length < total && (
@@ -359,9 +396,10 @@ export default function MotionFeedPage() {
       {contactPanelId && (
         <ContactPanel
           contactId={contactPanelId}
-          onDismiss={() => setContactPanelId(null)}
+          entityName={contactPanelName || undefined}
+          onDismiss={() => { setContactPanelId(null); setContactPanelName(null); }}
         />
       )}
-    </>
+    </div>
   );
 }

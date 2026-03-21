@@ -28,6 +28,8 @@ export const SUPPORTED_FILE_TYPES = new Set([
   "application/pdf",
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document", // .docx
   "application/vnd.openxmlformats-officedocument.presentationml.presentation", // .pptx
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", // .xlsx
+  "application/vnd.ms-excel", // .xls
   "text/plain",
   "text/markdown",
   "text/html",
@@ -39,6 +41,8 @@ export const EXTENSION_TO_TYPE: Record<string, string> = {
   pdf: "pdf",
   docx: "docx",
   pptx: "pptx",
+  xlsx: "xlsx",
+  xls: "xlsx",
   txt: "txt",
   md: "md",
   markdown: "md",
@@ -73,6 +77,9 @@ export async function processDocument(
       break;
     case "pptx":
       text = await extractPptx(buffer);
+      break;
+    case "xlsx":
+      text = extractXlsx(buffer);
       break;
     case "html":
       text = extractHtml(buffer.toString("utf-8"));
@@ -210,6 +217,78 @@ async function extractPptx(buffer: Buffer): Promise<string> {
   } catch (e) {
     console.error("PPTX extraction failed:", e);
     return "[PPTX extraction failed]";
+  }
+}
+
+// ─── XLSX Extraction ───────────────────────────────────────────────────────
+// Uses SheetJS to parse Excel workbooks into structured text.
+// Each sheet becomes a labeled section. Rows are converted to tab-separated
+// values so Claude can read them as a table. Empty rows/cells are preserved
+// to maintain structure. Named ranges and formulas are resolved to their
+// computed values.
+
+function extractXlsx(buffer: Buffer): string {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const XLSX = require("xlsx");
+    const workbook = XLSX.read(buffer, { type: "buffer", cellDates: true });
+
+    const sheets: string[] = [];
+
+    for (const sheetName of workbook.SheetNames) {
+      const sheet = workbook.Sheets[sheetName];
+      if (!sheet) continue;
+
+      // Get the range of the sheet
+      const range = XLSX.utils.decode_range(sheet["!ref"] || "A1");
+      const rows: string[] = [];
+
+      for (let r = range.s.r; r <= range.e.r; r++) {
+        const cells: string[] = [];
+        let hasContent = false;
+
+        for (let c = range.s.c; c <= range.e.c; c++) {
+          const addr = XLSX.utils.encode_cell({ r, c });
+          const cell = sheet[addr];
+
+          if (cell) {
+            // Use formatted value (v = raw value, w = formatted string)
+            let val = "";
+            if (cell.w !== undefined) {
+              val = String(cell.w);
+            } else if (cell.v !== undefined) {
+              if (cell.v instanceof Date) {
+                val = cell.v.toISOString().split("T")[0];
+              } else {
+                val = String(cell.v);
+              }
+            }
+            cells.push(val);
+            if (val.trim()) hasContent = true;
+          } else {
+            cells.push("");
+          }
+        }
+
+        // Only include rows that have at least one non-empty cell
+        if (hasContent) {
+          rows.push(cells.join("\t"));
+        }
+      }
+
+      if (rows.length > 0) {
+        sheets.push(`[SHEET: ${sheetName}]\n${rows.join("\n")}`);
+      }
+    }
+
+    if (sheets.length === 0) {
+      return "[Empty Excel workbook — no data found]";
+    }
+
+    return sheets.join("\n\n");
+  } catch (e) {
+    console.error("XLSX extraction failed:", e);
+    return `[XLSX extraction failed: ${String(e).slice(0, 300)}]`;
   }
 }
 
