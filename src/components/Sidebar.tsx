@@ -112,20 +112,41 @@ export function Sidebar() {
       </div>
 
       {/* ════════════════════════════════════════════════════════════
-          EXPANDED CARD (lg+) — full nav with labels
+          EXPANDED CARD (lg+) — full nav with labels, Figma 94:4010
           ════════════════════════════════════════════════════════════ */}
       <div
-        className="relative hidden h-[410px] w-[169px] rounded-[12px] shadow-[0px_0px_40px_0px_rgba(0,0,0,0.12)] lg:block"
+        className="relative hidden h-[639px] w-[169px] rounded-[12px] shadow-[0px_0px_40px_0px_rgba(0,0,0,0.12)] lg:block"
         style={{
           backgroundColor: "rgba(255,255,255,0.4)",
           backdropFilter: "blur(4px)",
           WebkitBackdropFilter: "blur(4px)",
         }}
       >
-        {/* ── Nav items ── */}
+        {/* ── Tagline + separator ── */}
         <div
           className="absolute flex flex-col items-start"
-          style={{ left: "15px", top: "17px", width: "140px" }}
+          style={{ left: "9px", top: "16px", width: "152px" }}
+        >
+          <p
+            className="w-[132px]"
+            style={{
+              fontFamily: geist,
+              fontSize: "18px",
+              fontWeight: 700,
+              lineHeight: "20px",
+              letterSpacing: "-0.9px",
+              color: "#e9e9e9",
+            }}
+          >
+            Every Step Together.
+          </p>
+          <div className="h-px w-[140px] mt-[16px]" style={{ backgroundColor: "#e0e0e0" }} />
+        </div>
+
+        {/* ── Nav items (icon LEFT of label) ── */}
+        <div
+          className="absolute flex flex-col items-start gap-[6px]"
+          style={{ left: "9px", top: "96px", width: "152px" }}
         >
           {NAV_ITEMS.map((item) => {
             const active = isActive(item);
@@ -133,7 +154,7 @@ export function Sidebar() {
               <Link
                 key={item.href}
                 href={item.href}
-                className="relative flex h-[22px] w-full items-center justify-between"
+                className="relative flex h-[22px] w-full items-center gap-[12px]"
                 title={item.label}
               >
                 {active && (
@@ -142,73 +163,120 @@ export function Sidebar() {
                     style={{
                       backgroundColor: "#289bff",
                       height: "22px",
-                      width: "156px",
+                      width: "162px",
                       left: "-6px",
                       top: "0px",
                     }}
                   />
                 )}
-                <span
-                  className="relative capitalize whitespace-nowrap"
-                  style={{
-                    fontFamily: geist,
-                    fontSize: "12px",
-                    fontWeight: 500,
-                    lineHeight: "18px",
-                    letterSpacing: "-0.24px",
-                    color: active ? "white" : "#1e252a",
-                  }}
-                >
-                  {item.label}
-                </span>
                 <img
                   src={item.icon}
                   alt=""
                   className="relative size-[16px] shrink-0"
                   style={{ filter: active ? "brightness(0) invert(1)" : "brightness(0)" }}
                 />
+                <span
+                  className="relative capitalize whitespace-nowrap"
+                  style={{
+                    fontFamily: geist,
+                    fontSize: "14px",
+                    fontWeight: 500,
+                    lineHeight: "18px",
+                    letterSpacing: "-0.28px",
+                    color: active ? "white" : "#1e252a",
+                  }}
+                >
+                  {item.label}
+                </span>
               </Link>
             );
           })}
         </div>
 
-        {/* ── Account / Glossary / Technical Docs ── */}
+        {/* ── Glossary / Technical Docs ── */}
         <div
-          className="absolute flex flex-col items-start gap-[9px]"
-          style={{ left: "15px", top: "218px", width: "140px" }}
+          className="absolute flex flex-col items-start"
+          style={{ left: "9px", top: "456px", width: "152px" }}
         >
+          <div className="flex h-[18px] w-[112px] items-center justify-between">
+            <span
+              className="whitespace-nowrap"
+              style={{
+                fontFamily: geist,
+                fontSize: "12px",
+                fontWeight: 400,
+                lineHeight: "12px",
+                letterSpacing: "-0.24px",
+                color: "#9ca5a9",
+              }}
+            >
+              Glossary
+            </span>
+            <img
+              src="/icons/sidebar-arrow-right.svg"
+              alt=""
+              className="shrink-0 size-[12px]"
+            />
+          </div>
+          <div className="flex h-[18px] w-[112px] items-center justify-between">
+            <span
+              className="whitespace-nowrap"
+              style={{
+                fontFamily: geist,
+                fontSize: "12px",
+                fontWeight: 400,
+                lineHeight: "12px",
+                letterSpacing: "-0.24px",
+                color: "#9ca5a9",
+              }}
+            >
+              Technical Docs
+            </span>
+            <img
+              src="/icons/sidebar-arrow-right.svg"
+              alt=""
+              className="shrink-0 size-[12px]"
+            />
+          </div>
+        </div>
 
-          {/* Account — opens logout menu */}
+        {/* ── Account Settings (avatar + label) ── */}
+        <div
+          className="absolute flex flex-col items-start gap-[12px]"
+          style={{ left: "9px", top: "530px", width: "152px" }}
+        >
           <div className="relative w-full" ref={menuRef}>
             <button
               onClick={() => setShowAccountMenu((v) => !v)}
-              className="flex h-[18px] w-full items-center justify-between cursor-pointer hover:opacity-80 transition-opacity"
+              className="flex items-center gap-[6px] cursor-pointer hover:opacity-80 transition-opacity"
               style={{ background: "none", border: "none", padding: 0 }}
             >
+              <div className="w-[30px] h-[30px] rounded-full overflow-hidden shrink-0">
+                <img
+                  src="/icons/mark-avatar.png"
+                  alt="Mark Slater"
+                  className="w-full h-full object-cover"
+                />
+              </div>
               <span
                 className="whitespace-nowrap"
                 style={{
                   fontFamily: geist,
-                  fontSize: "12px",
+                  fontSize: "14px",
                   fontWeight: 500,
-                  lineHeight: "12px",
-                  letterSpacing: "-0.24px",
+                  lineHeight: "14px",
+                  letterSpacing: "-0.28px",
                   color: "#3e4c60",
                 }}
               >
-                Account
+                Account Settings
               </span>
-              <img
-                src="/icons/sidebar-user-square.svg"
-                alt=""
-                className="shrink-0 size-[16px]"
-              />
             </button>
 
             {/* Dropdown menu */}
             {showAccountMenu && (
               <div
-                className="absolute left-0 bottom-[26px] w-[155px] rounded-[8px] shadow-[0px_4px_20px_rgba(0,0,0,0.12)] overflow-hidden z-50"
+                className="absolute left-0 bottom-[40px] w-[160px] rounded-[8px] shadow-[0px_4px_20px_rgba(0,0,0,0.12)] overflow-hidden z-50"
                 style={{
                   backgroundColor: "rgba(255,255,255,0.95)",
                   backdropFilter: "blur(8px)",
@@ -269,79 +337,30 @@ export function Sidebar() {
             )}
           </div>
 
-          {/* Separator */}
-          <div className="h-px w-full" style={{ backgroundColor: "#e0e0e0" }} />
-
-          {/* Glossary / Technical Docs */}
-          <div className="flex w-full flex-col items-start">
-            <div className="flex h-[18px] w-full items-center justify-between">
-              <span
-                className="whitespace-nowrap"
-                style={{
-                  fontFamily: geist,
-                  fontSize: "12px",
-                  fontWeight: 400,
-                  lineHeight: "12px",
-                  letterSpacing: "-0.24px",
-                  color: "#9ca5a9",
-                }}
-              >
-                Glossary
-              </span>
+          {/* ── Separator + MiMbrain + Release ── */}
+          <div className="h-px w-[141px]" style={{ backgroundColor: "#e0e0e0" }} />
+          <div className="flex items-end gap-[45px] w-full">
+            <div className="flex items-center shrink-0">
               <img
-                src="/icons/sidebar-arrow-right.svg"
-                alt=""
-                className="shrink-0 size-[12px]"
+                src="/icons/MiMbrain Icon.png"
+                alt="MiMBrain"
+                className="w-[25px] h-[17.8px]"
               />
             </div>
-            <div className="flex h-[18px] w-full items-center justify-between">
-              <span
-                className="whitespace-nowrap"
-                style={{
-                  fontFamily: geist,
-                  fontSize: "12px",
-                  fontWeight: 400,
-                  lineHeight: "12px",
-                  letterSpacing: "-0.24px",
-                  color: "#9ca5a9",
-                }}
-              >
-                Technical Docs
-              </span>
-              <img
-                src="/icons/sidebar-arrow-right.svg"
-                alt=""
-                className="shrink-0 size-[12px]"
-              />
-            </div>
+            <span
+              className="whitespace-nowrap shrink-0"
+              style={{
+                fontFamily: geist,
+                fontSize: "12px",
+                fontWeight: 400,
+                lineHeight: "12px",
+                letterSpacing: "-0.24px",
+                color: "#289bff",
+              }}
+            >
+              Release V.0.1
+            </span>
           </div>
-        </div>
-
-        {/* ── MiMbrain + Release V.0.1 ── */}
-        <div
-          className="absolute flex items-end gap-[45px]"
-          style={{ left: "15px", top: "375px", width: "138px" }}
-        >
-          <div className="flex items-center shrink-0">
-            <img
-              src="/icons/MiMbrain Icon.png"
-              alt="MiMBrain"
-              className="w-[25px] h-[17.8px]"
-            />
-          </div>
-          <span
-            className="whitespace-nowrap shrink-0"
-            style={{
-              fontFamily: geist,
-              fontSize: "12px",
-              fontWeight: 400,
-              lineHeight: "12px",
-              letterSpacing: "-0.24px",
-              color: "#289bff",
-            }}
-          >
-            Release V.0.1
-          </span>
         </div>
       </div>
 
