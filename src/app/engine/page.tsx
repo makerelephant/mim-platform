@@ -111,7 +111,7 @@ export default function EngineRoomPage() {
   const selectedHarness = harness.find((h) => h.slug === selectedFile);
 
   return (
-    <div className="h-full flex flex-col bg-[#f6f5f5]" style={{ backgroundImage: "url('/icons/background.png')", backgroundSize: "cover", backgroundPosition: "center", backgroundRepeat: "no-repeat" }}>
+    <div className="h-full flex flex-col">
       {/* ── Header ── */}
       <div className="px-6 pt-6 pb-4">
         <h1

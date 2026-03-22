@@ -64,13 +64,6 @@ export default function MePage() {
   return (
     <div
       className="min-h-full"
-      style={{
-        backgroundColor: "#f6f5f5",
-        backgroundImage: "url('/icons/background.png')",
-        backgroundSize: "cover",
-        backgroundPosition: "center",
-        backgroundRepeat: "no-repeat",
-      }}
     >
       <div className="mx-auto py-6 flex flex-col gap-[24px] items-center" style={{ maxWidth: "550px", width: "100%" }}>
         {/* Header card */}

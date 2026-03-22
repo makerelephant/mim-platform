@@ -144,7 +144,7 @@ The platform is pivoting from **zero-tolerance correctness** (Do/Hold/No) to **c
 - **Use "In Motion"** as the platform name (not MiMBrain)
 - **Use "Gopher"** for automated workers (not Scanner)
 - **Use "Canvas"** as the UI label for the `/clearing` route
-- **Never remove `backgroundColor: "#f6f5f5"` from `<main>` in AppShell.tsx** — The sidebar is `position: fixed`. The `padding-left` on `<main>` clears content past the sidebar, but without a background color on `<main>`, an empty column is visible behind the semi-transparent sidebar. This has been a recurring bug. The background MUST stay on `<main>`.
+- **Never remove the background from `<main>` in AppShell.tsx** — AppShell owns the ONLY background for the entire app. The sidebar is `position: fixed` with semi-transparent glass. The `padding-left` on `<main>` clears content past it, and the background on `<main>` shows through the glass. **NEVER add backgroundColor or backgroundImage to any page-level root div** (page.tsx, clearing/page.tsx, engine/page.tsx, me/page.tsx). Page-level backgrounds create a visible seam at the 250px sidebar boundary because they only cover the content area, not the padding area behind the sidebar. This has been a recurring bug — fixed 8 times. The rule is: **AppShell = background. Pages = transparent.**
 - **All document headers** must follow the standard format:
   ```
   # Document Title

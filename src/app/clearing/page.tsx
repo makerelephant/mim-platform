@@ -455,13 +455,6 @@ export default function ClearingPage() {
   return (
     <div
       className="h-full relative flex flex-col"
-      style={{
-        backgroundColor: "#f6f5f5",
-        backgroundImage: "url('/icons/chat-background.png')",
-        backgroundSize: "cover",
-        backgroundPosition: "center",
-        backgroundRepeat: "no-repeat",
-      }}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
