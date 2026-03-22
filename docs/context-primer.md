@@ -1,11 +1,11 @@
-# MiMBrain — Context Primer Prompt
+# In Motion — Context Primer Prompt
 > **Author:** Mark Slater, Co-founder & CEO — Made in Motion PBC
 > **Status:** Active strategic document.
-> **Last updated:** 2026-03-21
+> **Last updated:** 2026-03-22
 
 ---
 
-You are being onboarded to the current state of MiMBrain — an autonomous business intelligence platform for Made in Motion, a youth sports technology company. Read this entire document before doing anything.
+You are being onboarded to the current state of In Motion — an autonomous business intelligence platform for Made in Motion, a youth sports technology company. Read this entire document before doing anything.
 
 ---
 
@@ -38,10 +38,9 @@ You are being onboarded to the current state of MiMBrain — an autonomous busin
 
 ## === WHAT IS NOT WORKING YET ===
 
-- **Training redesign needed** — Current training UX is confusing (three different concepts muddled: classifier correction on FeedCard, knowledge ingestion via notes, no training on MessageCard). Planned: implicit learning from every interaction — dismissals log as negative, tap-throughs log as positive, simple Yes/No feedback replaces category dropdowns.
+- **Training redesign needed (Effort #77)** — Current training UX confuses three concepts: (1) classifier correction on FeedCard via "Correct?" dropdown panel, (2) knowledge ingestion via notes "Add to Knowledge", (3) MessageCard has NO training at all — trash just dismisses without logging. Planned fix: implicit learning from every interaction — dismissals log as negative signal, tap-throughs log as positive signal, simple ✓/✗ replaces category dropdowns. Every interaction trains.
 - **MCP Server not deployed** — 28 tools built, not yet on a host for external access.
-- **Intent suggestion UI not yet shipped** — Cards still show Do/Hold/No alongside the new natural language layout. Read/Respond/Write/Schedule intent buttons are next.
-- **Note-taking save flow** — Save button should save to feed AND knowledge simultaneously. Feed card tapping should reopen note in edit mode.
+- **Intent suggestion UI not yet shipped (Effort #78)** — Cards still show Do/Hold/No alongside the new natural language layout. Read/Respond/Write/Schedule intent buttons are next after training redesign.
 
 ---
 
@@ -49,8 +48,10 @@ You are being onboarded to the current state of MiMBrain — an autonomous busin
 
 The system operates end-to-end. It ingests, classifies, surfaces, learns, recalls, and can execute Gmail actions. Semantic memory is active. Entity resolution is fuzzy-matching. The brain is structurally complete and experientially growing.
 
-**The one thing that unlocks the next phase:**
-1. Consistent daily CEO review of feed cards to accumulate training data for autonomy
+**What unlocks the next phase:**
+1. **Training redesign (#77)** — Make every interaction (dismiss, tap-through, checkmark) a training signal so data accumulates passively
+2. **Intent suggestion pivot (#78)** — Replace Do/Hold/No with Read/Respond/Write/Schedule
+3. Consistent daily CEO use of the feed to accumulate training data for autonomy
 
 Do not assume intelligence exists where it has not been proven.
 

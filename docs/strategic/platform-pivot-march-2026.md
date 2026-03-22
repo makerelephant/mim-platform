@@ -1,7 +1,7 @@
 # Platform Pivot: From Correctness to Contextual Suggestion
 > **Author:** Mark Slater, Co-founder & CEO — Made in Motion PBC
 > **Status:** Active strategic decision. Governs all near-term development.
-> **Last updated:** 2026-03-21
+> **Last updated:** 2026-03-22
 
 ---
 

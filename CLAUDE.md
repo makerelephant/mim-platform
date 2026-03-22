@@ -1,7 +1,7 @@
 # CLAUDE.md — Read This First
 > **Author:** Mark Slater, Co-founder & CEO — Made in Motion PBC
 > **Status:** Active session instructions. Must be read before any work begins.
-> **Last updated:** 2026-03-21
+> **Last updated:** 2026-03-22
 
 ---
 
@@ -75,7 +75,7 @@ There is also a **Me page** (`/me`) showing brain accuracy stats, manual scan tr
 
 ---
 
-## Strategic Direction (March 20, 2026)
+## Strategic Direction (March 22, 2026)
 
 > **Full decision document:** `docs/strategic/platform-pivot-march-2026.md`
 
@@ -86,15 +86,18 @@ The platform is pivoting from **zero-tolerance correctness** (Do/Hold/No) to **c
 2. Bulletproof recall (7-day guaranteed window, lowered thresholds, expanded results) — ✅ COMPLETE
 3. Entity resolution depth (fuzzy Levenshtein matching, alias resolution, rich dossiers) — ✅ COMPLETE
 4. Natural language card UI (MessageCard, gopher icons, intent icons, entity highlighting) — ✅ COMPLETE
-5. Gmail bidirectional integration (auto-resolve, Reply/Draft/Archive/Star actions) — ✅ COMPLETE
+5. Gmail bidirectional integration (auto-resolve, status chips, thread polling) — ✅ COMPLETE
 6. Note-taking feature (knowledge embedding, drafts, feed card emission) — ✅ COMPLETE
-7. Intent suggestion UI (Read/Respond/Write/Schedule formal pivot) — 🟡 NEXT
+
+**Next up:**
+7. Training redesign — implicit learning from every interaction (#77) — 🟡 NEXT
+8. Intent suggestion UI (Read/Respond/Write/Schedule formal pivot, #78) — 🟡 PLANNED
 
 **Key principle:** The death of this product is when data is submitted and it cannot be recalled, or is incomplete in its recollection. All or nothing — partial comprehension has zero value.
 
 ---
 
-## Current State (March 21, 2026)
+## Current State (March 22, 2026)
 
 ### What Is Built and Working
 
@@ -123,10 +126,9 @@ The platform is pivoting from **zero-tolerance correctness** (Do/Hold/No) to **c
 
 ### Active Gaps
 
-- **Training redesign** — Current training UX confuses three concepts: classifier correction (FeedCard "Correct?" dropdowns), knowledge ingestion (notes "Add to Knowledge"), and card feedback (MessageCard has no training at all). Needs simplification: implicit learning from every interaction (dismissals = negative signal, tap-throughs = positive signal), simple Yes/No replacing category dropdowns.
-- **Intent suggestion UI** — Cards still show Do/Hold/No alongside natural language layout. Formal Read/Respond/Write/Schedule intent buttons are the next major effort.
+- **Training redesign (Effort #77)** — Current training UX confuses three concepts: (1) classifier correction via FeedCard "Correct?" dropdown panel, (2) knowledge ingestion via notes "Add to Knowledge", (3) MessageCard has NO training at all — trash just dismisses without logging. The fix: make every interaction a training signal — dismissals = negative, tap-throughs = positive, simple ✓/✗ replaces category dropdowns. Gmail action buttons already removed from card face (actions happen in Gmail, status reflected via chips).
+- **Intent suggestion UI (Effort #78)** — Cards still show Do/Hold/No alongside natural language layout. Formal Read/Respond/Write/Schedule intent buttons are the next major effort after training redesign.
 - **MCP Server deployment** — 28 tools built, not yet deployed to a host.
-- **Thread status polling** — ✅ COMPLETE. MessageCard polls Gmail every 60s. Status chips update live when CEO acts in Gmail. Batch endpoint supports up to 20 concurrent checks.
 
 ---
 

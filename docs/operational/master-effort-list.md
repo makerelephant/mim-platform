@@ -1,7 +1,7 @@
 # Master Effort List
 > **Author:** Mark Slater, Co-founder & CEO — Made in Motion PBC
 > **Status:** Active strategic document.
-> **Last updated:** 2026-03-21
+> **Last updated:** 2026-03-22
 
 ---
 
@@ -199,4 +199,4 @@
 
 ---
 
-*Last updated: 2026-03-21 (v11) — Status chips pixel-perfect per Figma. Thread status polling (60s interval, live Gmail status detection). Note save flow redesigned (save = feed + knowledge, tappable to reopen in edit mode). Background consistency fix. Training redesign planned. 78 efforts complete, 90 total.*
+*Last updated: 2026-03-22 (v12) — All 76 efforts complete through UI Pivot phase. Status chips pixel-perfect per Figma with icon assets. Thread status polling live (60s). Note-taking complete (save to feed + knowledge, tappable reopen). Gmail action buttons removed from card face (actions happen in Gmail, status reflected via chips). Training redesign (#77) and intent pivot (#78) are next. 78 efforts complete, 90 total.*
