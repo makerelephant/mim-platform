@@ -153,6 +153,10 @@
 
 76. **Background Consistency Fix** — ✅ COMPLETE. Background image (`background.png`) moved to AppShell `<main>` element so it covers the full viewport including sidebar padding area. Eliminates the recurring empty-column stripe behind the semi-transparent sidebar. Page-level backgrounds removed (duplicate).
 
+76b. **Thread Status Polling** — ✅ COMPLETE. MessageCard polls Gmail every 60s for status changes on cards with thread_ids. Initial poll after 5s. Stops polling once terminal status (replied/archived) is reached. Batch endpoint: `GET /api/gmail/actions?thread_ids=id1,id2,id3` supports up to 20 concurrent status checks. Status chips update live when CEO takes action in Gmail.
+
+76c. **Note Save Flow Redesign** — ✅ COMPLETE. Per Figma: "Save" button replaces "Add to Knowledge" — every saved note goes to feed AND knowledge simultaneously. Gray checkmark turns green on success with "Added to Knowledge" label, then auto-clears after 2s. Feed note cards are tappable to reopen NotePanel with note loaded in edit mode. `editNoteId` prop on NotePanel, `onNoteTap` callback on FeedCard.
+
 ---
 
 ## Next: Training Redesign & Intent Pivot
@@ -195,4 +199,4 @@
 
 ---
 
-*Last updated: 2026-03-21 (v10) — Status chips pixel-perfect per Figma (Replied/Forwarded/Archived/Draft/Starred with icons + semantic colors). Gmail action buttons removed from card face (actions happen in Gmail, status reflected on card). Background consistency fix. Training redesign planned (implicit learning from every interaction). 76 efforts complete, 90 total.*
+*Last updated: 2026-03-21 (v11) — Status chips pixel-perfect per Figma. Thread status polling (60s interval, live Gmail status detection). Note save flow redesigned (save = feed + knowledge, tappable to reopen in edit mode). Background consistency fix. Training redesign planned. 78 efforts complete, 90 total.*

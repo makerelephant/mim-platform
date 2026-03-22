@@ -32,6 +32,7 @@ export default function MotionFeedPage() {
   const [contactPanelId, setContactPanelId] = useState<string | null>(null);
   const [contactPanelName, setContactPanelName] = useState<string | null>(null);
   const [showNotePanel, setShowNotePanel] = useState(false);
+  const [editNoteId, setEditNoteId] = useState<string | null>(null);
   const limit = 12;
   const scanStages = [
     "Connecting to Gmail...",
@@ -295,7 +296,7 @@ export default function MotionFeedPage() {
         {/* ── Action buttons: Write, Plan, Add — per Figma 99:1314 ── */}
         <div className="flex gap-[6px] items-center w-full">
           <button
-            onClick={() => setShowNotePanel(true)}
+            onClick={() => { setEditNoteId(null); setShowNotePanel(true); }}
             className="flex gap-[6px] h-[28px] items-center justify-center px-[12px] py-[6px] rounded-[8px] bg-white cursor-pointer hover:bg-gray-50 transition-colors"
             style={{ boxShadow: "0px 0px 2px 0px rgba(0,0,0,0.25)" }}
           >
@@ -432,6 +433,7 @@ export default function MotionFeedPage() {
                   onAction={handleAction}
                   onDismiss={handleDismiss}
                   onContactTap={(contactId, name) => { setContactPanelId(contactId); setContactPanelName(name || null); }}
+                  onNoteTap={(noteId) => { setEditNoteId(noteId); setShowNotePanel(true); }}
                 />
               )
             )}
@@ -479,11 +481,12 @@ export default function MotionFeedPage() {
       {/* ── Note Panel ── */}
       {showNotePanel && (
         <NotePanel
-          onClose={() => setShowNotePanel(false)}
+          onClose={() => { setShowNotePanel(false); setEditNoteId(null); }}
           onNoteSaved={() => {
             loadCards(0, false);
             setLastUpdated(new Date());
           }}
+          editNoteId={editNoteId}
         />
       )}
     </div>

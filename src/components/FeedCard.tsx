@@ -172,6 +172,7 @@ interface FeedCardProps {
   onAction: (id: string, action: "do" | "no" | "not_now", correction?: CorrectionData) => Promise<void>;
   onDismiss: (id: string) => Promise<void>;
   onContactTap?: (contactId: string, contactName: string) => void;
+  onNoteTap?: (noteId: string) => void;
 }
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -269,7 +270,7 @@ function highlightContacts(
 
 // ─── Component ──────────────────────────────────────────────────────────────
 
-export default function FeedCard({ card, onAction, onDismiss, onContactTap }: FeedCardProps) {
+export default function FeedCard({ card, onAction, onDismiss, onContactTap, onNoteTap }: FeedCardProps) {
   const [expanded, setExpanded] = useState(false);
   const [acting, setActing] = useState(false);
   const [showNoPanel, setShowNoPanel] = useState(false);
@@ -462,10 +463,21 @@ export default function FeedCard({ card, onAction, onDismiss, onContactTap }: Fe
     ? ""
     : "shadow-[0px_1px_2px_rgba(0,0,0,0.05),0px_4px_12px_rgba(0,0,0,0.06),0px_16px_40px_rgba(0,0,0,0.07)]";
 
+  // Note cards are tappable to reopen in editor
+  const isNoteCard = card.source_type?.toLowerCase() === "note";
+  const noteId = isNoteCard ? (meta?.note_id as string | undefined) : undefined;
+
+  function handleCardClick() {
+    if (isNoteCard && noteId && onNoteTap) {
+      onNoteTap(noteId);
+    }
+  }
+
   return (
     <div
-      className={`w-full rounded-[12px] ${cardShadow} transition-all ${cardOpacity}`}
+      className={`w-full rounded-[12px] ${cardShadow} transition-all ${cardOpacity} ${isNoteCard ? "cursor-pointer hover:shadow-[0px_2px_4px_rgba(0,0,0,0.06),0px_8px_20px_rgba(0,0,0,0.08)] hover:translate-y-[-1px]" : ""}`}
       style={{ backgroundColor: cardBg }}
+      onClick={isNoteCard ? handleCardClick : undefined}
     >
       <div className="flex w-full flex-col gap-[6px] overflow-hidden rounded-[12px] p-[12px]">
 

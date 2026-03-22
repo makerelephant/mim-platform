@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { formatDistanceToNow } from "date-fns";
 import type { FeedCardData } from "./FeedCard";
 
@@ -215,12 +215,40 @@ export default function MessageCard({
   onContactTap,
 }: MessageCardProps) {
   const [dismissing, setDismissing] = useState(false);
-  const [threadStatus] = useState<ThreadStatus>(
+  const [threadStatus, setThreadStatus] = useState<ThreadStatus>(
     (card.metadata as Record<string, unknown>)?.thread_status as ThreadStatus || null,
   );
 
   const intent = inferIntent(card);
   const url = sourceUrl(card);
+  const threadId = (card.metadata as Record<string, unknown>)?.thread_id as string | undefined;
+
+  // ── Thread status polling — check Gmail every 60s for status changes ──
+  const isTerminal = threadStatus === "replied" || threadStatus === "archived";
+  const pollStatus = useCallback(async () => {
+    if (!threadId || isTerminal) return;
+    try {
+      const res = await fetch(`/api/gmail/actions?thread_id=${encodeURIComponent(threadId)}`);
+      const data = await res.json();
+      if (data.success && data.status && data.status !== "unactioned") {
+        setThreadStatus(data.status as ThreadStatus);
+      }
+    } catch {
+      // silent — polling is best-effort
+    }
+  }, [threadId, isTerminal]);
+
+  useEffect(() => {
+    if (!threadId || isTerminal) return;
+    // Initial poll after 5s (gives time for card to render)
+    const initialTimeout = setTimeout(pollStatus, 5000);
+    // Then every 60s
+    const interval = setInterval(pollStatus, 60000);
+    return () => {
+      clearTimeout(initialTimeout);
+      clearInterval(interval);
+    };
+  }, [threadId, isTerminal, pollStatus]);
 
   // Build entity list from card data
   const entities: EntityMatch[] = [];

@@ -119,14 +119,14 @@ The platform is pivoting from **zero-tolerance correctness** (Do/Hold/No) to **c
 - **Embedding/RAG pipeline** — `brain.knowledge_chunks` table with pgvector. `search_knowledge` and `search_correspondence` RPC functions. OpenAI `text-embedding-3-small` embeddings generating on ingestion. Semantic search active. Canvas messages auto-embedded.
 - **Document ingestion** — pdf-parse (text PDFs), Claude Vision fallback (image-based PDFs < 5MB), direct Supabase Storage signed upload (files > 4MB), XLSX/PPTX/DOCX/TXT/CSV support
 
-- **Note-taking** — Write button → NotePanel. Title + rich text editor with formatting toolbar. Save to Knowledge (generates OpenAI embedding, emits signal feed card) or Save Draft. `/api/notes` CRUD. Notes stored in `brain.knowledge_chunks` as `ceo_note`/`ceo_note_draft`.
+- **Note-taking** — Write button → NotePanel. Title + rich text editor with formatting toolbar. Save = feed + knowledge simultaneously (generates OpenAI embedding, emits signal feed card, shows green checkmark success). Feed note cards tappable to reopen NotePanel in edit mode. Save Draft available. `/api/notes` CRUD. Notes stored in `brain.knowledge_chunks` as `ceo_note`/`ceo_note_draft`.
 
 ### Active Gaps
 
 - **Training redesign** — Current training UX confuses three concepts: classifier correction (FeedCard "Correct?" dropdowns), knowledge ingestion (notes "Add to Knowledge"), and card feedback (MessageCard has no training at all). Needs simplification: implicit learning from every interaction (dismissals = negative signal, tap-throughs = positive signal), simple Yes/No replacing category dropdowns.
 - **Intent suggestion UI** — Cards still show Do/Hold/No alongside natural language layout. Formal Read/Respond/Write/Schedule intent buttons are the next major effort.
 - **MCP Server deployment** — 28 tools built, not yet deployed to a host.
-- **Thread status polling** — Currently status shows only after an action or on card metadata. Could add periodic polling to detect Gmail actions taken outside the platform.
+- **Thread status polling** — ✅ COMPLETE. MessageCard polls Gmail every 60s. Status chips update live when CEO acts in Gmail. Batch endpoint supports up to 20 concurrent checks.
 
 ---
 

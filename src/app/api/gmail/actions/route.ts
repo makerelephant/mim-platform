@@ -23,14 +23,34 @@ export const maxDuration = 60;
 
 export async function GET(request: NextRequest) {
   try {
-    const threadId = request.nextUrl.searchParams.get("thread_id");
-    if (!threadId) {
-      return NextResponse.json({ error: "thread_id required" }, { status: 400 });
+    const threadIdParam = request.nextUrl.searchParams.get("thread_id");
+    const threadIdsParam = request.nextUrl.searchParams.get("thread_ids");
+
+    if (!threadIdParam && !threadIdsParam) {
+      return NextResponse.json({ error: "thread_id or thread_ids required" }, { status: 400 });
     }
 
     const gmail = await createGmailClient();
-    const status = await getThreadStatus(gmail, threadId);
 
+    // Batch mode: ?thread_ids=id1,id2,id3 — returns { statuses: { [threadId]: status } }
+    if (threadIdsParam) {
+      const ids = threadIdsParam.split(",").filter(Boolean).slice(0, 20); // cap at 20
+      const statuses: Record<string, unknown> = {};
+      await Promise.allSettled(
+        ids.map(async (id) => {
+          try {
+            const s = await getThreadStatus(gmail, id);
+            statuses[id] = s;
+          } catch {
+            statuses[id] = { status: "unknown" };
+          }
+        })
+      );
+      return NextResponse.json({ success: true, statuses });
+    }
+
+    // Single mode: ?thread_id=xxx
+    const status = await getThreadStatus(gmail, threadIdParam!);
     return NextResponse.json({ success: true, ...status });
   } catch (err) {
     console.error("Gmail status check error:", err);

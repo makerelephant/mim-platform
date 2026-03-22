@@ -5,7 +5,8 @@
  *
  * Appears when user clicks "Write" button. Feed shifts left and gets overlay.
  * Panel: semi-transparent bg, "New Note" button, title, formatting toolbar,
- * textarea, previous notes list, action buttons (Add To Knowledge, Save Draft, Delete).
+ * textarea, previous notes list, action buttons (Save, Save Draft, Delete).
+ * Save = saves to feed + knowledge simultaneously. Success shows green checkmark.
  */
 
 import { useState, useEffect, useRef, useCallback } from "react";
@@ -25,17 +26,19 @@ interface NoteData {
 interface NotePanelProps {
   onClose: () => void;
   onNoteSaved?: () => void; // callback to refresh feed after saving to knowledge
+  editNoteId?: string | null; // if set, load this note for editing (from feed card tap)
 }
 
-export default function NotePanel({ onClose, onNoteSaved }: NotePanelProps) {
+export default function NotePanel({ onClose, onNoteSaved, editNoteId }: NotePanelProps) {
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [notes, setNotes] = useState<NoteData[]>([]);
   const [drafts, setDrafts] = useState<NoteData[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
   const [activeTab, setActiveTab] = useState<"all" | "drafts">("all");
-  const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
+  const [editingNoteId, setEditingNoteId] = useState<string | null>(editNoteId || null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [visible, setVisible] = useState(false);
 
@@ -66,10 +69,24 @@ export default function NotePanel({ onClose, onNoteSaved }: NotePanelProps) {
     loadNotes();
   }, [loadNotes]);
 
-  // Save to Knowledge
-  async function handleSaveToKnowledge() {
+  // If editNoteId was provided, load that note into the editor once notes are fetched
+  useEffect(() => {
+    if (editNoteId && !loading) {
+      const allNotes = [...notes, ...drafts];
+      const target = allNotes.find((n) => n.id === editNoteId);
+      if (target) {
+        setTitle(target.title);
+        setContent(target.content);
+        setEditingNoteId(target.id);
+      }
+    }
+  }, [editNoteId, loading, notes, drafts]);
+
+  // Save — saves to feed AND knowledge simultaneously
+  async function handleSave() {
     if (!content.trim()) return;
     setSaving(true);
+    setSaveSuccess(false);
     try {
       const res = await fetch("/api/notes", {
         method: "POST",
@@ -83,11 +100,16 @@ export default function NotePanel({ onClose, onNoteSaved }: NotePanelProps) {
       });
       const data = await res.json();
       if (data.success) {
-        setTitle("");
-        setContent("");
-        setEditingNoteId(null);
+        setSaveSuccess(true);
         await loadNotes();
         onNoteSaved?.();
+        // Clear after 2 seconds so user sees the green checkmark
+        setTimeout(() => {
+          setTitle("");
+          setContent("");
+          setEditingNoteId(null);
+          setSaveSuccess(false);
+        }, 2000);
       }
     } catch (err) {
       console.error("Save failed:", err);
@@ -407,10 +429,10 @@ export default function NotePanel({ onClose, onNoteSaved }: NotePanelProps) {
             </div>
           )}
 
-          {/* Bottom actions: Add To Knowledge | Save Draft | Delete */}
+          {/* Bottom actions: Save | Save Draft | Delete */}
           <div className="flex items-start justify-between px-[6px] w-full">
             <button
-              onClick={handleSaveToKnowledge}
+              onClick={handleSave}
               disabled={!content.trim() || saving}
               className="flex items-center gap-[6px] cursor-pointer hover:opacity-80 transition-opacity disabled:opacity-40"
             >
@@ -420,17 +442,15 @@ export default function NotePanel({ onClose, onNoteSaved }: NotePanelProps) {
                   fontSize: "12px",
                   fontWeight: 500,
                   lineHeight: "16px",
-                  color: "#3e4c60",
+                  color: saveSuccess ? "#22c55e" : "#3e4c60",
                 }}
               >
-                {saving ? "Saving..." : "Add To Knowledge"}
+                {saving ? "Saving..." : saveSuccess ? "Added to Knowledge" : "Save"}
               </span>
-              {!saving && (
-                <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
-                  <circle cx="10" cy="10" r="9" stroke="#22c55e" strokeWidth="1.5" />
-                  <path d="M6 10l3 3 5-5" stroke="#22c55e" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-              )}
+              <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
+                <circle cx="10" cy="10" r="9" stroke={saveSuccess ? "#22c55e" : "#9ca3af"} strokeWidth="1.5" />
+                <path d="M6 10l3 3 5-5" stroke={saveSuccess ? "#22c55e" : "#9ca3af"} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
             </button>
             <button
               onClick={handleSaveDraft}

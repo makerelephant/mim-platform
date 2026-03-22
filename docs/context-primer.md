@@ -30,7 +30,8 @@ You are being onboarded to the current state of MiMBrain — an autonomous busin
 - Embedding/RAG pipeline — `brain.knowledge_chunks` with pgvector, OpenAI text-embedding-3-small, semantic search ACTIVE
 - Bulletproof recall — 7-day guaranteed window, lowered vector thresholds, expanded result nets, keyword fallbacks
 - Entity resolution — fuzzy Levenshtein matching, alias resolution, first/last name partials, rich dossiers
-- Note-taking — `/api/notes` with knowledge embedding, feed card emission, draft support
+- Note-taking — `/api/notes` with knowledge embedding, feed card emission, draft support. Save = feed + knowledge simultaneously. Feed note cards tappable to reopen in edit mode.
+- Thread status polling — MessageCard polls Gmail every 60s, status chips update live when CEO acts in Gmail
 - Web Intelligence Gopher — configurable source monitoring, daily cron
 
 ---
