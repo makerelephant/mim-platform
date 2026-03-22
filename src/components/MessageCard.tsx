@@ -222,6 +222,7 @@ export default function MessageCard({
   const [showReplyCompose, setShowReplyCompose] = useState(false);
   const [replyText, setReplyText] = useState("");
   const [draftBody, setDraftBody] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const intent = inferIntent(card);
   const url = sourceUrl(card);
@@ -234,6 +235,7 @@ export default function MessageCard({
   ) => {
     if (!threadId) return;
     setActing(action);
+    setActionError(null);
     try {
       const res = await fetch("/api/gmail/actions", {
         method: "POST",
@@ -255,8 +257,12 @@ export default function MessageCard({
           setShowReplyCompose(false);
           setReplyText("");
         }
+      } else {
+        setActionError(data.error || `${action} failed`);
+        console.error(`Gmail ${action} error:`, data.error);
       }
     } catch (err) {
+      setActionError(`Network error: ${err}`);
       console.error(`Gmail ${action} failed:`, err);
     } finally {
       setActing(null);
@@ -470,6 +476,17 @@ export default function MessageCard({
               Cancel
             </button>
           </div>
+        </div>
+      )}
+
+      {/* ── Action error display ── */}
+      {actionError && (
+        <div
+          className="text-[11px] text-[#e53e3e] px-[10px] py-[6px] rounded-[6px]"
+          style={{ backgroundColor: "rgba(229, 62, 62, 0.06)", fontFamily: "var(--font-geist-sans), 'Geist', sans-serif" }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {actionError}
         </div>
       )}
 

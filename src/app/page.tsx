@@ -5,6 +5,7 @@ import { Loader2 } from "lucide-react";
 import FeedCard, { FeedCardData, CorrectionData } from "@/components/FeedCard";
 import MessageCard from "@/components/MessageCard";
 import ContactPanel from "@/components/ContactPanel";
+import NotePanel from "@/components/NotePanel";
 
 // Message-source cards use the new simplified MessageCard
 function isMessageCard(card: FeedCardData): boolean {
@@ -30,6 +31,7 @@ export default function MotionFeedPage() {
   const [activeFilter, setActiveFilter] = useState<string | null>(null);
   const [contactPanelId, setContactPanelId] = useState<string | null>(null);
   const [contactPanelName, setContactPanelName] = useState<string | null>(null);
+  const [showNotePanel, setShowNotePanel] = useState(false);
   const limit = 12;
   const scanStages = [
     "Connecting to Gmail...",
@@ -54,13 +56,6 @@ export default function MotionFeedPage() {
         setCards(allCards);
         setTotal(data.total || 0);
         setOffset(newOffset + data.cards.length);
-        // Use the most recent card's created_at as last updated time
-        if (allCards.length > 0) {
-          const newest = allCards.reduce((a: FeedCardData, b: FeedCardData) =>
-            new Date(b.created_at) > new Date(a.created_at) ? b : a
-          );
-          setLastUpdated(new Date(newest.created_at));
-        }
       }
     } catch (err) {
       console.error("Feed load error:", err);
@@ -70,6 +65,7 @@ export default function MotionFeedPage() {
   useEffect(() => {
     async function init() {
       await loadCards(0, false);
+      setLastUpdated(new Date());
       setLoading(false);
     }
     init();
@@ -87,6 +83,14 @@ export default function MotionFeedPage() {
     setLoadingMore(true);
     await loadCards(offset, true);
     setLoadingMore(false);
+  }
+
+  // ── Refresh feed (instant reload) ──
+  async function handleRefresh() {
+    setLoading(true);
+    await loadCards(0, false);
+    setLastUpdated(new Date());
+    setLoading(false);
   }
 
   // ── Run scanner with progress stages ──
@@ -109,6 +113,7 @@ export default function MotionFeedPage() {
       setScanStage(scanStages.length - 1);
       // Reload feed after scan
       await loadCards(0, false);
+      setLastUpdated(new Date());
     } catch (err) {
       console.error("Scanner error:", err);
     } finally {
@@ -203,8 +208,8 @@ export default function MotionFeedPage() {
         backgroundRepeat: "no-repeat",
       }}
     >
-      {/* ── Feed container ── */}
-      <div className="mx-auto flex min-h-full flex-col items-center gap-[24px] py-6" style={{ maxWidth: "550px", width: "100%" }}>
+      {/* ── Feed container — left-aligned to leave room for side panels (contacts, notes) ── */}
+      <div className="flex min-h-full flex-col items-center gap-[24px] py-6 px-4 lg:px-0 lg:ml-[40px] xl:ml-[80px]" style={{ maxWidth: "550px", width: "100%" }}>
 
         {/* ══════════════════════════════════════════════════════════════════
             CHAT HEADER — Card container per Figma (node 9:3665)
@@ -242,15 +247,15 @@ export default function MotionFeedPage() {
               </span>
               <button
                 type="button"
-                onClick={handleScan}
-                disabled={scanning}
+                onClick={handleRefresh}
+                disabled={loading || scanning}
                 className="shrink-0 p-0 leading-none"
-                title="Run Gmail scanner"
+                title="Refresh feed"
               >
                 <img
                   src="/icons/refresh-2.svg"
                   alt="Refresh"
-                  className={`h-[20px] w-[20px] ${scanning ? "animate-spin" : ""}`}
+                  className={`h-[20px] w-[20px] ${loading || scanning ? "animate-spin" : ""}`}
                 />
               </button>
             </div>
@@ -289,6 +294,68 @@ export default function MotionFeedPage() {
             </div>
           </div>
           </div>
+        </div>
+
+        {/* ── Action buttons: Write, Plan, Add — per Figma 99:1314 ── */}
+        <div className="flex gap-[6px] items-center w-full">
+          <button
+            onClick={() => setShowNotePanel(true)}
+            className="flex gap-[6px] h-[28px] items-center justify-center px-[12px] py-[6px] rounded-[8px] bg-white cursor-pointer hover:bg-gray-50 transition-colors"
+            style={{ boxShadow: "0px 0px 2px 0px rgba(0,0,0,0.25)" }}
+          >
+            <img src="/icons/intent/write.png" alt="" className="size-[20px]" />
+            <span
+              className="whitespace-nowrap"
+              style={{
+                fontFamily: "var(--font-geist-sans), 'Geist', sans-serif",
+                fontSize: "14px",
+                fontWeight: 500,
+                lineHeight: "16px",
+                letterSpacing: "-0.14px",
+                color: "#3e4c60",
+              }}
+            >
+              Write
+            </span>
+          </button>
+          <button
+            className="flex gap-[6px] h-[28px] items-center justify-center px-[12px] py-[6px] rounded-[8px] bg-white cursor-pointer hover:bg-gray-50 transition-colors"
+            style={{ boxShadow: "0px 0px 2px 0px rgba(0,0,0,0.25)" }}
+          >
+            <img src="/icons/calendar-plus.svg" alt="" className="size-[20px]" />
+            <span
+              className="whitespace-nowrap"
+              style={{
+                fontFamily: "var(--font-geist-sans), 'Geist', sans-serif",
+                fontSize: "14px",
+                fontWeight: 500,
+                lineHeight: "16px",
+                letterSpacing: "-0.14px",
+                color: "#3e4c60",
+              }}
+            >
+              Plan
+            </span>
+          </button>
+          <button
+            className="flex gap-[6px] h-[28px] items-center justify-center px-[12px] py-[6px] rounded-[8px] bg-white cursor-pointer hover:bg-gray-50 transition-colors"
+            style={{ boxShadow: "0px 0px 2px 0px rgba(0,0,0,0.25)" }}
+          >
+            <img src="/icons/arrow-up-circle.svg" alt="" className="size-[16px]" />
+            <span
+              className="whitespace-nowrap"
+              style={{
+                fontFamily: "var(--font-geist-sans), 'Geist', sans-serif",
+                fontSize: "14px",
+                fontWeight: 500,
+                lineHeight: "16px",
+                letterSpacing: "-0.14px",
+                color: "#3e4c60",
+              }}
+            >
+              Add
+            </span>
+          </button>
         </div>
 
         {/* ── Filter pills ── */}
@@ -392,12 +459,35 @@ export default function MotionFeedPage() {
         )}
       </div>
 
-      {/* ── Contact Panel Overlay ── */}
+      {/* ── Feed overlay when note panel or contact panel is open ── */}
+      {(showNotePanel || contactPanelId) && (
+        <div
+          className="fixed inset-0 z-40 transition-opacity duration-200"
+          style={{ backgroundColor: "rgba(62, 76, 96, 0.4)" }}
+          onClick={() => {
+            if (showNotePanel) setShowNotePanel(false);
+            if (contactPanelId) { setContactPanelId(null); setContactPanelName(null); }
+          }}
+        />
+      )}
+
+      {/* ── Contact Panel ── */}
       {contactPanelId && (
         <ContactPanel
           contactId={contactPanelId}
           entityName={contactPanelName || undefined}
           onDismiss={() => { setContactPanelId(null); setContactPanelName(null); }}
+        />
+      )}
+
+      {/* ── Note Panel ── */}
+      {showNotePanel && (
+        <NotePanel
+          onClose={() => setShowNotePanel(false)}
+          onNoteSaved={() => {
+            loadCards(0, false);
+            setLastUpdated(new Date());
+          }}
         />
       )}
     </div>

@@ -1,7 +1,7 @@
 # Platform Pivot: From Correctness to Contextual Suggestion
 > **Author:** Mark Slater, Co-founder & CEO — Made in Motion PBC
 > **Status:** Active strategic decision. Governs all near-term development.
-> **Last updated:** 2026-03-20
+> **Last updated:** 2026-03-21
 
 ---
 
@@ -65,20 +65,26 @@ Before shipping the intent suggestion UI, the platform foundation must be bullet
 
 The implementation sequence:
 
-### Phase A: Foundation (Current Priority)
-1. **Full-body comprehension pipeline** — Classifier reads entire documents via chunked multi-pass analysis
-2. **Bulletproof recall** — Lower vector thresholds, increase results, keyword fallbacks, session memory preload, guaranteed recall of anything submitted in last 7 days
-3. **Entity resolution depth** — Full-document entity extraction, fuzzy matching, alias tables
+### Phase A: Foundation ✅ COMPLETE (March 21, 2026)
+1. **Full-body comprehension pipeline** — ✅ Scanner reads full email bodies (8K chars), web intelligence expanded similarly
+2. **Bulletproof recall** — ✅ 7-day guaranteed recall, lower vector thresholds (0.18), wider result nets (15/12), keyword fallbacks across title+summary+tags, feed card search
+3. **Entity resolution depth** — ✅ Fuzzy Levenshtein matching, first/last name partials, email prefix/domain matching, acronym detection, rich dossiers with relationship context
 
-### Phase B: Intent Suggestion UI
-4. **Card action pivot** — Replace Do/Hold/No with Read/Respond/Write/Schedule intent buttons
-5. **Card layout update** — Redesign card actions to present intent suggestions prominently
-6. **Feed PATCH handler update** — Record intent selections as training data
+### Phase A.5: Natural Language UI ✅ COMPLETE (March 21, 2026)
+4. **MessageCard — clean natural language cards** — ✅ No classification chrome, gopher icons, intent icons (respond/read/write/schedule), entity highlighting, tappable to source
+5. **Gmail bidirectional integration** — ✅ Auto-resolve on CEO reply, Actions API (Reply/Draft/Archive/Star), thread status chips, brain-generated draft replies
+6. **Note-taking feature** — ✅ Write button → NotePanel, save to knowledge with embeddings, feed card emission, drafts support
+7. **Sidebar + feed refresh** — ✅ Redesigned per Figma 94:4010, accurate refresh timer
+
+### Phase B: Intent Suggestion UI (Next)
+8. **Card action pivot** — Replace Do/Hold/No with Read/Respond/Write/Schedule intent buttons
+9. **Card layout update** — Redesign card actions to present intent suggestions prominently
+10. **Feed PATCH handler update** — Record intent selections as training data
 
 ### Phase C: Continuous Improvement
-7. **Intent accuracy tracking** — Measure how often CEO follows the suggested intent
-8. **Intent refinement** — As accuracy improves, allow more specific sub-intents
-9. **Gradual autonomy** — Proven intents execute automatically (e.g., auto-scheduling obvious meeting requests)
+11. **Intent accuracy tracking** — Measure how often CEO follows the suggested intent
+12. **Intent refinement** — As accuracy improves, allow more specific sub-intents
+13. **Gradual autonomy** — Proven intents execute automatically (e.g., auto-scheduling obvious meeting requests)
 
 ---
 

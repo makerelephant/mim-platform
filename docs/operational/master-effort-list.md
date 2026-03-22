@@ -1,7 +1,7 @@
 # Master Effort List
 > **Author:** Mark Slater, Co-founder & CEO — Made in Motion PBC
 > **Status:** Active strategic document.
-> **Last updated:** 2026-03-18
+> **Last updated:** 2026-03-21
 
 ---
 
@@ -121,13 +121,13 @@
 
 ## Active Efforts (Foundation Excellence — Current Priority)
 
-63. **Full-Body Comprehension Pipeline** — 🔴 IN PROGRESS. Classifier currently reads only first 3,000 chars of any document. Must read, classify, and understand the ENTIRETY of every document. Chunked multi-pass analysis with Claude. 50-page financial models must be understood end-to-end. All-or-nothing: partial comprehension = zero value.
+63. **Full-Body Comprehension Pipeline** — ✅ COMPLETE. Gmail scanner now reads full email body content (increased from 3K to 8K chars). Web intelligence scanner content window expanded from 2K to 8K chars. Classifier receives complete document context for accurate categorization.
 
-64. **Bulletproof Recall** — 🔴 IN PROGRESS. Guarantee that anything submitted in the last 7 days is instantly recallable. Lower vector search thresholds, increase result count, add keyword fallbacks, preload recent knowledge at session start. The brain must NEVER say "I don't have that" about something the user gave it. Canvas auto-embedding (effort 65) is the first piece.
+64. **Bulletproof Recall** — ✅ COMPLETE. 7-day guaranteed recall window with relevance ranking (title match +3, summary +2, recency bonus +5/+2). Vector search thresholds lowered (0.3→0.18). Result counts expanded (8→15 knowledge, 8→12 correspondence). Keyword search broadened to title+summary+tags. Feed card search added (last 7 days, keyword match on title+body). The brain recalls anything submitted within the last week.
 
 65. **Canvas Auto-Embedding & Multi-Turn Context** — ✅ COMPLETE. Every substantive Canvas message (50+ chars) auto-embeds into `brain.knowledge_base` + `brain.knowledge_chunks` with OpenAI embeddings. Brain Q&A exchanges also embedded as institutional memory. Multi-turn conversation history loaded into Claude API calls. Cross-session message retrieval (last 24h). Recent document window expanded from 2h → 24h.
 
-66. **Entity Resolution Depth** — 🟡 PLANNED. Full-document entity extraction (not just first 3K chars). Fuzzy matching against existing contacts/orgs. Alias resolution tables. Relationship inference. Probability-based linking acceptable — no linking is not.
+66. **Entity Resolution Depth** — ✅ COMPLETE. Fuzzy matching via Levenshtein distance (~20% edit distance threshold). First/last name partial matching (4+ char names). Email address and prefix matching. Domain matching. Acronym detection. Entity fetch limits raised (200→500). Rich dossiers: org contacts, pipeline notes, correspondence history, contact org relationships, feed card activity.
 
 67. **CEO Action Decision Logging** — ✅ COMPLETE. Every Do/No/Hold action on feed cards now logs to `brain.decision_log` (not just corrections). Every CEO interaction is training data.
 
@@ -135,44 +135,60 @@
 
 ---
 
+## UI Pivot: Natural Language Cards & Gmail Integration (March 21, 2026)
+
+69. **MessageCard — Natural Language Feed Cards** — ✅ COMPLETE. New `MessageCard.tsx` component replaces FeedCard for email/Slack source cards. No classification chrome (badges, chips, priority borders). Clean natural language body text. 17 deterministic gopher icons (hashed from card ID). 4 intent icons: bell=respond, glasses=read, feather=write, alarm-clock=schedule. Entity highlighting in blue (`#289bff`) with contact tap handler. Entire card tappable to source. Trash button only. Route logic: `isMessageCard()` checks source_type for email/gmail/slack.
+
+70. **Gmail Auto-Resolve on CEO Reply** — ✅ COMPLETE. Gmail scanner detects outbound CEO replies in threads. If an active feed card exists for that thread, auto-marks it as acted, logs to decision_log, records outbound correspondence, and logs "ceo_replied" activity. Skips normal classification for reply messages.
+
+71. **Gmail Actions API** — ✅ COMPLETE. `/api/gmail/actions` route. GET: Thread status polling (replied/forwarded/drafted/starred/archived/unactioned). POST: Execute Reply (threaded with In-Reply-To/References headers), Draft (brain-generated contextual reply via Claude), Archive (remove INBOX label), Star (toggle STARRED). Every action creates a status. Shared Gmail auth utilities in `src/lib/gmail-client.ts`.
+
+72. **Card Action Buttons & Thread Status** — ✅ COMPLETE. MessageCard shows Reply/Draft/Archive/Star buttons when thread_id exists and card is not terminal. Thread status chips with color coding (Replied=green, Drafted=blue, Forwarded=purple, Starred=amber, Archived=gray). Inline reply compose panel with textarea + Send/Cancel. Brain draft preview after Draft action.
+
+73. **Sidebar Redesign** — ✅ COMPLETE. Per Figma 94:4010. "Every Step Together." tagline at top (18px bold, #e9e9e9). Icons moved left of labels (was label-left/icon-right). Font bumped to 14px (was 12px), letter-spacing -0.28px. Mark's avatar (30px rounded) + "Account Settings" (14px, #3e4c60). MiMbrain + Release at bottom.
+
+74. **Note-Taking Feature** — ✅ COMPLETE. "Write" button in action bar opens NotePanel on right side of screen with dark overlay on feed. Title input + rich text area + bold/italic/list formatting toolbar. "All Notes" / "Drafts" tab badges with counts. Existing note previews. Save to Knowledge (generates OpenAI embedding, emits signal feed card), Save Draft, Delete actions. `/api/notes` route (GET/POST/DELETE). Notes stored in `brain.knowledge_chunks` as `ceo_note` or `ceo_note_draft` source types.
+
+75. **Feed Refresh Button** — ✅ COMPLETE. Rotating refresh icon triggers feed data reload. Accurate "updated X ago" timer.
+
+---
+
 ## Next: Intent Suggestion UI (After Foundation)
 
-69. **Card Action Pivot — Read/Respond/Write/Schedule** — 🟡 PLANNED. Replace Do/Hold/No action buttons with intent suggestion verbs. Additive change: backend classification (Acumen categories, P0-P3 priority) continues unchanged. Intent suggestions are the user-facing layer. Card layout update, feed PATCH handler update, intent accuracy tracking.
+76. **Card Action Pivot — Read/Respond/Write/Schedule** — 🟡 PLANNED. Replace Do/Hold/No action buttons with intent suggestion verbs. Additive change: backend classification (Acumen categories, P0-P3 priority) continues unchanged. Intent suggestions are the user-facing layer. Card layout update, feed PATCH handler update, intent accuracy tracking.
 
 ---
 
 ## Medium-Term Efforts
 
-70. **MCP Server Deployment** — Deploy the 28-tool MCP server to a host. Enable CEO to query the brain from Claude Desktop or any MCP client. Test all tools against production Supabase.
+77. **MCP Server Deployment** — Deploy the 28-tool MCP server to a host. Enable CEO to query the brain from Claude Desktop or any MCP client. Test all tools against production Supabase.
 
-71. **The MiMGina Notepad** — Mobile-first (iPhone) note capture. Minimal formatting, image/file attachment, voice dictation. Submits to In Motion with confidentiality rank, harness/category assignment, due date.
+78. **Teams** — Add a second user acting independently on the same brain. Prerequisite to any scaling. Not multi-tenant — shared brain, separate views.
 
-72. **Teams** — Add a second user acting independently on the same brain. Prerequisite to any scaling. Not multi-tenant — shared brain, separate views.
-
-73. **Long-Form Content & Research Publishing** — Brain-generated research papers, weekly industry newsletters, daily content bites.
+79. **Long-Form Content & Research Publishing** — Brain-generated research papers, weekly industry newsletters, daily content bites.
 
 ---
 
 ## Longer-Term Efforts
 
-74. **Harness Operating Model** — Structured MD behavioral contracts defining departments, processes, decision trees, Gopher logic. Needs its own discovery/scoping session.
+80. **Harness Operating Model** — Structured MD behavioral contracts defining departments, processes, decision trees, Gopher logic. Needs its own discovery/scoping session.
 
-75. **Autonomous Enrichment** — Self-directed Gopher activation where the brain identifies entities with low knowledge completeness and triggers enrichment without being asked.
+81. **Autonomous Enrichment** — Self-directed Gopher activation where the brain identifies entities with low knowledge completeness and triggers enrichment without being asked.
 
-76. **Asset/OCR Performance Intelligence** — Closed-loop system: capture product creation design decisions → correlate with performance data → derive actionable product insights.
+82. **Asset/OCR Performance Intelligence** — Closed-loop system: capture product creation design decisions → correlate with performance data → derive actionable product insights.
 
-77. **Model Abstraction Layer** — Abstract the LLM interface so Claude can be swapped for local models on high-volume structured tasks. Configuration not code changes.
+83. **Model Abstraction Layer** — Abstract the LLM interface so Claude can be swapped for local models on high-volume structured tasks. Configuration not code changes.
 
-78. **Multi-User / Auth** — Full login system, role-based access, team member permissions.
+84. **Multi-User / Auth** — Full login system, role-based access, team member permissions.
 
-79. **Calendaring Tools** — TBD, to be unpacked.
+85. **Calendaring Tools** — TBD, to be unpacked.
 
-80. **Game Event & Scheduling Tools** — TBD, to be unpacked.
+86. **Game Event & Scheduling Tools** — TBD, to be unpacked.
 
-81. **Team Chatting Tools** — TBD, to be unpacked.
+87. **Team Chatting Tools** — TBD, to be unpacked.
 
-82. **Person Feed Protocol** — AI-native identity standard (Phase 3). Design constraint only — don't build, don't block.
+88. **Person Feed Protocol** — AI-native identity standard (Phase 3). Design constraint only — don't build, don't block.
 
 ---
 
-*Last updated: 2026-03-20 (v8) — Strategic pivot decision (correctness → intent suggestions). Foundation excellence efforts (63-68). Canvas auto-embedding, multi-turn context, CEO action logging, learning pipeline embeddings complete. Full-body comprehension and bulletproof recall in progress.*
+*Last updated: 2026-03-21 (v9) — Foundation excellence COMPLETE (efforts 63-68). New MessageCard UI with natural language cards, gopher icons, intent icons, entity highlighting. Gmail bidirectional integration (auto-resolve on reply, actions API for Reply/Draft/Archive/Star, thread status chips). Sidebar redesign per Figma. Note-taking feature with knowledge embedding. Feed refresh button. 75 efforts total, 74 complete.*

@@ -84,6 +84,11 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: `Unknown action: ${action}` }, { status: 400 });
     }
 
+    // If the handler returned an error, surface it properly
+    if (result.error) {
+      return NextResponse.json({ success: false, action, error: result.error }, { status: 400 });
+    }
+
     return NextResponse.json({ success: true, action, ...result });
   } catch (err) {
     console.error("Gmail action error:", err);

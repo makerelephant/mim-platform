@@ -31,10 +31,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <Sidebar />
         </Suspense>
       )}
+      {/* ⚠️  CRITICAL: The sidebar is position:fixed. The padding-left on <main>
+           pushes page content clear of it. The backgroundColor MUST be set here
+           on <main> so the padded zone matches the page background — otherwise
+           a visible empty column appears behind the semi-transparent sidebar.
+           DO NOT REMOVE the backgroundColor or the padding-left. */}
       <main
         className={`relative h-full w-full overflow-y-auto ${
           showSidebar ? "pl-[60px] lg:pl-[250px]" : ""
         }`}
+        style={showSidebar ? { backgroundColor: "#f6f5f5" } : undefined}
       >
         {children}
       </main>

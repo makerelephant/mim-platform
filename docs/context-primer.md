@@ -1,7 +1,7 @@
 # MiMBrain — Context Primer Prompt
 > **Author:** Mark Slater, Co-founder & CEO — Made in Motion PBC
 > **Status:** Active strategic document.
-> **Last updated:** 2026-03-18
+> **Last updated:** 2026-03-21
 
 ---
 
@@ -13,38 +13,42 @@ You are being onboarded to the current state of MiMBrain — an autonomous busin
 
 **Three surfaces — all live in production at `mim-platform.vercel.app`:**
 
-- **Your Motion** (`/`) — Scrollable feed of interactive cards. The CEO's operational inbox. Filter pills: All, Decisions, Actions, Signals, Intel, Briefings, Old. "Old" shows previously acted cards (`status=acted`). All other filters show active cards (`status=unread,read`). Actioned cards (Do/Hold/No) disappear immediately from the active feed.
-- **Your Clearing** (`/clearing`) — Persistent brain-assisted thinking space. Sessions and messages stored in DB. File ingestion, brain Q&A, Launch a Gopher agents. NOT a creation tool.
-- **Engine Room** (`/engine`) — Motion Map (harness classifier markdown), Brain Accuracy, Autonomy progress, Integrations status, Platform Health.
+- **Your Motion** (`/`) — Scrollable feed of interactive cards. The CEO's operational inbox. Two card types: MessageCard (email/Slack sources — clean natural language with gopher icons, intent icons, entity highlighting, Gmail action buttons) and FeedCard (briefings/snapshots/reflections). Filter pills: All, Decisions, Actions, Signals, Intel, Briefings, Old. Action bar with Write/Plan/Add buttons. Note-taking panel accessible via Write button.
+- **Your Canvas** (`/clearing`) — Persistent brain-assisted thinking space. Sessions and messages stored in DB. File ingestion, brain Q&A, Launch a Gopher agents. NOT a creation tool.
+- **Engine Room** (`/engine`) — Motion Map (harness classifier markdown), Brain Accuracy, Autonomy progress, Integrations status, Platform Health, Gophers tab.
 
 **Backend infrastructure — all built and operational:**
 
-- Gmail scanner classifying live email into 11 Acumen categories, emitting feed cards with full email context (from/to/subject), thread consolidation
+- Gmail Gopher classifying live email into 11 Acumen categories, full-body comprehension (8K chars), thread consolidation, auto-resolve on CEO reply
+- Gmail Actions API — Reply, Draft (brain-generated), Archive, Star — executable from the feed, with thread status detection
+- Slack Gopher — same Acumen classifier, noise filter, action extraction
 - Decision logging, correction learning pipeline (`/api/brain/learn`)
-- Daily briefing cron (7am EST), Gmail scanner cron (6am EST)
+- Daily briefing cron (7am EST), Gmail Gopher cron (6am EST)
 - Autonomy engine — categories earn self-governance at 20+ reviews / 90%+ accuracy
 - Snapshotting engine — natural language → data query → card in feed
 - Bulk email import at `/engine/import`
-- Embedding/RAG pipeline — code and tables exist (`brain.knowledge_chunks`) but NOT active
+- Embedding/RAG pipeline — `brain.knowledge_chunks` with pgvector, OpenAI text-embedding-3-small, semantic search ACTIVE
+- Bulletproof recall — 7-day guaranteed window, lowered vector thresholds, expanded result nets, keyword fallbacks
+- Entity resolution — fuzzy Levenshtein matching, alias resolution, first/last name partials, rich dossiers
+- Note-taking — `/api/notes` with knowledge embedding, feed card emission, draft support
+- Web Intelligence Gopher — configurable source monitoring, daily cron
 
 ---
 
 ## === WHAT IS NOT WORKING YET ===
 
-- **No semantic memory** — The RAG pipeline requires an `OPENAI_API_KEY` in Vercel env vars. Without it, brain uses keyword search only. Semantic retrieval ("What do we know about Adidas?") misses anything without the literal word. This is a pending CEO decision.
-- **No training volume** — Autonomy requires 20+ reviewed cards per category at 90%+ accuracy. Currently near zero reviews. Infrastructure built, needs consistent daily use to accumulate signal.
-- **No derived intelligence** — Entity profiles are name + email only. No enrichment, no pattern recognition from accumulated interactions.
-- **Only one data source** — Gmail only. Slack, Calendar, Stripe, documents architecturally supported but not connected.
+- **Training volume needed** — Autonomy requires 20+ reviewed cards per category at 90%+ accuracy. Infrastructure built, needs consistent daily use to accumulate signal.
+- **MCP Server not deployed** — 28 tools built, not yet on a host for external access.
+- **Intent suggestion UI not yet shipped** — Cards still show Do/Hold/No alongside the new natural language layout. Read/Respond/Write/Schedule intent buttons are next.
 
 ---
 
 ## === WHAT THIS MEANS ===
 
-The system can operate. It ingests, classifies, surfaces, and learns from corrections. But it cannot yet think reliably or autonomously. It has no semantic memory and no training history. The brain is structurally complete but experientially empty.
+The system operates end-to-end. It ingests, classifies, surfaces, learns, recalls, and can execute Gmail actions. Semantic memory is active. Entity resolution is fuzzy-matching. The brain is structurally complete and experientially growing.
 
-**The two things that unlock progress:**
-1. A decision on embeddings (OpenAI key, Voyage AI, or consciously skip)
-2. Consistent daily CEO review of feed cards to accumulate accuracy data
+**The one thing that unlocks the next phase:**
+1. Consistent daily CEO review of feed cards to accumulate training data for autonomy
 
 Do not assume intelligence exists where it has not been proven.
 
@@ -90,7 +94,7 @@ Before touching code:
 | Backend | Supabase (Postgres, schemas: core / crm / intel / platform / brain) |
 | Deployment | Vercel — `npx vercel --prod --yes` from project root |
 | AI — reasoning | Claude API (classification, synthesis, chat) |
-| AI — embeddings | OpenAI text-embedding-3-small (code built, key not yet in Vercel) |
+| AI — embeddings | OpenAI text-embedding-3-small (active, `OPENAI_API_KEY` set in Vercel) |
 | MCP Server | 28 tools across 9 domains — built, not yet deployed to host |
 
 ---
@@ -99,14 +103,20 @@ Before touching code:
 
 | File | Purpose |
 |------|---------|
-| `src/app/page.tsx` | Your Motion feed page — filter pills, scan trigger, card rendering |
-| `src/components/FeedCard.tsx` | All card types, badge styles, Do/Hold/No/Noted/Dismiss actions, Train modal |
+| `src/app/page.tsx` | Your Motion feed page — filter pills, action bar, card routing (MessageCard vs FeedCard), note panel |
+| `src/components/MessageCard.tsx` | Natural language cards for email/Slack — gopher icons, intent icons, entity highlighting, Gmail actions |
+| `src/components/FeedCard.tsx` | Briefing/snapshot/reflection cards — badge styles, Do/Hold/No actions, Train modal |
 | `src/app/clearing/page.tsx` | Your Clearing — sessions, messages, gopher launcher, file ingestion |
 | `src/app/engine/page.tsx` | Engine Room — Motion Map, accuracy, autonomy, integrations, health |
 | `src/lib/gmail-scanner.ts` | Gmail scanner — Acumen classification, entity resolution, feed card emission |
 | `src/lib/feed-card-emitter.ts` | Shared card emission + thread consolidation |
-| `src/lib/embeddings.ts` | OpenAI embedding client — built but inactive |
+| `src/components/NotePanel.tsx` | Note-taking panel — title, editor, save to knowledge/draft, existing notes list |
+| `src/lib/gmail-client.ts` | Shared Gmail auth utilities — OAuth2, thread status, email builder |
+| `src/lib/gmail-scanner.ts` | Gmail Gopher — Acumen classification, auto-resolve on CEO reply |
+| `src/lib/embeddings.ts` | OpenAI embedding client — ACTIVE |
 | `src/app/api/feed/route.ts` | Feed GET (paginated, filtered) + PATCH (CEO actions, auto-fires learning) |
+| `src/app/api/gmail/actions/route.ts` | Gmail actions — Reply, Draft, Archive, Star + thread status polling |
+| `src/app/api/notes/route.ts` | Notes CRUD — create, list, delete, embed to knowledge |
 | `src/app/api/brain/` | ask, snapshot, learn, accuracy, autonomy, harness, ingest endpoints |
 | `brain/departments/` | 11 domain expertise markdown docs (harness) |
 | `brain/pipelines/email-classification/` | 11 email classifier rule markdown docs |

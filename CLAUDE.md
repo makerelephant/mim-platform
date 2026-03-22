@@ -1,7 +1,7 @@
 # CLAUDE.md — Read This First
 > **Author:** Mark Slater, Co-founder & CEO — Made in Motion PBC
 > **Status:** Active session instructions. Must be read before any work begins.
-> **Last updated:** 2026-03-20
+> **Last updated:** 2026-03-21
 
 ---
 
@@ -81,24 +81,28 @@ There is also a **Me page** (`/me`) showing brain accuracy stats, manual scan tr
 
 The platform is pivoting from **zero-tolerance correctness** (Do/Hold/No) to **contextual intent suggestions** (Read/Respond/Write/Schedule). The backend intelligence (Acumen categories, embeddings, classification log, behavioral rules, autonomy engine) continues unchanged — the shift is in how suggestions are presented to the CEO.
 
-**Before building the intent suggestion UI, the foundation must be bulletproof:**
-1. Full-body comprehension (read entire documents, not just first 3K chars) — 🔴 IN PROGRESS
-2. Bulletproof recall (anything submitted in last 7 days instantly recallable) — 🔴 IN PROGRESS
-3. Entity resolution depth (fuzzy matching, alias resolution, relationship inference) — 🟡 PLANNED
-4. Intent suggestion UI (Read/Respond/Write/Schedule) — 🟡 AFTER FOUNDATION
+**Foundation excellence is COMPLETE (March 21, 2026):**
+1. Full-body comprehension (8K char windows, full email bodies) — ✅ COMPLETE
+2. Bulletproof recall (7-day guaranteed window, lowered thresholds, expanded results) — ✅ COMPLETE
+3. Entity resolution depth (fuzzy Levenshtein matching, alias resolution, rich dossiers) — ✅ COMPLETE
+4. Natural language card UI (MessageCard, gopher icons, intent icons, entity highlighting) — ✅ COMPLETE
+5. Gmail bidirectional integration (auto-resolve, Reply/Draft/Archive/Star actions) — ✅ COMPLETE
+6. Note-taking feature (knowledge embedding, drafts, feed card emission) — ✅ COMPLETE
+7. Intent suggestion UI (Read/Respond/Write/Schedule formal pivot) — 🟡 NEXT
 
 **Key principle:** The death of this product is when data is submitted and it cannot be recalled, or is incomplete in its recollection. All or nothing — partial comprehension has zero value.
 
 ---
 
-## Current State (March 20, 2026)
+## Current State (March 21, 2026)
 
 ### What Is Built and Working
 
-- **Gmail Gopher** — Classifying live email with 11 Acumen categories, emitting feed cards with full email metadata (from/to/subject), thread consolidation, deduplication via `source_ref`
+- **Gmail Gopher** — Classifying live email with 11 Acumen categories, full-body comprehension (8K chars), thread consolidation, deduplication via `source_ref`, auto-resolve on CEO reply detection
+- **Gmail Actions API** — `/api/gmail/actions` for Reply (threaded with headers), Draft (brain-generated via Claude), Archive, Star. Thread status polling (replied/forwarded/drafted/starred/archived). Every action creates a status.
 - **Slack Gopher** — Scanning Slack with the same Acumen classifier, assistant prefill for reliable JSON output, noise filter (P3/S3 cards suppressed), action extraction rules
-- **Feed cards** (`brain.feed_cards`) — 7 card types, priority-based styling, Do/Hold/No/Noted/Dismiss actions (transitioning to Read/Respond/Write/Schedule), More About This expansion, action recommendations, training mode framing, Train button on all cards
-- **Your Motion** — Feed-first architecture complete at `/`. Filter pills (All, Decisions, Actions, Signals, Intel, Briefings, Old). Actioned cards disappear immediately from active view.
+- **Feed cards** (`brain.feed_cards`) — Two card components: MessageCard (email/Slack — natural language, gopher icons, intent icons, entity highlighting, Gmail action buttons, thread status chips) and FeedCard (briefings/snapshots/reflections — badge styles, Do/Hold/No actions, Train modal)
+- **Your Motion** — Feed-first architecture complete at `/`. Filter pills. Action bar with Write/Plan/Add buttons. Note-taking panel. Refresh button with accurate timer. Actioned cards disappear immediately from active view.
 - **Your Canvas** — Persistent sessions/messages at `/clearing`. Brain Q&A with multi-turn conversation history. File ingestion via drag-and-drop (pdf-parse, Claude Vision, Supabase Storage). Auto-embedding of all substantive messages into permanent knowledge base. Cross-session memory retrieval.
 - **Engine Room** — Motion Map (harness classifier MDs), Brain Accuracy (per-category stats), Autonomy progress, Integrations status, Platform Health, Signal Quality metrics
 - **Decision logging** — `brain.classification_log` records every classification. Every CEO action (Do/No/Hold) logged to `brain.decision_log` as training data.
@@ -115,12 +119,14 @@ The platform is pivoting from **zero-tolerance correctness** (Do/Hold/No) to **c
 - **Embedding/RAG pipeline** — `brain.knowledge_chunks` table with pgvector. `search_knowledge` and `search_correspondence` RPC functions. OpenAI `text-embedding-3-small` embeddings generating on ingestion. Semantic search active. Canvas messages auto-embedded.
 - **Document ingestion** — pdf-parse (text PDFs), Claude Vision fallback (image-based PDFs < 5MB), direct Supabase Storage signed upload (files > 4MB), XLSX/PPTX/DOCX/TXT/CSV support
 
-### Active Gaps (Foundation Excellence)
+- **Note-taking** — Write button → NotePanel. Title + rich text editor with formatting toolbar. Save to Knowledge (generates OpenAI embedding, emits signal feed card) or Save Draft. `/api/notes` CRUD. Notes stored in `brain.knowledge_chunks` as `ceo_note`/`ceo_note_draft`.
 
-- **Full-body comprehension** — Classifier reads only first 3,000 chars of documents. Must process entire content. This is the #1 priority.
-- **Recall reliability** — Vector search can miss recent submissions. Must guarantee recall of anything from last 7 days.
-- **Entity resolution depth** — Contacts are name + email only. No fuzzy matching, no alias resolution, no relationship inference.
+### Active Gaps
+
+- **Intent suggestion UI** — Cards still show Do/Hold/No alongside natural language layout. Formal Read/Respond/Write/Schedule intent buttons are the next major effort.
+- **Training volume** — Autonomy requires 20+ reviews per category at 90%+ accuracy. Needs consistent daily CEO review cadence.
 - **MCP Server deployment** — 28 tools built, not yet deployed to a host.
+- **Thread status polling** — Currently status shows only after an action or on card metadata. Could add periodic polling to detect Gmail actions taken outside the platform.
 
 ---
 
@@ -136,6 +142,7 @@ The platform is pivoting from **zero-tolerance correctness** (Do/Hold/No) to **c
 - **Use "In Motion"** as the platform name (not MiMBrain)
 - **Use "Gopher"** for automated workers (not Scanner)
 - **Use "Canvas"** as the UI label for the `/clearing` route
+- **Never remove `backgroundColor: "#f6f5f5"` from `<main>` in AppShell.tsx** — The sidebar is `position: fixed`. The `padding-left` on `<main>` clears content past the sidebar, but without a background color on `<main>`, an empty column is visible behind the semi-transparent sidebar. This has been a recurring bug. The background MUST stay on `<main>`.
 - **All document headers** must follow the standard format:
   ```
   # Document Title
