@@ -13,14 +13,14 @@ You are being onboarded to the current state of MiMBrain — an autonomous busin
 
 **Three surfaces — all live in production at `mim-platform.vercel.app`:**
 
-- **Your Motion** (`/`) — Scrollable feed of interactive cards. The CEO's operational inbox. Two card types: MessageCard (email/Slack sources — clean natural language with gopher icons, intent icons, entity highlighting, Gmail action buttons) and FeedCard (briefings/snapshots/reflections). Filter pills: All, Decisions, Actions, Signals, Intel, Briefings, Old. Action bar with Write/Plan/Add buttons. Note-taking panel accessible via Write button.
+- **Your Motion** (`/`) — Scrollable feed of interactive cards. The CEO's operational inbox. Two card types: MessageCard (email/Slack sources — clean natural language with gopher icons, intent icons, entity highlighting, Figma-accurate thread status chips) and FeedCard (briefings/snapshots/reflections). Filter pills: All, Decisions, Actions, Signals, Intel, Briefings, Old. Action bar with Write/Plan/Add buttons. Note-taking panel accessible via Write button.
 - **Your Canvas** (`/clearing`) — Persistent brain-assisted thinking space. Sessions and messages stored in DB. File ingestion, brain Q&A, Launch a Gopher agents. NOT a creation tool.
 - **Engine Room** (`/engine`) — Motion Map (harness classifier markdown), Brain Accuracy, Autonomy progress, Integrations status, Platform Health, Gophers tab.
 
 **Backend infrastructure — all built and operational:**
 
 - Gmail Gopher classifying live email into 11 Acumen categories, full-body comprehension (8K chars), thread consolidation, auto-resolve on CEO reply
-- Gmail Actions API — Reply, Draft (brain-generated), Archive, Star — executable from the feed, with thread status detection
+- Gmail Actions API — Reply, Draft (brain-generated), Archive, Star — with thread status detection reflected as Figma-accurate chips (Replied/Forwarded/Archived/Draft/Starred)
 - Slack Gopher — same Acumen classifier, noise filter, action extraction
 - Decision logging, correction learning pipeline (`/api/brain/learn`)
 - Daily briefing cron (7am EST), Gmail Gopher cron (6am EST)
@@ -37,9 +37,10 @@ You are being onboarded to the current state of MiMBrain — an autonomous busin
 
 ## === WHAT IS NOT WORKING YET ===
 
-- **Training volume needed** — Autonomy requires 20+ reviewed cards per category at 90%+ accuracy. Infrastructure built, needs consistent daily use to accumulate signal.
+- **Training redesign needed** — Current training UX is confusing (three different concepts muddled: classifier correction on FeedCard, knowledge ingestion via notes, no training on MessageCard). Planned: implicit learning from every interaction — dismissals log as negative, tap-throughs log as positive, simple Yes/No feedback replaces category dropdowns.
 - **MCP Server not deployed** — 28 tools built, not yet on a host for external access.
 - **Intent suggestion UI not yet shipped** — Cards still show Do/Hold/No alongside the new natural language layout. Read/Respond/Write/Schedule intent buttons are next.
+- **Note-taking save flow** — Save button should save to feed AND knowledge simultaneously. Feed card tapping should reopen note in edit mode.
 
 ---
 
@@ -104,7 +105,7 @@ Before touching code:
 | File | Purpose |
 |------|---------|
 | `src/app/page.tsx` | Your Motion feed page — filter pills, action bar, card routing (MessageCard vs FeedCard), note panel |
-| `src/components/MessageCard.tsx` | Natural language cards for email/Slack — gopher icons, intent icons, entity highlighting, Gmail actions |
+| `src/components/MessageCard.tsx` | Natural language cards for email/Slack — gopher icons, intent icons, entity highlighting, thread status chips |
 | `src/components/FeedCard.tsx` | Briefing/snapshot/reflection cards — badge styles, Do/Hold/No actions, Train modal |
 | `src/app/clearing/page.tsx` | Your Clearing — sessions, messages, gopher launcher, file ingestion |
 | `src/app/engine/page.tsx` | Engine Room — Motion Map, accuracy, autonomy, integrations, health |

@@ -201,11 +201,7 @@ export default function MotionFeedPage() {
     <div
       className="min-h-full"
       style={{
-        backgroundColor: "#f6f5f5",
-        backgroundImage: "url('/icons/background.png')",
-        backgroundSize: "cover",
-        backgroundPosition: "center",
-        backgroundRepeat: "no-repeat",
+        minHeight: "100%",
       }}
     >
       {/* ── Feed container — left-aligned to leave room for side panels (contacts, notes) ── */}

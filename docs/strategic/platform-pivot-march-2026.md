@@ -72,14 +72,15 @@ The implementation sequence:
 
 ### Phase A.5: Natural Language UI ✅ COMPLETE (March 21, 2026)
 4. **MessageCard — clean natural language cards** — ✅ No classification chrome, gopher icons, intent icons (respond/read/write/schedule), entity highlighting, tappable to source
-5. **Gmail bidirectional integration** — ✅ Auto-resolve on CEO reply, Actions API (Reply/Draft/Archive/Star), thread status chips, brain-generated draft replies
-6. **Note-taking feature** — ✅ Write button → NotePanel, save to knowledge with embeddings, feed card emission, drafts support
+5. **Gmail bidirectional integration** — ✅ Auto-resolve on CEO reply, Actions API (Reply/Draft/Archive/Star), Figma-accurate thread status chips (Replied/Forwarded/Archived/Draft/Starred with icons + semantic colors), brain-generated draft replies
+6. **Note-taking feature** — ✅ Write button → NotePanel, save to knowledge with embeddings, feed card emission
 7. **Sidebar + feed refresh** — ✅ Redesigned per Figma 94:4010, accurate refresh timer
 
-### Phase B: Intent Suggestion UI (Next)
-8. **Card action pivot** — Replace Do/Hold/No with Read/Respond/Write/Schedule intent buttons
-9. **Card layout update** — Redesign card actions to present intent suggestions prominently
-10. **Feed PATCH handler update** — Record intent selections as training data
+### Phase B: Training Redesign + Intent Suggestion UI (Next)
+8. **Implicit training from every interaction** — Dismissals → negative signal, tap-throughs → positive signal, simple Yes/No replaces category dropdowns
+9. **Card action pivot** — Replace Do/Hold/No with Read/Respond/Write/Schedule intent buttons
+10. **Card layout update** — Redesign card actions to present intent suggestions prominently
+11. **Feed PATCH handler update** — Record intent selections as training data
 
 ### Phase C: Continuous Improvement
 11. **Intent accuracy tracking** — Measure how often CEO follows the suggested intent

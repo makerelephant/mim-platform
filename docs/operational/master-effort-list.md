@@ -143,7 +143,7 @@
 
 71. **Gmail Actions API** — ✅ COMPLETE. `/api/gmail/actions` route. GET: Thread status polling (replied/forwarded/drafted/starred/archived/unactioned). POST: Execute Reply (threaded with In-Reply-To/References headers), Draft (brain-generated contextual reply via Claude), Archive (remove INBOX label), Star (toggle STARRED). Every action creates a status. Shared Gmail auth utilities in `src/lib/gmail-client.ts`.
 
-72. **Card Action Buttons & Thread Status** — ✅ COMPLETE. MessageCard shows Reply/Draft/Archive/Star buttons when thread_id exists and card is not terminal. Thread status chips with color coding (Replied=green, Drafted=blue, Forwarded=purple, Starred=amber, Archived=gray). Inline reply compose panel with textarea + Send/Cancel. Brain draft preview after Draft action.
+72. **Thread Status Chips (Figma Pixel-Perfect)** — ✅ COMPLETE. Per Figma 97:985/105:3194. Status chips with 12px icons + labels, `rounded-[6px]`, `pl-[6px] pr-[8px] py-[2px]`, SF Pro Display Medium 12px. Five states: Replied (↩ icon, `#289bff` text, `#ecfaff` bg), Forwarded (→ icon, `#5ad1b3` text, `#e3fff5` bg), Archived (📋 icon, `#3e4c60` text, `#f3f3f3` bg), Draft (📝 icon, `#9c6ade` text, `#f9f3ff` bg), Starred (★ icon, `#7b7f81` text, transparent bg). Action buttons (Reply/Draft/Archive/Star) removed from card face — actions happen in Gmail, status reflected on card. Chip positioned right-side next to trash.
 
 73. **Sidebar Redesign** — ✅ COMPLETE. Per Figma 94:4010. "Every Step Together." tagline at top (18px bold, #e9e9e9). Icons moved left of labels (was label-left/icon-right). Font bumped to 14px (was 12px), letter-spacing -0.28px. Mark's avatar (30px rounded) + "Account Settings" (14px, #3e4c60). MiMbrain + Release at bottom.
 
@@ -151,44 +151,48 @@
 
 75. **Feed Refresh Button** — ✅ COMPLETE. Rotating refresh icon triggers feed data reload. Accurate "updated X ago" timer.
 
+76. **Background Consistency Fix** — ✅ COMPLETE. Background image (`background.png`) moved to AppShell `<main>` element so it covers the full viewport including sidebar padding area. Eliminates the recurring empty-column stripe behind the semi-transparent sidebar. Page-level backgrounds removed (duplicate).
+
 ---
 
-## Next: Intent Suggestion UI (After Foundation)
+## Next: Training Redesign & Intent Pivot
 
-76. **Card Action Pivot — Read/Respond/Write/Schedule** — 🟡 PLANNED. Replace Do/Hold/No action buttons with intent suggestion verbs. Additive change: backend classification (Acumen categories, P0-P3 priority) continues unchanged. Intent suggestions are the user-facing layer. Card layout update, feed PATCH handler update, intent accuracy tracking.
+77. **Training Redesign — Implicit Learning from Every Interaction** — 🟡 PLANNED. Current training UX is confusing: FeedCard has a "Correct?" link opening a category/priority/card-type dropdown panel. MessageCard has no training at all. Notes "Add to Knowledge" is knowledge ingestion, not classifier training. These are three different concepts muddled together. Redesign: (a) Every card dismissal (trash) should log as negative signal ("not useful"). (b) Every card tap-through to source should log as positive signal ("useful"). (c) Explicit correction panel simplified to "Was this useful? Yes/No" with optional "What should the brain have done differently?" free text. Training happens passively from every interaction — no special buttons needed.
+
+78. **Card Action Pivot — Read/Respond/Write/Schedule** — 🟡 PLANNED. Replace Do/Hold/No action buttons with intent suggestion verbs. Additive change: backend classification (Acumen categories, P0-P3 priority) continues unchanged. Intent suggestions are the user-facing layer. Card layout update, feed PATCH handler update, intent accuracy tracking.
 
 ---
 
 ## Medium-Term Efforts
 
-77. **MCP Server Deployment** — Deploy the 28-tool MCP server to a host. Enable CEO to query the brain from Claude Desktop or any MCP client. Test all tools against production Supabase.
+79. **MCP Server Deployment** — Deploy the 28-tool MCP server to a host. Enable CEO to query the brain from Claude Desktop or any MCP client. Test all tools against production Supabase.
 
-78. **Teams** — Add a second user acting independently on the same brain. Prerequisite to any scaling. Not multi-tenant — shared brain, separate views.
+80. **Teams** — Add a second user acting independently on the same brain. Prerequisite to any scaling. Not multi-tenant — shared brain, separate views.
 
-79. **Long-Form Content & Research Publishing** — Brain-generated research papers, weekly industry newsletters, daily content bites.
+81. **Long-Form Content & Research Publishing** — Brain-generated research papers, weekly industry newsletters, daily content bites.
 
 ---
 
 ## Longer-Term Efforts
 
-80. **Harness Operating Model** — Structured MD behavioral contracts defining departments, processes, decision trees, Gopher logic. Needs its own discovery/scoping session.
+82. **Harness Operating Model** — Structured MD behavioral contracts defining departments, processes, decision trees, Gopher logic. Needs its own discovery/scoping session.
 
-81. **Autonomous Enrichment** — Self-directed Gopher activation where the brain identifies entities with low knowledge completeness and triggers enrichment without being asked.
+83. **Autonomous Enrichment** — Self-directed Gopher activation where the brain identifies entities with low knowledge completeness and triggers enrichment without being asked.
 
-82. **Asset/OCR Performance Intelligence** — Closed-loop system: capture product creation design decisions → correlate with performance data → derive actionable product insights.
+84. **Asset/OCR Performance Intelligence** — Closed-loop system: capture product creation design decisions → correlate with performance data → derive actionable product insights.
 
-83. **Model Abstraction Layer** — Abstract the LLM interface so Claude can be swapped for local models on high-volume structured tasks. Configuration not code changes.
+85. **Model Abstraction Layer** — Abstract the LLM interface so Claude can be swapped for local models on high-volume structured tasks. Configuration not code changes.
 
-84. **Multi-User / Auth** — Full login system, role-based access, team member permissions.
+86. **Multi-User / Auth** — Full login system, role-based access, team member permissions.
 
-85. **Calendaring Tools** — TBD, to be unpacked.
+87. **Calendaring Tools** — TBD, to be unpacked.
 
-86. **Game Event & Scheduling Tools** — TBD, to be unpacked.
+88. **Game Event & Scheduling Tools** — TBD, to be unpacked.
 
-87. **Team Chatting Tools** — TBD, to be unpacked.
+89. **Team Chatting Tools** — TBD, to be unpacked.
 
-88. **Person Feed Protocol** — AI-native identity standard (Phase 3). Design constraint only — don't build, don't block.
+90. **Person Feed Protocol** — AI-native identity standard (Phase 3). Design constraint only — don't build, don't block.
 
 ---
 
-*Last updated: 2026-03-21 (v9) — Foundation excellence COMPLETE (efforts 63-68). New MessageCard UI with natural language cards, gopher icons, intent icons, entity highlighting. Gmail bidirectional integration (auto-resolve on reply, actions API for Reply/Draft/Archive/Star, thread status chips). Sidebar redesign per Figma. Note-taking feature with knowledge embedding. Feed refresh button. 75 efforts total, 74 complete.*
+*Last updated: 2026-03-21 (v10) — Status chips pixel-perfect per Figma (Replied/Forwarded/Archived/Draft/Starred with icons + semantic colors). Gmail action buttons removed from card face (actions happen in Gmail, status reflected on card). Background consistency fix. Training redesign planned (implicit learning from every interaction). 76 efforts complete, 90 total.*

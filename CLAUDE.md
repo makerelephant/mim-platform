@@ -101,7 +101,7 @@ The platform is pivoting from **zero-tolerance correctness** (Do/Hold/No) to **c
 - **Gmail Gopher** — Classifying live email with 11 Acumen categories, full-body comprehension (8K chars), thread consolidation, deduplication via `source_ref`, auto-resolve on CEO reply detection
 - **Gmail Actions API** — `/api/gmail/actions` for Reply (threaded with headers), Draft (brain-generated via Claude), Archive, Star. Thread status polling (replied/forwarded/drafted/starred/archived). Every action creates a status.
 - **Slack Gopher** — Scanning Slack with the same Acumen classifier, assistant prefill for reliable JSON output, noise filter (P3/S3 cards suppressed), action extraction rules
-- **Feed cards** (`brain.feed_cards`) — Two card components: MessageCard (email/Slack — natural language, gopher icons, intent icons, entity highlighting, Gmail action buttons, thread status chips) and FeedCard (briefings/snapshots/reflections — badge styles, Do/Hold/No actions, Train modal)
+- **Feed cards** (`brain.feed_cards`) — Two card components: MessageCard (email/Slack — natural language, gopher icons, intent icons, entity highlighting, Figma-accurate thread status chips with icons) and FeedCard (briefings/snapshots/reflections — badge styles, Do/Hold/No actions, Train modal)
 - **Your Motion** — Feed-first architecture complete at `/`. Filter pills. Action bar with Write/Plan/Add buttons. Note-taking panel. Refresh button with accurate timer. Actioned cards disappear immediately from active view.
 - **Your Canvas** — Persistent sessions/messages at `/clearing`. Brain Q&A with multi-turn conversation history. File ingestion via drag-and-drop (pdf-parse, Claude Vision, Supabase Storage). Auto-embedding of all substantive messages into permanent knowledge base. Cross-session memory retrieval.
 - **Engine Room** — Motion Map (harness classifier MDs), Brain Accuracy (per-category stats), Autonomy progress, Integrations status, Platform Health, Signal Quality metrics
@@ -123,8 +123,8 @@ The platform is pivoting from **zero-tolerance correctness** (Do/Hold/No) to **c
 
 ### Active Gaps
 
+- **Training redesign** — Current training UX confuses three concepts: classifier correction (FeedCard "Correct?" dropdowns), knowledge ingestion (notes "Add to Knowledge"), and card feedback (MessageCard has no training at all). Needs simplification: implicit learning from every interaction (dismissals = negative signal, tap-throughs = positive signal), simple Yes/No replacing category dropdowns.
 - **Intent suggestion UI** — Cards still show Do/Hold/No alongside natural language layout. Formal Read/Respond/Write/Schedule intent buttons are the next major effort.
-- **Training volume** — Autonomy requires 20+ reviews per category at 90%+ accuracy. Needs consistent daily CEO review cadence.
 - **MCP Server deployment** — 28 tools built, not yet deployed to a host.
 - **Thread status polling** — Currently status shows only after an action or on card metadata. Could add periodic polling to detect Gmail actions taken outside the platform.
 

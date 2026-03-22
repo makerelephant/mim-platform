@@ -40,7 +40,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         className={`relative h-full w-full overflow-y-auto ${
           showSidebar ? "pl-[60px] lg:pl-[250px]" : ""
         }`}
-        style={showSidebar ? { backgroundColor: "#f6f5f5" } : undefined}
+        style={showSidebar ? {
+          backgroundColor: "#f6f5f5",
+          backgroundImage: "url('/icons/background.png')",
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+          backgroundRepeat: "no-repeat",
+        } : undefined}
       >
         {children}
       </main>
