@@ -1,11 +1,78 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import Anthropic from "@anthropic-ai/sdk";
 import { embedText } from "@/lib/embeddings";
 import { emitFeedCard } from "@/lib/feed-card-emitter";
 import { getBrainAskPrompt } from "@/lib/prompts";
 
 export const maxDuration = 120;
+
+/** Row shape from brain.search_knowledge / brain.search_knowledge_for_kb */
+type KnowledgeChunkRow = {
+  id: string;
+  kb_id: string;
+  chunk_index: number;
+  content: string | null;
+  token_count: number | null;
+  metadata: Record<string, unknown> | null;
+  similarity?: number;
+};
+
+function chunkDedupeKey(row: { kb_id: string; chunk_index: number }): string {
+  return `${row.kb_id}:${row.chunk_index}`;
+}
+
+async function searchKnowledgeForKb(
+  sb: SupabaseClient,
+  kbId: string,
+  embeddingStr: string,
+  matchCount: number,
+  matchThreshold: number,
+): Promise<KnowledgeChunkRow[]> {
+  const { data, error } = await sb.schema("brain").rpc("search_knowledge_for_kb", {
+    target_kb_id: kbId,
+    query_embedding: embeddingStr,
+    match_count: matchCount,
+    match_threshold: matchThreshold,
+  });
+  if (error) {
+    console.warn("[brain/ask] search_knowledge_for_kb failed:", error.message);
+    return [];
+  }
+  return (data as KnowledgeChunkRow[]) ?? [];
+}
+
+function appendKnowledgeChunksToContext(
+  contextParts: string[],
+  sourceNotes: string[],
+  title: string,
+  rows: KnowledgeChunkRow[],
+  filledVectorChunkKeys: Set<string>,
+  sectionHeader: string,
+) {
+  const fresh: KnowledgeChunkRow[] = [];
+  for (const r of rows) {
+    const k = chunkDedupeKey(r);
+    if (filledVectorChunkKeys.has(k)) continue;
+    filledVectorChunkKeys.add(k);
+    fresh.push(r);
+  }
+  if (fresh.length === 0) return;
+
+  contextParts.push(sectionHeader);
+  for (const r of fresh) {
+    const sim = r.similarity != null ? ` (similarity ${(r.similarity * 100).toFixed(0)}%)` : "";
+    contextParts.push(`[Chunk ${r.chunk_index}]${sim}`);
+    contextParts.push((r.content || "").trim());
+    contextParts.push("");
+  }
+  sourceNotes.push(`${fresh.length} vector chunk(s) from «${title}»`);
+}
+
+const GLOBAL_KNOWLEDGE_MATCH_COUNT = 48;
+const SCOPED_KB_MATCH_COUNT_SESSION = 40;
+const SCOPED_KB_MATCH_COUNT_RECENT = 36;
+const SCOPED_KB_THRESHOLD = 0.12;
 
 /**
  * POST /api/brain/ask
@@ -39,6 +106,12 @@ export async function POST(request: NextRequest) {
         { status: 400 },
       );
     }
+
+    const questionEmbedding = await embedText(question);
+    const embeddingStr = questionEmbedding?.length
+      ? `[${questionEmbedding.join(",")}]`
+      : null;
+    const filledVectorChunkKeys = new Set<string>();
 
     const contextParts: string[] = [];
     const sourceNotes: string[] = [];
@@ -108,33 +181,52 @@ export async function POST(request: NextRequest) {
               }
               contextParts.push("");
 
-              // If content was truncated, search document chunks for question-relevant content
-              // This ensures the brain can find data on later sheets / deeper in large files
-              if (doc.content_text && doc.content_text.length > 50000) {
+              // Beyond inline cap: pull top matching chunks for THIS kb via vector search (full chunk text)
+              if (doc.content_text && doc.content_text.length > 50000 && embeddingStr) {
                 try {
-                  // Extract key search terms from the question
+                  const scoped = await searchKnowledgeForKb(
+                    sb,
+                    doc.id,
+                    embeddingStr,
+                    SCOPED_KB_MATCH_COUNT_SESSION,
+                    SCOPED_KB_THRESHOLD,
+                  );
+                  appendKnowledgeChunksToContext(
+                    contextParts,
+                    sourceNotes,
+                    doc.title,
+                    scoped,
+                    filledVectorChunkKeys,
+                    `## Additional sections from **${doc.title}** (vector retrieval — beyond first 50k chars)\n`,
+                  );
+                } catch (chunkErr) {
+                  console.warn("Chunk search for session doc failed (non-fatal):", chunkErr);
+                }
+              } else if (doc.content_text && doc.content_text.length > 50000 && !embeddingStr) {
+                // No OpenAI key: keyword fallback on full chunk table
+                try {
                   const searchTerms = question.split(/\s+/).filter((w: string) => w.length > 2);
                   if (searchTerms.length > 0) {
                     const { data: matchingChunks } = await sb
                       .schema("brain")
                       .from("knowledge_chunks")
                       .select("content, chunk_index")
-                      .eq("knowledge_base_id", doc.id)
+                      .eq("kb_id", doc.id)
                       .or(searchTerms.slice(0, 4).map((w: string) => `content.ilike.%${w}%`).join(","))
                       .order("chunk_index")
-                      .limit(10);
+                      .limit(24);
 
                     if (matchingChunks && matchingChunks.length > 0) {
-                      contextParts.push(`## Additional matching sections from ${doc.title} (chunks beyond truncation point):\n`);
+                      contextParts.push(`## Additional matching sections from ${doc.title} (keyword fallback — beyond first 50k chars)\n`);
                       for (const chunk of matchingChunks) {
                         contextParts.push(chunk.content);
                         contextParts.push("");
                       }
-                      sourceNotes.push(`${matchingChunks.length} targeted chunks from ${doc.title}`);
+                      sourceNotes.push(`${matchingChunks.length} keyword chunk(s) from ${doc.title}`);
                     }
                   }
                 } catch (chunkErr) {
-                  console.warn("Chunk search for session doc failed (non-fatal):", chunkErr);
+                  console.warn("Keyword chunk search for session doc failed (non-fatal):", chunkErr);
                 }
               }
             }
@@ -168,25 +260,42 @@ export async function POST(request: NextRequest) {
                   const maxChars = 50000;
                   contextParts.push(doc.content_text.slice(0, maxChars));
                   if (doc.content_text.length > maxChars) {
-                    contextParts.push(`... [Content truncated — searching chunks for remaining data]\n`);
-                    // Search document chunks for question-relevant content
+                    contextParts.push(`... [Content truncated — vector retrieval for remaining sections]\n`);
                     try {
-                      const searchTerms = question.split(/\s+/).filter((w: string) => w.length > 2);
-                      if (searchTerms.length > 0) {
-                        const { data: matchingChunks } = await sb
-                          .schema("brain")
-                          .from("knowledge_chunks")
-                          .select("content, chunk_index")
-                          .eq("knowledge_base_id", doc.id)
-                          .or(searchTerms.slice(0, 4).map((w: string) => `content.ilike.%${w}%`).join(","))
-                          .order("chunk_index")
-                          .limit(10);
+                      if (embeddingStr) {
+                        const scoped = await searchKnowledgeForKb(
+                          sb,
+                          doc.id,
+                          embeddingStr,
+                          SCOPED_KB_MATCH_COUNT_SESSION,
+                          SCOPED_KB_THRESHOLD,
+                        );
+                        appendKnowledgeChunksToContext(
+                          contextParts,
+                          sourceNotes,
+                          doc.title,
+                          scoped,
+                          filledVectorChunkKeys,
+                          `## Additional sections from **${doc.title}** (vector retrieval)\n`,
+                        );
+                      } else {
+                        const searchTerms = question.split(/\s+/).filter((w: string) => w.length > 2);
+                        if (searchTerms.length > 0) {
+                          const { data: matchingChunks } = await sb
+                            .schema("brain")
+                            .from("knowledge_chunks")
+                            .select("content, chunk_index")
+                            .eq("kb_id", doc.id)
+                            .or(searchTerms.slice(0, 4).map((w: string) => `content.ilike.%${w}%`).join(","))
+                            .order("chunk_index")
+                            .limit(24);
 
-                        if (matchingChunks && matchingChunks.length > 0) {
-                          contextParts.push(`## Additional matching sections:\n`);
-                          for (const chunk of matchingChunks) {
-                            contextParts.push(chunk.content);
-                            contextParts.push("");
+                          if (matchingChunks && matchingChunks.length > 0) {
+                            contextParts.push(`## Additional matching sections:\n`);
+                            for (const chunk of matchingChunks) {
+                              contextParts.push(chunk.content);
+                              contextParts.push("");
+                            }
                           }
                         }
                       }
@@ -254,7 +363,26 @@ export async function POST(request: NextRequest) {
               const maxChars = 20000;
               contextParts.push(doc.content_text.slice(0, maxChars));
               if (doc.content_text.length > maxChars) {
-                contextParts.push(`... [Showing first ${maxChars} chars of ${doc.content_text.length} total]`);
+                contextParts.push(
+                  `... [Showing first ${maxChars} chars of ${doc.content_text.length} total — vector chunks below]\n`,
+                );
+                if (embeddingStr) {
+                  const scoped = await searchKnowledgeForKb(
+                    sb,
+                    doc.id,
+                    embeddingStr,
+                    SCOPED_KB_MATCH_COUNT_RECENT,
+                    SCOPED_KB_THRESHOLD,
+                  );
+                  appendKnowledgeChunksToContext(
+                    contextParts,
+                    sourceNotes,
+                    doc.title,
+                    scoped,
+                    filledVectorChunkKeys,
+                    `### Vector-retrieved sections from **${doc.title}**\n`,
+                  );
+                }
               }
             }
             contextParts.push("");
@@ -315,25 +443,21 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // ── 2b. Vector search (RAG) ──
+    // ── 2b. Vector search (RAG) — full chunk text, deduped against scoped pulls above
     const vectorKbTitles = new Set<string>();
     const vectorCorrSubjects = new Set<string>();
     try {
-      const questionEmbedding = await embedText(question);
-      if (questionEmbedding) {
-        // Search knowledge chunks via RPC
-        // Pass embedding as a JSON string — pgvector text input function parses [n1,n2,...] format
-        const embeddingStr = `[${questionEmbedding.join(",")}]`;
+      if (embeddingStr) {
         const [kbResult, corrResult] = await Promise.all([
           sb.schema("brain").rpc("search_knowledge", {
             query_embedding: embeddingStr,
             match_threshold: 0.18,
-            match_count: 15,
+            match_count: GLOBAL_KNOWLEDGE_MATCH_COUNT,
           }),
           sb.schema("brain").rpc("search_correspondence", {
             query_embedding: embeddingStr,
             match_threshold: 0.18,
-            match_count: 12,
+            match_count: 20,
           }),
         ]);
 
@@ -344,20 +468,29 @@ export async function POST(request: NextRequest) {
           console.error("search_correspondence RPC error:", corrResult.error.message, corrResult.error.details);
         }
 
-        const kbVectorResults = kbResult.data;
+        const kbVectorResults = kbResult.data as KnowledgeChunkRow[] | null;
         const corrVectorResults = corrResult.data;
 
         if (kbVectorResults && kbVectorResults.length > 0) {
-          contextParts.push("## Knowledge Base (Vector Search)\n");
+          contextParts.push("## Knowledge Base (Vector Search — full retrieved chunks)\n");
+          let added = 0;
           for (const r of kbVectorResults) {
-            const title = r.metadata?.title || r.title || "Untitled";
+            if (r.kb_id == null) continue;
+            const key = chunkDedupeKey(r);
+            if (filledVectorChunkKeys.has(key)) continue;
+            filledVectorChunkKeys.add(key);
+
+            const title = (r.metadata?.title as string) || "Untitled";
             vectorKbTitles.add(title);
-            const similarity = r.similarity ? ` (${(r.similarity * 100).toFixed(0)}% match)` : "";
-            contextParts.push(`**${title}**${similarity}`);
-            contextParts.push(r.content?.slice(0, 1000) || "");
+            const similarity = r.similarity != null ? ` (${(r.similarity * 100).toFixed(0)}% match)` : "";
+            contextParts.push(`**${title}** · chunk ${r.chunk_index}${similarity}`);
+            contextParts.push((r.content || "").trim());
             contextParts.push("");
+            added++;
           }
-          sourceNotes.push(`${kbVectorResults.length} vector knowledge matches`);
+          if (added > 0) {
+            sourceNotes.push(`${added} global vector knowledge chunk(s) (full text)`);
+          }
         }
 
         if (corrVectorResults && corrVectorResults.length > 0) {
@@ -369,7 +502,7 @@ export async function POST(request: NextRequest) {
             const dir = r.direction === "outbound" ? "SENT" : "RECEIVED";
             const date = r.sent_at ? new Date(r.sent_at).toLocaleDateString() : "";
             contextParts.push(`- [${r.channel || "email"}/${dir}] "${subject}" (${date})${similarity}`);
-            if (r.content) contextParts.push(`  ${r.content.slice(0, 200)}`);
+            if (r.content) contextParts.push(`  ${r.content.trim()}`);
           }
           contextParts.push("");
           sourceNotes.push(`${corrVectorResults.length} vector correspondence matches`);
