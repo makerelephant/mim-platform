@@ -282,7 +282,7 @@ async function main() {
     .from("knowledge_base")
     .select("title")
     .like("source_type", "crm_%");
-  const existingTitles = new Set(
+  const existingTitles = new Set<string>(
     (existingKb || []).map((r: { title: string }) => r.title)
   );
   console.log(`Existing CRM knowledge entries: ${existingTitles.size}\n`);
