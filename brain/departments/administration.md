@@ -1,7 +1,7 @@
 # Department: Administration
 
 ## Purpose
-Defines how MiM Brain prioritizes and routes administrative and operational activity. Includes system/account notifications, HR, office, vendor management, and internal ops.
+Defines how In Motion prioritizes and routes administrative and operational activity. Includes system/account notifications, HR, office, vendor management, and internal ops.
 
 ## Routing Rules
 

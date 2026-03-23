@@ -1,7 +1,7 @@
 # Department: UX & Design
 
 ## Purpose
-Defines how MiM Brain prioritizes and routes UX and design activity.
+Defines how In Motion prioritizes and routes UX and design activity.
 
 ## CEO Role
 The CEO is the designer and brand owner. Controls brand, marks, icons, patterns, and designed components directly.

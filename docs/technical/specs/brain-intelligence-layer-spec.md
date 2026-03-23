@@ -9,7 +9,7 @@
 
 This spec addresses the structural gaps in the brain's intelligence layer. It must be read alongside `docs/technical/specs/unified-classifier-spec.md` which governs the attention classification and signal quality layer.
 
-**The 10 measurement deficits** (from `docs/intel/intelligence-deficit-analysis.md`, now superseded by the unified classifier spec) identify where the brain falls short as a reliable intelligence system:
+**The 10 measurement deficits** (from `docs/intelligence-deficit-analysis.md`, now superseded by the unified classifier spec) identify where the brain falls short as a reliable intelligence system:
 
 | # | Deficit | This Spec | Classifier Spec |
 |---|---------|-----------|-----------------|
@@ -279,7 +279,7 @@ $$;
 | Voyage AI `voyage-3` | 1024 | $0.06/1M tokens | Strong for code + text |
 | Cohere `embed-v4.0` | 1024 | $0.10/1M tokens | Good multilingual support |
 
-**Recommendation:** Start with `text-embedding-3-small` (1536d). Supabase pgvector supports it natively. Cost is negligible at MiM's scale.
+**Recommendation:** Start with `text-embedding-3-small` (1536d). Supabase pgvector supports it natively. Cost is negligible at In Motion's scale.
 
 #### 4.2.2 Instruction Engine — `brain.instructions` Table
 
@@ -441,7 +441,7 @@ async function ask_brain(question: string) {
   // 7. Synthesize with Claude
   const answer = await claude.messages.create({
     model: 'claude-sonnet-4-5-20250929',
-    system: `You are the MiM Brain — the intelligence layer for Made in Motion.
+    system: `You are the In Motion brain — the intelligence layer for Made in Motion.
              Answer the CEO's question using ONLY the provided context.
              Cite your sources. If you don't have enough information, say so.`,
     messages: [{

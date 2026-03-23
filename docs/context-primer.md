@@ -83,7 +83,7 @@ Do not assume intelligence exists where it has not been proven.
 Before touching code:
 
 1. **Confirm where you are:** Run `cd /Users/markslater/Desktop/mim-platform && git branch` — you must be on `main`. If not, stop and get there.
-2. **Understand what actually exists** — read `CLAUDE.md` and `docs/operational/master-effort-list.md` for the honest current state.
+2. **Understand what actually exists** — read `CLAUDE.md` and `docs/master-effort-list.md` for the honest current state.
 3. **Identify what must happen next** for the brain to become reliable — prioritise embeddings decision, training cadence, then additional data sources.
 4. **List what work is unnecessary at this stage** — do not build Phase 2/3 features (teams, multi-user auth, mobile app, external-facing product) until Phase 1 is proven.
 
@@ -109,13 +109,13 @@ Before touching code:
 | `src/app/page.tsx` | Your Motion feed page — filter pills, action bar, card routing (MessageCard vs FeedCard), note panel |
 | `src/components/MessageCard.tsx` | Natural language cards for email/Slack — gopher icons, intent icons, entity highlighting, thread status chips |
 | `src/components/FeedCard.tsx` | Briefing/snapshot/reflection cards — badge styles, Do/Hold/No actions, Train modal |
-| `src/app/clearing/page.tsx` | Your Clearing — sessions, messages, gopher launcher, file ingestion |
+| `src/app/clearing/page.tsx` | Your Canvas — sessions, messages, gopher launcher, file ingestion |
 | `src/app/engine/page.tsx` | Engine Room — Motion Map, accuracy, autonomy, integrations, health |
-| `src/lib/gmail-scanner.ts` | Gmail scanner — Acumen classification, entity resolution, feed card emission |
+| `src/lib/gmail-scanner.ts` | Gmail Gopher — Acumen classification, entity resolution, feed card emission |
 | `src/lib/feed-card-emitter.ts` | Shared card emission + thread consolidation |
 | `src/components/NotePanel.tsx` | Note-taking panel — title, editor, save to knowledge/draft, existing notes list |
 | `src/lib/gmail-client.ts` | Shared Gmail auth utilities — OAuth2, thread status, email builder |
-| `src/lib/gmail-scanner.ts` | Gmail Gopher — Acumen classification, auto-resolve on CEO reply |
+| `src/lib/gmail-scanner.ts` | Gmail Gopher — auto-resolve on CEO reply |
 | `src/lib/embeddings.ts` | OpenAI embedding client — ACTIVE |
 | `src/app/api/feed/route.ts` | Feed GET (paginated, filtered) + PATCH (CEO actions, auto-fires learning) |
 | `src/app/api/gmail/actions/route.ts` | Gmail actions — Reply, Draft, Archive, Star + thread status polling |

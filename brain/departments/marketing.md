@@ -1,7 +1,7 @@
 # Department: Marketing
 
 ## Purpose
-Defines how MiM Brain prioritizes and routes marketing activity. Includes industry research, competitive intelligence, market development, and relationships & PR.
+Defines how In Motion prioritizes and routes marketing activity. Includes industry research, competitive intelligence, market development, and relationships & PR.
 
 ## Routing Rules
 

@@ -11,7 +11,7 @@ Within 12 months, AI will be 1,000 times smarter than any human. Entire layers o
 
 **In Motion** is the instantiation of this conviction: an autonomous business intelligence system that becomes the de facto Chief Operating Officer of Made in Motion. It processes every type of business data, learns from every interaction, and compounds its intelligence over time.
 
-**Success criteria:** MiM Brain performs operational tasks 1,000x better than a human — not because it's "smarter" in the general sense, but because it has perfect recall, tireless attention, and compounding institutional knowledge that no employee could replicate.
+**Success criteria:** The In Motion brain performs operational tasks 1,000x better than a human — not because it's "smarter" in the general sense, but because it has perfect recall, tireless attention, and compounding institutional knowledge that no employee could replicate.
 
 ---
 
@@ -134,7 +134,7 @@ TARGET ARCHITECTURE:
 
 ### 2.1 Core Principle
 
-Every piece of data MiM Brain ingests maps to or creates an **entity node**. The brain is not organized around documents or communications — it's organized around the entities those things refer to. The entity graph is the brain's world model.
+Every piece of data the brain ingests maps to or creates an **entity node**. The brain is not organized around documents or communications — it's organized around the entities those things refer to. The entity graph is the brain's world model.
 
 ### 2.2 Entity Types
 
@@ -219,7 +219,7 @@ PROVENANCE RECORD:
   supersedes: previous_provenance_id (if updated)
 ```
 
-This is what makes MiM Brain better than a fine-tuned model — you can audit it, correct it, and explain why it believes what it believes.
+This is what makes the In Motion brain better than a fine-tuned model — you can audit it, correct it, and explain why it believes what it believes.
 
 ---
 
@@ -340,7 +340,7 @@ Each memory layer feeds the next:
 
 ### 4.1 What It Is
 
-The harness is a set of structured documents that define how MiM Brain operates. These are **behavioral contracts** — both humans and the AI runtime read them. The AI uses these docs to reason about edge cases, resolve conflicts, and make decisions.
+The harness is a set of structured documents that define how the In Motion brain operates. These are **behavioral contracts** — both humans and the AI runtime read them. The AI uses these docs to reason about edge cases, resolve conflicts, and make decisions.
 
 ### 4.2 Structure
 
@@ -775,7 +775,7 @@ What's built: scanners, classifiers, taxonomy, entity dossier, feedback engine, 
 
 **Goal:** CEO converses with the brain through the dashboard.
 
-- Build chat UI on the My Brain dashboard page
+- Build chat UI on the Your Motion dashboard page
 - Wire to MCP server's ask_brain (enhanced with all new context layers)
 - Chat context includes: derived insights, behavioral rules, entity intelligence, harness docs
 - CEO can issue instructions conversationally ("watch Adidas for the next 30 days")
@@ -805,7 +805,7 @@ None of this requires the CEO to know what data exists or where it lives. The br
 
 ### The Insight
 
-MiMBrain already builds structured intelligence profiles for every entity it encounters — identity, capabilities, relationships, activity, reputation. It does this internally by scraping, classifying, and inferring from signals.
+In Motion already builds structured intelligence profiles for every entity it encounters — identity, capabilities, relationships, activity, reputation. It does this internally by scraping, classifying, and inferring from signals.
 
 In an AI-native world, entities will publish this information themselves as machine-readable feeds — structured streams of identity + intent + activity + capabilities that AI agents subscribe to. Think of it as RSS for people and organizations, but structured for AI reasoning.
 
@@ -840,7 +840,7 @@ For reference, a complete AI-native person feed contains:
 
 ### How This Evolves With the Cadence
 
-**The 1:** MiMBrain builds entity profiles internally for everyone the CEO interacts with. Scanners infer. The CEO's own Motion feed is his person feed (rendered as UI, not JSON).
+**The 1:** In Motion builds entity profiles internally for everyone the CEO interacts with. Scanners infer. The CEO's own Motion feed is his person feed (rendered as UI, not JSON).
 
 **The 10:** Team members each have their own Motion (private feed). They publish selected signals into the shared brain. The CEO's brain subscribes to what's published. Visibility isn't controlled by permissions tables — it's controlled by what each person chooses to emit. The person feed IS the access control model. No RBAC, no admin dashboards, no visibility matrices. The wall between private and shared is architectural: publish/subscribe, not permit/deny.
 
@@ -855,7 +855,7 @@ For reference, a complete AI-native person feed contains:
 
 ### Near-Term Implication: Email Context Block
 
-When MiMBrain sends or drafts email on behalf of the CEO, it could attach a machine-readable context block (in headers or footer) that any AI reading the email can parse. This is a small build with high leverage — not a protocol, just a practical step.
+When In Motion sends or drafts email on behalf of the CEO, it could attach a machine-readable context block (in headers or footer) that any AI reading the email can parse. This is a small build with high leverage — not a protocol, just a practical step.
 
 ### Rule
 
@@ -896,4 +896,4 @@ The brain is succeeding when:
 | Time to enrich new entity to KCS 0.5 | Manual | <24h | <1h |
 | Ask_brain queries with derived insight context | 0% | 40%+ | 80%+ |
 
-The ultimate metric: **Can MiM Brain write the weekly report with zero CEO corrections?** When the answer is consistently yes, the brain is operating as a COO.
+The ultimate metric: **Can the In Motion brain write the weekly report with zero CEO corrections?** When the answer is consistently yes, the brain is operating as a COO.

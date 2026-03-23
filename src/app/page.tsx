@@ -209,58 +209,57 @@ export default function MotionFeedPage() {
       <div className="flex min-h-full flex-col items-center gap-[24px] py-6 px-4 lg:px-0 lg:ml-[40px] xl:ml-[80px]" style={{ maxWidth: "550px", width: "100%" }}>
 
         {/* ══════════════════════════════════════════════════════════════════
-            CHAT HEADER — Card container per Figma (node 9:3665)
-            bg: rgba(255,244,224,0.2), p-12, rounded-12, shadow
+            HEADER — Per Figma node 95:839 / 102:5324
             ══════════════════════════════════════════════════════════════════ */}
-        <div
-          className="w-full rounded-[12px] shadow-[0px_0px_60px_0px_rgba(0,0,0,0.12)]"
-          style={{ backgroundColor: "rgba(255,244,224,0.2)" }}
-        >
-          <div className="flex w-full flex-col items-start gap-[12px] p-[12px]">
-          {/* Top row: avatar + name left, updated + refresh right */}
-          <div className="flex w-full min-w-0 items-center justify-between pr-[6px]">
-            <div className="flex min-w-0 items-center gap-[12px]">
-              <img
-                src="/icons/mark-avatar.png"
-                alt="Mark Slater"
-                className="h-[34px] w-[34px] shrink-0 rounded-full object-cover"
-              />
-              <span
-                className="truncate text-[16px] font-semibold leading-[20px] text-[#3e4c60]"
+        <div className="flex w-full flex-col items-start gap-[12px] px-[12px]">
+          {/* Top row: greeting + updated + refresh */}
+          <div className="flex w-full flex-col gap-[3px]">
+            <div className="flex w-full items-center justify-between">
+              <p
+                className="text-[24px] font-semibold leading-[20px] text-[#3e4c60]"
                 style={{
                   fontFamily: "var(--font-geist-sans), 'Geist', sans-serif",
-                  letterSpacing: "-0.32px",
+                  letterSpacing: "-0.48px",
                 }}
               >
-                Mark Slater&apos;s Motion Space.
-              </span>
+                Hola 👋  Mark Slater.{" "}
+              </p>
+              <div className="flex shrink-0 items-center gap-[10px]">
+                <span
+                  className="whitespace-nowrap text-[10px] font-medium leading-[10px] text-[#9ca5a9] text-center"
+                  style={{ fontFamily: "var(--font-geist-sans), 'Geist', sans-serif" }}
+                >
+                  ...updated {updatedAgoText() || "just now"}
+                </span>
+                <button
+                  type="button"
+                  onClick={handleRefresh}
+                  disabled={loading || scanning}
+                  className="shrink-0 p-0 leading-none cursor-pointer"
+                  title="Refresh feed"
+                >
+                  <img
+                    src="/icons/refresh-2.svg"
+                    alt="Refresh"
+                    className={`size-[32px] ${loading || scanning ? "animate-spin" : ""}`}
+                  />
+                </button>
+              </div>
             </div>
-            <div className="flex shrink-0 items-center gap-[18px] h-[20px]">
-              <span
-                className="whitespace-nowrap text-[10px] font-medium leading-[10px] text-[#9ca5a9]"
-                style={{ fontFamily: "var(--font-geist-sans), 'Geist', sans-serif" }}
-              >
-                ...updated {updatedAgoText() || "just now"}
-              </span>
-              <button
-                type="button"
-                onClick={handleRefresh}
-                disabled={loading || scanning}
-                className="shrink-0 p-0 leading-none"
-                title="Refresh feed"
-              >
-                <img
-                  src="/icons/refresh-2.svg"
-                  alt="Refresh"
-                  className={`h-[20px] w-[20px] ${loading || scanning ? "animate-spin" : ""}`}
-                />
-              </button>
-            </div>
+            <p
+              className="text-[18px] font-semibold leading-[20px] text-[#97a5bd] w-full"
+              style={{
+                fontFamily: "var(--font-geist-sans), 'Geist', sans-serif",
+                letterSpacing: "-0.36px",
+              }}
+            >
+              Welcome to your In Motion office.
+            </p>
           </div>
 
           {/* Search Input */}
           <div
-            className="flex items-center justify-between overflow-hidden px-[14px] py-[10px] rounded-[12px] bg-white w-full"
+            className="flex items-center justify-between overflow-hidden px-[14px] py-[10px] rounded-[12px] bg-white w-full shadow-[0px_1px_4px_0px_rgba(0,0,0,0.08)]"
             style={{ border: "1px solid #e9e9e9" }}
           >
             <input
@@ -273,23 +272,21 @@ export default function MotionFeedPage() {
                   handleSearch();
                 }
               }}
-              placeholder="Ask Anything about the business."
+              placeholder="Ask Anything, Take Notes, schedule a call...."
               disabled={searching}
-              className="flex-1 text-[12px] font-medium text-black placeholder:text-[#b0b8bb] leading-[24px] bg-transparent focus:outline-none"
+              className="flex-1 text-[14px] font-normal text-black placeholder:text-[#b0b8bb] leading-[24px] bg-transparent focus:outline-none"
               style={{ fontFamily: "var(--font-geist-sans), 'Geist', sans-serif" }}
             />
-            <div className="flex gap-[18px] items-end h-[21px] w-[118px]">
-              <img src="/icons/calendar-plus.svg" alt="" className="w-[16px] h-[16px] shrink-0" />
-              <img src="/icons/paperclip.svg" alt="" className="w-[16px] h-[16px] shrink-0" />
-              <img src="/icons/mic.svg" alt="" className="w-[16px] h-[16px] shrink-0" />
+            <div className="flex gap-[24px] items-end h-[21px]">
+              <img src="/icons/paperclip.svg" alt="" className="size-[16px] shrink-0" />
+              <img src="/icons/mic.svg" alt="" className="size-[16px] shrink-0" />
               <img
                 src="/icons/arrow-up-circle.svg"
                 alt=""
-                className={`w-[16px] h-[16px] shrink-0 cursor-pointer ${searching ? "animate-spin" : ""}`}
+                className={`size-[16px] shrink-0 cursor-pointer ${searching ? "animate-spin" : ""}`}
                 onClick={handleSearch}
               />
             </div>
-          </div>
           </div>
         </div>
 
@@ -300,15 +297,15 @@ export default function MotionFeedPage() {
             className="flex gap-[6px] h-[28px] items-center justify-center px-[12px] py-[6px] rounded-[8px] bg-white cursor-pointer hover:bg-gray-50 transition-colors"
             style={{ boxShadow: "0px 0px 2px 0px rgba(0,0,0,0.25)" }}
           >
-            <img src="/icons/intent/write.png" alt="" className="size-[20px]" />
+            <img src="/icons/intent/write.png" alt="" className="size-[16px]" />
             <span
               className="whitespace-nowrap"
               style={{
                 fontFamily: "var(--font-geist-sans), 'Geist', sans-serif",
-                fontSize: "14px",
+                fontSize: "12px",
                 fontWeight: 500,
                 lineHeight: "16px",
-                letterSpacing: "-0.14px",
+                letterSpacing: "-0.12px",
                 color: "#3e4c60",
               }}
             >
@@ -319,15 +316,15 @@ export default function MotionFeedPage() {
             className="flex gap-[6px] h-[28px] items-center justify-center px-[12px] py-[6px] rounded-[8px] bg-white cursor-pointer hover:bg-gray-50 transition-colors"
             style={{ boxShadow: "0px 0px 2px 0px rgba(0,0,0,0.25)" }}
           >
-            <img src="/icons/calendar-plus.svg" alt="" className="size-[20px]" />
+            <img src="/icons/calendar-plus.svg" alt="" className="size-[16px]" />
             <span
               className="whitespace-nowrap"
               style={{
                 fontFamily: "var(--font-geist-sans), 'Geist', sans-serif",
-                fontSize: "14px",
+                fontSize: "12px",
                 fontWeight: 500,
                 lineHeight: "16px",
-                letterSpacing: "-0.14px",
+                letterSpacing: "-0.12px",
                 color: "#3e4c60",
               }}
             >
@@ -343,10 +340,10 @@ export default function MotionFeedPage() {
               className="whitespace-nowrap"
               style={{
                 fontFamily: "var(--font-geist-sans), 'Geist', sans-serif",
-                fontSize: "14px",
+                fontSize: "12px",
                 fontWeight: 500,
                 lineHeight: "16px",
-                letterSpacing: "-0.14px",
+                letterSpacing: "-0.12px",
                 color: "#3e4c60",
               }}
             >

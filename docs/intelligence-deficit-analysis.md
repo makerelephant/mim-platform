@@ -95,7 +95,7 @@ A critical email from 6 hours ago that surfaces after the CEO has already dealt 
 
 This is the hardest to measure and the most dangerous gap. The pre-filter kills newsletters, auto-replies, marketing. But what if it's killing something important? The CEO would never know because they never see it.
 
-**Metric:** Periodic "missed item audit" — sample of filtered-out emails presented to CEO for spot-checking. Also: if the CEO manually triggers a scanner and gets cards they hadn't seen, that's a false negative signal.
+**Metric:** Periodic "missed item audit" — sample of filtered-out emails presented to CEO for spot-checking. Also: if the CEO manually triggers a Gopher and gets cards they hadn't seen, that's a false negative signal.
 
 ---
 
@@ -165,13 +165,13 @@ None of these are measured today. Category accuracy is the floor, not the ceilin
 **Step 1 — Compute it now.**
 Create a "surfacing quality" score per card. Roll up per category per week. Show it in Engine Room alongside category accuracy. No new data collection needed — this can be built from what's already recorded.
 
-**Step 2 — Close the loop into the scanner.**
-The Gmail scanner prompt knows about categories but nothing about historical dismiss rates. Add a pre-prompt injection: *"In the [category] category, X% of cards have been dismissed. Err on the side of not creating a card unless the signal is clear."* The scanner becomes less trigger-happy over time.
+**Step 2 — Close the loop into the Gopher.**
+The Gmail Gopher prompt knows about categories but nothing about historical dismiss rates. Add a pre-prompt injection: *"In the [category] category, X% of cards have been dismissed. Err on the side of not creating a card unless the signal is clear."* The Gopher becomes less trigger-happy over time.
 
 **Step 3 — Make the pre-filter learnable.**
 Currently the pre-filter is rule-based (no-reply domains, newsletter keywords). It should accumulate Dismiss signals and expand its own exclusion set from CEO behaviour. Every Dismiss is a training signal for the pre-filter, not just the classifier.
 
-**Key principle:** You don't need to explicitly measure SNR to improve it. You just need to make Dismiss consequential. Right now Dismiss removes a card from the UI but teaches nothing. It should teach the scanner to be more selective.
+**Key principle:** You don't need to explicitly measure SNR to improve it. You just need to make Dismiss consequential. Right now Dismiss removes a card from the UI but teaches nothing. It should teach the Gopher to be more selective.
 
 ---
 
@@ -191,8 +191,8 @@ If critical cards are being dismissed at 40%, priority is broken. This is comput
 **Step 1 — Add a Priority Calibration panel to Engine Room.**
 For each priority level: (Do + Hold) / all actions. A single bar chart, four bars. The gap between expected and actual is the miscalibration signal. No new data collection needed.
 
-**Step 2 — Feed Train corrections back into the scanner.**
-When the CEO corrects priority in the Train panel (already captured), inject that into the scanner's next run: *"Emails of type [X] from category [Y] are typically [low priority], not [critical]."*
+**Step 2 — Feed Train corrections back into the Gopher.**
+When the CEO corrects priority in the Train panel (already captured), inject that into the Gopher's next run: *"Emails of type [X] from category [Y] are typically [low priority], not [critical]."*
 
 **Step 3 — Introduce a daily priority budget.**
 This is the harder but more important fix. Right now priority is absolute — a fundraising email is always "critical" because of its category weight, regardless of what else is in the feed. Priority should be *relative to scarcity of attention*. The brain should aim to surface at most 2–3 critical cards per day. If more than that classify as critical, it should downgrade the least urgent ones. A CEO's attention has a budget. The brain should be made to manage it.
@@ -202,7 +202,7 @@ This is the harder but more important fix. Right now priority is absolute — a 
 ## Sequencing Recommendation
 
 1. **Now:** Compute SNR and Priority Calibration from existing data — no new collection needed, just aggregation. Surface in Engine Room.
-2. **Next:** Close the feedback loop — make Dismiss and Train corrections consequential inputs to the scanner and pre-filter.
+2. **Next:** Close the feedback loop — make Dismiss and Train corrections consequential inputs to the Gopher and pre-filter.
 3. **Then:** Tackle the quality layer (#3 Summary, #4 Action Recs) once SNR and priority are stable.
 4. **Later:** Structural (#5 Entity, #8 Card Type, #9 Dedup) and completeness (#7 False Negatives, #10 Confidence) layers.
 

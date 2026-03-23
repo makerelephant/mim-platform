@@ -1,7 +1,7 @@
 # Department: AI
 
 ## Purpose
-Defines how MiM Brain prioritizes and routes AI-related activity. AI is enabling every corner of the business and is a prominent part of every day.
+Defines how In Motion prioritizes and routes AI-related activity. AI is enabling every corner of the business and is a prominent part of every day.
 
 ## Routing Rules
 

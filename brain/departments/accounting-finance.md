@@ -1,7 +1,7 @@
 # Department: Accounting & Finance
 
 ## Purpose
-Defines how MiM Brain prioritizes and routes accounting and finance activity.
+Defines how In Motion prioritizes and routes accounting and finance activity.
 
 ## CEO Role
 Approval + visibility, not day-to-day handling. Most finance execution routes to a single finance owner in early-stage startups.

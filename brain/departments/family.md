@@ -1,7 +1,7 @@
 # Department: Family
 
 ## Purpose
-Defines how MiM Brain handles personal and family-related communications that arrive in the CEO's work inbox.
+Defines how In Motion handles personal and family-related communications that arrive in the CEO's work inbox.
 
 ## CEO Role
 Handled directly by CEO. Occasionally routes to internal teams when personal contacts surface business opportunities.

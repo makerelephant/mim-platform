@@ -1,4 +1,4 @@
-# MiMBrain Platform — UI Requirements
+# In Motion Platform — UI Requirements
 > **Author:** Mark Slater, Co-founder & CEO — Made in Motion PBC
 > **Status:** Active strategic document.
 > **Last updated:** 2026-03-18
@@ -35,13 +35,13 @@ The platform has three elements. Two are where the CEO lives. One is where they 
 
 The execution flow. A single, scrollable, interactive feed — the CEO's operational life in motion. Decisions, signals, tasks, intelligence, snapshots — everything flows through one surface. This is where life comes TO you.
 
-### Your Clearing
+### Your Canvas
 
-The thinking space. Where the CEO steps away from the flow to think, prepare, capture thoughts, and review. Not a creation tool — the CEO uses whatever tools they're already comfortable with (Keynote, Notion, Google Docs). The clearing is for thought work and ingestion, not artifact production.
+The thinking space. Where the CEO steps away from the flow to think, prepare, capture thoughts, and review. Not a creation tool — the CEO uses whatever tools they're already comfortable with (Keynote, Notion, Google Docs). The canvas is for thought work and ingestion, not artifact production.
 
 ### Engine Room
 
-The configuration layer. Integrations, gophers, users, permissions, and — at its center — the Motion Map, which is the CEO's readable view of the brain's operating logic (the harness). Visited during setup and occasional tuning. Does not compete for attention with Motion or Clearing.
+The configuration layer. Integrations, gophers, users, permissions, and — at its center — the Motion Map, which is the CEO's readable view of the brain's operating logic (the harness). Visited during setup and occasional tuning. Does not compete for attention with Motion or Canvas.
 
 ---
 
@@ -60,7 +60,7 @@ Data lives somewhere and has permanence — but that's the brain's problem and c
 We are not a productivity suite. We don't compete with the tools the CEO already uses to create things. We are the gate everything passes through on the way in and out.
 
 - **Motion** is the gate for operational flow — decisions, signals, actions flowing through
-- **The Clearing** is the gate for deeper work — context going out to inform creation, artifacts coming back in to become institutional memory
+- **The Canvas** is the gate for deeper work — context going out to inform creation, artifacts coming back in to become institutional memory
 
 The brain's value isn't helping you make the deck. It's knowing, six months later, that the deck exists, what it contained, who saw it, and surfacing it when relevant.
 
@@ -170,32 +170,32 @@ PROMPT → SNAPSHOT (ephemeral card) → INTERACT → maybe PROMOTE
 
 ---
 
-## 5. Your Clearing
+## 5. Your Canvas
 
-### What the Clearing Is
+### What the Canvas Is
 
-The deliberate pause from motion. The campfire in the middle of the campsite where things are gathered, spread out, and planned. The CEO steps into the clearing when they need to stop, think, and prepare — then steps back into motion.
+The deliberate pause from motion. The campfire in the middle of the campsite where things are gathered, spread out, and planned. The CEO steps into the canvas when they need to stop, think, and prepare — then steps back into motion.
 
-### What the Clearing Supports
+### What the Canvas Supports
 
 - **Thought stream / notepad** — freeform text capture throughout the day. Fragments, reminders, observations. The brain absorbs these and may reference them later in Motion cards. "Remind me to ask Greg about the Wellesley opportunity" → later, a card appears in Motion: "You wanted to ask Greg about Wellesley. Your meeting is Thursday."
 - **Brain-assisted prep** — "Help me think through the board meeting" and the brain pulls together relevant context, recent decisions, KPIs, open items. The CEO shapes their thinking, then goes to their preferred tool to build the actual deliverable.
-- **Ingestion** — bring things back in. The finished deck, the signed contract, the meeting notes from Apple Notes. Drop them into the clearing and the brain absorbs them into institutional memory — linked to entities, available for future recall.
+- **Ingestion** — bring things back in. The finished deck, the signed contract, the meeting notes from Apple Notes. Drop them into the canvas and the brain absorbs them into institutional memory — linked to entities, available for future recall.
 - **Planning** — not project management. More like: "Here are the 4 things I want to accomplish this quarter." The brain holds this context and references it in future cards.
 
-### What the Clearing Is Not
+### What the Canvas Is Not
 
 - A document editor (the CEO uses Keynote, Notion, Google Docs for that)
 - A project management tool (no Gantt charts, no sprint boards)
 - A second feed (it's a workspace, not a stream)
-- A permanent fixture (clearing sessions exist while the work is in progress, then dissolve — the artifacts survive, the workspace doesn't)
+- A permanent fixture (canvas sessions exist while the work is in progress, then dissolve — the artifacts survive, the workspace doesn't)
 
 ### Relationship to Motion
 
-- A card in Motion can open a clearing session ("Board meeting in 9 days. No deck started." → tap to enter clearing with pre-assembled context)
-- A clearing session produces cards back into Motion when complete ("Board deck context prepared — 12 data points compiled")
-- The CEO can have multiple clearing sessions in progress
-- The clearing has its own relationship with the brain — the CEO can ask questions from within the clearing without returning to Motion
+- A card in Motion can open a canvas session ("Board meeting in 9 days. No deck started." → tap to enter canvas with pre-assembled context)
+- A canvas session produces cards back into Motion when complete ("Board deck context prepared — 12 data points compiled")
+- The CEO can have multiple canvas sessions in progress
+- The canvas has its own relationship with the brain — the CEO can ask questions from within the canvas without returning to Motion
 
 ---
 
@@ -233,7 +233,7 @@ The CEO must feel they COULD override anything without the override apparatus be
 
 The "I want to go in a different direction" moment. The CEO stepping in with their own judgment — composing, not just conducting.
 
-**How Motion and Clearing deliver this:** The text input invites open-ended interaction. The clearing provides space for unstructured thinking. The gate principle means the CEO can go create in any tool they want and bring it back. The platform never forces behavioral change on creation workflows.
+**How Motion and Canvas deliver this:** The text input invites open-ended interaction. The canvas provides space for unstructured thinking. The gate principle means the CEO can go create in any tool they want and bring it back. The platform never forces behavioral change on creation workflows.
 
 ### 6f. Orchestration Fulfillment
 
@@ -331,9 +331,9 @@ Actions: Acknowledge / Review changes / Revert
 The sidebar exists as a minimal structural element, not a navigation system. The CEO navigates by talking to the brain, not by clicking menu items.
 
 Sidebar contains:
-- MiMBrain logo
+- In Motion logo
 - **Your Motion** — the feed (always home)
-- **Your Clearing** — thinking space
+- **Your Canvas** — thinking space
 - **Engine Room** — gear icon, opens the engine room
 - User profile + sign out
 
@@ -341,7 +341,7 @@ That's it. No section headers. No 24-item menu. No org types, contact subtypes, 
 
 ### The Engine Room
 
-The configuration layer that makes Motion and the Clearing work. The only part of the platform that uses traditional page-based interfaces, because infrastructure configuration needs stable, predictable surfaces.
+The configuration layer that makes Motion and the Canvas work. The only part of the platform that uses traditional page-based interfaces, because infrastructure configuration needs stable, predictable surfaces.
 
 #### The Motion Map (Centerpiece)
 
@@ -372,7 +372,7 @@ The remaining engine room pages are plumbing — visited during setup and occasi
 
 #### Conversational Configuration
 
-Many engine room changes don't require visiting the engine room at all. The CEO can configure from Motion or the Clearing:
+Many engine room changes don't require visiting the engine room at all. The CEO can configure from Motion or the Canvas:
 
 - "Connect my Gmail" → brain walks through OAuth
 - "Scan every 15 minutes instead of 30" → brain updates, confirms with card
@@ -402,7 +402,7 @@ When an entity is tapped in any card, context appears inline or as a slide-over 
 
 ## 10. Memory & Intelligence Stack
 
-The UI architecture (Motion, Clearing, Engine Room) is the presentation layer. Underneath it, the brain's intelligence stack is defined in `architecture-mimbrain-v2.md` and remains the backend plan. The UI changed; the intelligence architecture did not.
+The UI architecture (Motion, Canvas, Engine Room) is the presentation layer. Underneath it, the brain's intelligence stack is defined in `architecture-mimbrain-v2.md` and remains the backend plan. The UI changed; the intelligence architecture did not.
 
 ### Three Types of Memory
 
@@ -446,7 +446,7 @@ Don't over-design. Whatever gets us through calibration fast is fine, even if ro
 
 ## 12. Platform Features Mapped
 
-Every planned feature maps to Motion as a card type or to the Clearing as a workspace capability. No feature requires its own page.
+Every planned feature maps to Motion as a card type or to the Canvas as a workspace capability. No feature requires its own page.
 
 | Feature | Expression | Notes |
 |---|---|---|
@@ -457,10 +457,10 @@ Every planned feature maps to Motion as a card type or to the Clearing as a work
 | Approval Queue | Decision cards (task subtype) | Pending approvals |
 | Market Intelligence | Signal cards + Snapshot cards | Signals and visual data |
 | Conversation History | Scroll Motion | The feed IS the history |
-| Knowledge Ingestion | Clearing → Action cards | Ingest via clearing, confirmation in Motion |
+| Knowledge Ingestion | Canvas → Action cards | Ingest via canvas, confirmation in Motion |
 | Commerce Integration | Signal cards | Revenue, conversion events |
 | Behavioral Adaptation | Reflection cards | "I updated my rules" |
-| Notepad / Thought Stream | Clearing | Freeform capture |
+| Notepad / Thought Stream | Canvas | Freeform capture |
 | Reports | Snapshot + Briefing cards | Generated on demand or scheduled |
 | Content Publishing | Action cards | Draft and publish from Motion |
 | Calendaring | Spawn cards | Events created from decisions |
@@ -471,7 +471,7 @@ Every planned feature maps to Motion as a card type or to the Clearing as a work
 
 ## 13. Next Horizon: Teams
 
-Everything above is designed for one person — one brain, one motion, one clearing. The next horizon is a second user on the same brain.
+Everything above is designed for one person — one brain, one motion, one canvas. The next horizon is a second user on the same brain.
 
 ### Why Teams Before Scale
 
@@ -480,7 +480,7 @@ Brigade-level orchestration (company playbooks, automated acquisition pipelines,
 ### What Teams Introduces
 
 - **Multiple users, same brain.** Each person has their own Motion — their own feed of decisions, signals, and cards relevant to them. But the brain underneath is shared. It knows what everyone is doing.
-- **Individual Motion stays individual.** Your decisions are yours. Your thought stream in the Clearing is yours. The brain doesn't broadcast your internal deliberation to the team.
+- **Individual Motion stays individual.** Your decisions are yours. Your thought stream in the Canvas is yours. The brain doesn't broadcast your internal deliberation to the team.
 - **Shared context emerges naturally.** When one person resolves a decision that affects another person's work, the brain surfaces that in the other person's Motion. Not because someone assigned it — because the brain understood the connection.
 - **The Motion Map becomes shared.** The brain's operating logic isn't one person's anymore. It reflects how the company thinks. Multiple people's corrections and instructions shape it.
 
@@ -490,15 +490,15 @@ These are unknowns we solve by building, not by designing upfront:
 
 - When two people's corrections conflict, who wins? (The CEO? The most recent? The brain asks?)
 - What shows up in MY motion versus what shows up in the TEAM's motion?
-- Does the Clearing become a shared space, or does each person have their own?
+- Does the Canvas become a shared space, or does each person have their own?
 - How does the brain decide which person should see a decision card?
 - What does delegation look like in the feed? ("Brain, have Sarah handle the partnership follow-ups this week")
 
 ### Design Implications
 
-Don't design for teams yet. Design the single-user experience so well that adding a second user is a natural extension, not a redesign. The card system, the Motion Map, the Clearing — all should be architecturally ready for multi-user without the UI needing to anticipate it.
+Don't design for teams yet. Design the single-user experience so well that adding a second user is a natural extension, not a redesign. The card system, the Motion Map, the Canvas — all should be architecturally ready for multi-user without the UI needing to anticipate it.
 
-The scaling vision — company motion maps, team clearings, industrial-scale automation — is real but earned. First: one brain, two people. See what happens.
+The scaling vision — company motion maps, team canvases, industrial-scale automation — is real but earned. First: one brain, two people. See what happens.
 
 ---
 
@@ -514,7 +514,7 @@ The scaling vision — company motion maps, team clearings, industrial-scale aut
 | P1 | Action/spawn cards + visual connections | Generative feed behavior |
 | P1 | Signal cards | Ambient intelligence |
 | P1 | Briefing/report cards with actions | KPI reports, daily synthesis |
-| P1 | Clearing — notepad + prep + ingestion | The thinking space |
+| P1 | Canvas — notepad + prep + ingestion | The thinking space |
 | P2 | Minimal sidebar | Almost nothing in it |
 | P2 | Training-phase decision cards | Internal calibration (rough is fine) |
 | P2 | Entity context (inline/slide-over) | No separate pages |
@@ -525,4 +525,4 @@ The scaling vision — company motion maps, team clearings, industrial-scale aut
 
 ---
 
-*Last updated: 2026-03-14*
+*Last updated: 2026-03-18*

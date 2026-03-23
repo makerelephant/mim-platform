@@ -36,10 +36,10 @@ There is also a **Me page** (`/me`) showing brain accuracy stats, manual scan tr
 ## Doc Reading Order
 
 1. `docs/strategic/platform-pivot-march-2026.md` — **START HERE.** Strategic pivot from correctness to contextual suggestions. Foundation excellence requirements. Build order.
-2. `docs/product/ui-requirements.md` — Governing architecture (Motion, Canvas/Clearing, Engine Room, card types, emotional design)
+2. `docs/product/ui-requirements.md` — Governing architecture (Motion, Canvas, Engine Room, card types, emotional design)
 3. `docs/product/design-brief.md` — Figma-actionable specs (card anatomy, screen layouts, visual language)
 4. `docs/technical/architecture-mimbrain-v2.md` — Backend architecture (entity-centric, three memory types, harness, autonomy layer) — north star
-5. `docs/operational/master-effort-list.md` — All efforts/epics with status
+5. `docs/master-effort-list.md` — All efforts/epics with status
 6. `docs/product/stack-glossary.md` — Vocabulary definitions
 7. `docs/technical/specs/unified-classifier-spec.md` — Attention classification, signal quality, Decision/Action/Task ontology
 8. `docs/technical/specs/brain-intelligence-layer-spec.md` — RAG architecture, instruction persistence, MCP integration
@@ -61,7 +61,7 @@ There is also a **Me page** (`/me`) showing brain accuracy stats, manual scan tr
 
 | Term | Meaning |
 |------|---------|
-| In Motion | Platform working title (replaces MiMBrain) |
+| In Motion | Platform working title (working title for the platform) |
 | Your Motion | The feed — CEO's operational life stream |
 | Your Canvas | Thinking/prep space — UI label for the `/clearing` route (NOT a creation tool) |
 | Engine Room | Configuration layer (was "Settings") |

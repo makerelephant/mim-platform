@@ -1,4 +1,4 @@
-# MiM Brain — Stripe KPI Integration
+# In Motion — Stripe KPI Integration
 > **Author:** Mark Slater, Co-founder & CEO — Made in Motion PBC
 > **Status:** Active strategic document.
 > **Last updated:** 2026-03-18
@@ -13,7 +13,7 @@
 ### Architecture
 - Stripe connects via **server-side API route** — secret key never exposed to client
 - UI polls `/api/stripe/kpis` every 60 seconds via a custom hook
-- KPI containers on the My Brain view are wired to live data, not replaced — surgical edit only
+- KPI containers on the Your Motion view are wired to live data, not replaced — surgical edit only
 
 ### KPIs Selected
 | KPI | Stripe Source | Format |
@@ -116,8 +116,8 @@ export function useStripeKPIs(refreshInterval = 60000) {
 
 ---
 
-### 3. My Brain View — Wire KPI Containers
-Find the existing Brain view file (likely `/app/brain/page.tsx` or similar).  
+### 3. Your Motion View — Wire KPI Containers
+Find the existing feed view file (likely `/app/page.tsx` or similar).  
 **Do not change layout or styling — swap values only.**
 
 ```tsx
@@ -179,7 +179,7 @@ claude
 Paste this prompt:
 
 ```
-Implement Stripe KPI integration on the My Brain view:
+Implement Stripe KPI integration on the Your Motion view:
 
 1. Create /app/api/stripe/kpis/route.ts — server-side Stripe fetch returning
    { totalRevenue, orderCount, aov, lastUpdated }. Use stripe SDK,
@@ -189,7 +189,7 @@ Implement Stripe KPI integration on the My Brain view:
 2. Create /hooks/useStripeKPIs.ts — hook that fetches /api/stripe/kpis,
    returns { data, loading, error, refetch }, auto-refreshes every 60s.
 
-3. Find the My Brain view file. Locate the existing static KPI containers.
+3. Find the Your Motion view file. Locate the existing static KPI containers.
    Wire useStripeKPIs() into them replacing static values with:
    - Total Revenue → $data.totalRevenue formatted
    - Order Count → data.orderCount
@@ -209,7 +209,7 @@ Do not change any layout, styling, or other components. Surgical changes only.
 - [ ] `npm install stripe` completed
 - [ ] `/app/api/stripe/kpis/route.ts` created
 - [ ] `/hooks/useStripeKPIs.ts` created
-- [ ] Brain view imports `useStripeKPIs`
+- [ ] Feed view imports `useStripeKPIs`
 - [ ] KPI containers show live values (not static)
 - [ ] Loading state shows `—` not blank
 - [ ] No layout or styling regressions

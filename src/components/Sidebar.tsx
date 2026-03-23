@@ -101,11 +101,11 @@ export function Sidebar() {
           })}
         </div>
 
-        {/* MiMbrain icon */}
+        {/* In Motion icon */}
         <div className="mt-[36px] flex items-center justify-center">
           <img
             src="/icons/MiMbrain Icon.png"
-            alt="MiMBrain"
+            alt="In Motion"
             className="w-[25px] h-[17.8px]"
           />
         </div>
@@ -337,13 +337,13 @@ export function Sidebar() {
             )}
           </div>
 
-          {/* ── Separator + MiMbrain + Release ── */}
+          {/* ── Separator + In Motion + Release ── */}
           <div className="h-px w-[141px]" style={{ backgroundColor: "#e0e0e0" }} />
           <div className="flex items-end gap-[45px] w-full">
             <div className="flex items-center shrink-0">
               <img
                 src="/icons/MiMbrain Icon.png"
-                alt="MiMBrain"
+                alt="In Motion"
                 className="w-[25px] h-[17.8px]"
               />
             </div>

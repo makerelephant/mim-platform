@@ -1,7 +1,7 @@
 # Department: Product / Engineering
 
 ## Purpose
-Defines how MiM Brain prioritizes and routes product and engineering activity.
+Defines how In Motion prioritizes and routes product and engineering activity.
 
 ## CEO Role
 Decision-maker on strategy and roadmap. Routes technical execution to engineering and product leads.

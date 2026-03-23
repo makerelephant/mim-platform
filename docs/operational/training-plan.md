@@ -1,4 +1,4 @@
-# MiMBrain — Acumen Training Plan
+# In Motion — Acumen Training Plan
 > **Author:** Mark Slater, Co-founder & CEO — Made in Motion PBC
 > **Status:** Active strategic document.
 > **Last updated:** 2026-03-18

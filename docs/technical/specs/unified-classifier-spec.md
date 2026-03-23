@@ -5,7 +5,7 @@
 
 **Scope:** Gmail Gopher + Slack Gopher (unified pipeline)
 
-> **Note on provenance:** This document consolidates and supersedes `docs/intel/intelligence-deficit-analysis.md`. The 10 intelligence quality metrics from that document are now fully incorporated in Section 2 of this spec. The deficit analysis should be treated as archived reference material. This document is the governing spec.
+> **Note on provenance:** This document consolidates and supersedes `docs/intelligence-deficit-analysis.md`. The 10 intelligence quality metrics from that document are now fully incorporated in Section 2 of this spec. The deficit analysis should be treated as archived reference material. This document is the governing spec.
 
 ---
 

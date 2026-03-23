@@ -1,4 +1,4 @@
-# MiMBrain — Design Brief
+# In Motion — Design Brief
 > **Author:** Mark Slater, Co-founder & CEO — Made in Motion PBC
 > **Status:** Active strategic document.
 > **Last updated:** 2026-03-18
@@ -7,12 +7,12 @@
 
 ## 1. Platform Summary
 
-MiMBrain is a feed-first orchestration platform for CEOs. It has three surfaces:
+In Motion is a feed-first orchestration platform for CEOs. It has three surfaces:
 
 | Surface | Purpose | Metaphor |
 |---|---|---|
 | **Your Motion** | Execution flow — decisions, signals, tasks, intelligence | The river |
-| **Your Clearing** | Thinking space — notes, prep, ingestion | The campfire |
+| **Your Canvas** | Thinking space — notes, prep, ingestion | The campfire |
 | **Engine Room** | Configuration — integrations, motion map, gophers | The plumbing |
 
 There are no other pages. No CRM tables. No dashboards. No static views. Everything that would traditionally be a page is instead a **snapshot** — generated on demand into the feed.
@@ -30,7 +30,7 @@ There are no other pages. No CRM tables. No dashboards. No static views. Everyth
 | CEO input bar | P0 | Top of feed, always visible |
 | Calm state (empty Motion) | P0 | The success state |
 | Snapshot card (visual data) | P0 | Charts, pipelines, tables in-feed |
-| Your Clearing | P1 | Notepad + prep + ingestion |
+| Your Canvas | P1 | Notepad + prep + ingestion |
 | Entity context (slide-over) | P2 | Opens from any entity link in a card |
 | Sidebar (minimal) | P2 | 4 items + user profile |
 | Engine Room: Motion Map | P3 | The brain's operating logic |
@@ -288,28 +288,28 @@ Brain showing its own learning.
 
 ---
 
-## 6. Your Clearing
+## 6. Your Canvas
 
 ### Layout
 
-The Clearing should feel visually distinct from Motion. Motion has energy, flow, cards arriving. The Clearing should feel still. Spacious. Like you walked away from the river and sat down.
+The Canvas should feel visually distinct from Motion. Motion has energy, flow, cards arriving. The Canvas should feel still. Spacious. Like you walked away from the river and sat down.
 
 **Core elements:**
 
 - A large text area for thought stream / notepad — freeform, no formatting toolbar, just text
 - A drop zone for file ingestion — drag and drop files, images, documents
-- A brain input — same as Motion's input but contextual to the Clearing. "Help me think through the board meeting" triggers brain responses that appear IN the Clearing, not in Motion
+- A brain input — same as Motion's input but contextual to the Canvas. "Help me think through the board meeting" triggers brain responses that appear IN the Canvas, not in Motion
 - Active clearing sessions — the CEO may have multiple in-progress sessions (board prep, quarterly planning, market research). These should be accessible but not cluttered.
 
 ### States to Design
 
-1. **Empty Clearing** — first visit. Inviting, open, spacious. Suggests what you might do here.
-2. **Active Clearing** — notes accumulating, a few files dropped in, brain has responded with some context cards. The war room table with things spread out on it.
-3. **Clearing with brain context** — CEO asked for help with board prep. Brain has laid out related data, recent decisions, KPIs. The CEO is reviewing before going to Keynote to build the deck.
+1. **Empty Canvas** — first visit. Inviting, open, spacious. Suggests what you might do here.
+2. **Active Canvas** — notes accumulating, a few files dropped in, brain has responded with some context cards. The war room table with things spread out on it.
+3. **Canvas with brain context** — CEO asked for help with board prep. Brain has laid out related data, recent decisions, KPIs. The CEO is reviewing before going to Keynote to build the deck.
 
 ### Design Principles
 
-- **Stillness.** The Clearing doesn't refresh, doesn't auto-update, doesn't push cards. It's static until the CEO acts.
+- **Stillness.** The Canvas doesn't refresh, doesn't auto-update, doesn't push cards. It's static until the CEO acts.
 - **Space.** Generous whitespace. This is not a dense information surface. It's a place to think.
 - **Warmth.** Slightly different color temperature from Motion. Warmer — like firelight versus daylight.
 
@@ -323,9 +323,9 @@ The sidebar is a narrow, dark column on the left. Top to bottom:
 
 | Position | Element | Notes |
 |---|---|---|
-| **Top** | MiMBrain logo | Brand anchor |
+| **Top** | In Motion logo | Brand anchor |
 | **Upper section** | "Your Motion" nav item (with icon) | Active state = filled indicator + highlight background |
-| | "Your Clearing" nav item (with icon) | Inactive state = dimmed text, no background |
+| | "Your Canvas" nav item (with icon) | Inactive state = dimmed text, no background |
 | **Large empty space** | Nothing | Intentionally empty. This IS the calm. |
 | **Lower section** | Engine Room (gear icon) | Visually separated from the primary surfaces |
 | **Bottom** | User avatar, name, role, log out button | Same style as current design |
@@ -427,7 +427,7 @@ For internal calibration only. Don't over-design.
 - Sidebar: dark (consistent with current design — provides anchoring)
 - Urgency: warm accent (amber/orange for high, neutral for medium, no color for low)
 - Brain voice: consider a subtle visual indicator that distinguishes the brain's words from source content (light background tint, subtle icon, or typography shift)
-- Clearing: slightly warmer tone than Motion — different headspace, different light
+- Canvas: slightly warmer tone than Motion — different headspace, different light
 - Resolved cards: reduced opacity or desaturated — present but not demanding
 
 ### Typography
@@ -449,8 +449,8 @@ For internal calibration only. Don't over-design.
 ## 12. Responsive Considerations
 
 - **Desktop-first.** This is a CEO's operational tool. Primary use is desktop/laptop.
-- **Tablet:** Feed works naturally in single column. Clearing works as full-screen. Sidebar collapses.
-- **Mobile:** Read-only feed is useful (scan cards on the go). Input and Clearing interactions are desktop-primary.
+- **Tablet:** Feed works naturally in single column. Canvas works as full-screen. Sidebar collapses.
+- **Mobile:** Read-only feed is useful (scan cards on the go). Input and Canvas interactions are desktop-primary.
 - **Sidebar collapse:** On narrow viewports, sidebar should collapse to icon-only rail or hamburger menu.
 
 ---
@@ -474,12 +474,12 @@ Every interaction the CEO can take, listed for completeness:
 | Schedule a snapshot | Motion | Brain confirms with action card |
 | Share a briefing/snapshot | Motion | Share draft card spawns |
 | Scroll down in Motion | Motion | See resolved cards, day's history |
-| Type a note | Clearing | Text captured, brain absorbs |
-| Drop a file | Clearing | Brain ingests into institutional memory |
-| Ask brain in Clearing | Clearing | Brain responds within Clearing context |
+| Type a note | Canvas | Text captured, brain absorbs |
+| Drop a file | Canvas | Brain ingests into institutional memory |
+| Ask brain in Canvas | Canvas | Brain responds within Canvas context |
 | Open Motion Map | Engine Room | See brain's full operating logic |
 | Edit a standing order | Engine Room | Direct edit, brain acknowledges |
-| Switch between Motion/Clearing | Sidebar | View changes, context preserved |
+| Switch between Motion/Canvas | Sidebar | View changes, context preserved |
 
 ---
 
@@ -489,7 +489,7 @@ Every interaction the CEO can take, listed for completeness:
 - No reports page (briefing and snapshot cards in Motion)
 - No intelligence page (query responses in Motion)
 - No activity log page (Motion IS the activity log)
-- No knowledge page (ingestion happens in Clearing, recall happens via brain query)
+- No knowledge page (ingestion happens in Canvas, recall happens via brain query)
 - No sentiment page (signal cards in Motion)
 - No notification system (Motion IS the notification surface)
 - No search page (the input bar IS search)
@@ -497,4 +497,4 @@ Every interaction the CEO can take, listed for completeness:
 
 ---
 
-*Last updated: 2026-03-14*
+*Last updated: 2026-03-18*

@@ -1,7 +1,7 @@
 # Documentation Tree
 > **Author:** Mark Slater, Co-founder & CEO — Made in Motion PBC
 > **Status:** Active reference document. Updated as documents are added or archived.
-> **Last updated:** 2026-03-18
+> **Last updated:** 2026-03-22
 
 ---
 
@@ -9,19 +9,20 @@
 
 Read documents in this order when onboarding to the project:
 
-1. `/CLAUDE.md` — Session instructions, critical rules, current state, terminology
-2. `product/ui-requirements.md` — Governing UI architecture (the three surfaces)
-3. `product/design-brief.md` — Figma-actionable specs
-4. `technical/architecture-mimbrain-v2.md` — Backend north star
-5. `operational/master-effort-list.md` — What's built and what's next
-6. `product/stack-glossary.md` — Vocabulary
+1. `docs/strategic/platform-pivot-march-2026.md` — **START HERE.** Strategic pivot, foundation excellence, build order.
+2. `docs/product/ui-requirements.md` — Governing UI architecture (Motion, Canvas, Engine Room, card types, emotional design)
+3. `docs/product/design-brief.md` — Figma-actionable specs (card anatomy, screen layouts, visual language)
+4. `docs/technical/architecture-mimbrain-v2.md` — Backend architecture north star
+5. `docs/master-effort-list.md` — All efforts/epics with status
+6. `docs/product/stack-glossary.md` — Vocabulary definitions
+7. `docs/technical/specs/unified-classifier-spec.md` — Attention classification, signal quality, Decision/Action/Task ontology
+8. `docs/technical/specs/brain-intelligence-layer-spec.md` — RAG architecture, instruction persistence, MCP integration
 
 Specialised reading:
-- `technical/specs/unified-classifier-spec.md` — Before touching any Gopher/classification code
-- `technical/specs/brain-intelligence-layer-spec.md` — Before touching RAG, Canvas chat, or memory
-- `technical/memory-approach.md` — Three-layer memory architecture
-- `technical/rag-spec.md` — RAG implementation and retrieval details
-- `technical/mcp-functional-spec.md` — MCP server tools and deployment
+- `docs/technical/memory-approach.md` — Three-layer memory architecture
+- `docs/technical/rag-spec.md` — RAG implementation and retrieval details
+- `docs/technical/mcp-functional-spec.md` — MCP server tools and deployment
+- `docs/context-primer.md` — Quick onboarding prompt with key file locations
 
 ---
 
@@ -29,7 +30,15 @@ Specialised reading:
 
 | File | Purpose |
 |------|---------|
-| `/CLAUDE.md` | Session instructions, architecture principles, current state, critical rules. **Read first.** |
+| `/CLAUDE.md` | Session instructions, architecture principles, current state, critical rules. **Read first every session.** |
+
+---
+
+## docs/strategic/
+
+| File | Purpose |
+|------|---------|
+| `platform-pivot-march-2026.md` | Strategic pivot from correctness to contextual suggestions. Foundation excellence requirements. Build order. |
 
 ---
 
@@ -57,7 +66,7 @@ Specialised reading:
 
 | File | Purpose |
 |------|---------|
-| `unified-classifier-spec.md` | **Governing spec for all classification work.** Attention classification (P0–P3, S0–S3), Decision/Action/Task ontology, 10 signal quality metrics, unified output schema, task creation gate. Supersedes `intelligence-deficit-analysis.md`. |
+| `unified-classifier-spec.md` | **Governing spec for all classification work.** Attention classification (P0–P3, S0–S3), Decision/Action/Task ontology, 10 signal quality metrics, unified output schema, task creation gate. |
 | `brain-intelligence-layer-spec.md` | RAG architecture, instruction persistence, MCP integration, cross-source intelligence. Companion to unified-classifier-spec.md. |
 
 ---
@@ -66,33 +75,64 @@ Specialised reading:
 
 | File | Purpose |
 |------|---------|
-| `master-effort-list.md` | All efforts and epics with status. Single source of truth for what's built, what's in progress, and what's planned. Updated with every significant change. |
 | `harness-scope-email-categories.md` | 11 email classification categories with definitions, keywords, and routing rules. |
 | `training-plan.md` | Classifier training phases T1–T4. Cadence, volume targets, accuracy thresholds. |
+| `memory-indexes.md` | Supabase table index for all memory/intelligence tables. |
+| `recall-golden-checklist.md` | QA checklist for verifying recall quality. |
+| `teams-data-prep.md` | Design note for future Teams data model. |
+| `progress-march-19.md` | Point-in-time progress snapshot (March 19, 2026). |
 
 ---
 
-## docs/brain/
-
-22 harness documents defining the brain's operating model:
-
-### departments/ (11 files)
-Domain expertise docs. Classifiers decide the category; department docs give the brain the expertise to reason within that category.
-
-`fundraising.md`, `partnerships.md`, `legal.md`, `marketing.md`, `operations.md`, `product.md`, `community.md`, `commerce.md`, `people.md`, `technology.md`, `executive.md`
-
-### pipelines/email-classification/ (11 files)
-Classifier rules per category. Loaded by the harness loader into Gopher prompts.
-
-`fundraising.md`, `partnerships.md`, `legal.md`, `marketing.md`, `operations.md`, `product.md`, `community.md`, `commerce.md`, `people.md`, `technology.md`, `executive.md`
-
----
-
-## docs/intel/
+## docs/ (root level)
 
 | File | Purpose |
 |------|---------|
-| `intelligence-deficit-analysis.md` | **Archived — superseded.** The 10 intelligence measurement gaps that drove the unified classifier spec. Retained for reference. The unified-classifier-spec.md is now the authoritative home for this thinking. |
+| `master-effort-list.md` | All efforts and epics with status. Single source of truth for what's built, what's in progress, and what's planned. Updated with every significant change. |
+| `context-primer.md` | Quick onboarding prompt with key file locations, architecture rules, and current state summary. |
+| `intelligence-deficit-analysis.md` | **Reference only — superseded by `unified-classifier-spec.md`.** The 10 intelligence measurement gaps that drove the unified classifier spec. |
+
+---
+
+## brain/
+
+Harness documents defining the brain's operating model:
+
+### brain/departments/ (11 files)
+Domain expertise docs. Classifiers decide the category; department docs give the brain the expertise to reason within that category.
+
+`accounting-finance.md`, `administration.md`, `ai.md`, `customer-partner-ops.md`, `family.md`, `fundraising.md`, `legal.md`, `marketing.md`, `product-engineering.md`, `scheduling.md`, `ux-design.md`
+
+### brain/pipelines/email-classification/ (11 files)
+Classifier rules per category. Loaded by the harness loader into Gopher prompts.
+
+`accounting-finance.md`, `administration.md`, `ai.md`, `customer-partner-ops.md`, `family.md`, `fundraising.md`, `legal.md`, `marketing.md`, `product-engineering.md`, `scheduling.md`, `ux-design.md`
+
+### brain/harness/ (6 files)
+Operating model internals — ontology, memory models, processing pipelines.
+
+- `ontology/card-types.md` — Feed card type definitions and lifecycle
+- `ontology/entities.md` — Entity model (contacts, organizations, relationships)
+- `memory/autonomy-rules.md` — Autonomy qualification and self-correcting loop
+- `memory/confidence-model.md` — Accuracy computation, SNR, milestone tracking
+- `pipelines/email-processing.md` — Full 11-stage email processing pipeline
+- `pipelines/knowledge-ingestion.md` — Knowledge ingestion pipeline (files, notes, Canvas)
+
+---
+
+## docs/archive/
+
+Superseded documents retained for historical reference:
+
+| File | Purpose |
+|------|---------|
+| `MIMBRAIN.md` | Original project README — superseded by `/CLAUDE.md` |
+| `ONBOARDING.md` | Original onboarding doc — superseded by `context-primer.md` |
+| `README.md` | Boilerplate Next.js README with old build notes |
+| `operational/progress-report.md` | March 15 progress snapshot |
+| `operational/project-plan.md` | Original project plan |
+| `technical/technical-roadmap.md` | Original technical roadmap |
+| `technical/firebase-integration-spec.md` | Placeholder — never populated |
 
 ---
 
@@ -110,3 +150,4 @@ All documents must use this header format:
 Platform name: **In Motion** (not MiMBrain)
 Automated workers: **Gopher** (not Scanner)
 Thinking space UI label: **Canvas** (route: `/clearing`)
+Left nav epics: **Motion**, **Canvas**, **Engine**, **Me**

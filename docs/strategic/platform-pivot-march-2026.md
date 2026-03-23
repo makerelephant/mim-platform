@@ -66,7 +66,7 @@ Before shipping the intent suggestion UI, the platform foundation must be bullet
 The implementation sequence:
 
 ### Phase A: Foundation ✅ COMPLETE (March 21, 2026)
-1. **Full-body comprehension pipeline** — ✅ Scanner reads full email bodies (8K chars), web intelligence expanded similarly
+1. **Full-body comprehension pipeline** — ✅ Gopher reads full email bodies (8K chars), web intelligence expanded similarly
 2. **Bulletproof recall** — ✅ 7-day guaranteed recall, lower vector thresholds (0.18), wider result nets (15/12), keyword fallbacks across title+summary+tags, feed card search
 3. **Entity resolution depth** — ✅ Fuzzy Levenshtein matching, first/last name partials, email prefix/domain matching, acronym detection, rich dossiers with relationship context
 

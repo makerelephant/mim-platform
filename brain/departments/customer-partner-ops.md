@@ -1,7 +1,7 @@
 # Department: Customer / Partner Ops
 
 ## Purpose
-Defines how MiM Brain prioritizes customer and partner operations activity.
+Defines how In Motion prioritizes customer and partner operations activity.
 
 ## Triage Hierarchy
 

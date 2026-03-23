@@ -1,7 +1,7 @@
 # Department: Fundraising
 
 ## Purpose
-Defines how MiM Brain prioritizes, scores, and reasons about fundraising activity.
+Defines how In Motion prioritizes, scores, and reasons about fundraising activity.
 
 ## Impact Scoring Model
 

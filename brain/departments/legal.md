@@ -1,7 +1,7 @@
 # Department: Legal
 
 ## Purpose
-Defines how MiM Brain prioritizes and reasons about legal activity.
+Defines how In Motion prioritizes and reasons about legal activity.
 
 ## Importance Rule of Thumb
 

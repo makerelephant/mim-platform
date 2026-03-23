@@ -46,6 +46,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           backgroundSize: "cover",
           backgroundPosition: "center",
           backgroundRepeat: "no-repeat",
+          backgroundAttachment: "fixed",
         } : undefined}
       >
         {children}

@@ -1,7 +1,7 @@
 # Department: Scheduling
 
 ## Purpose
-Defines how MiM Brain prioritizes and routes scheduling requests.
+Defines how In Motion prioritizes and routes scheduling requests.
 
 ## CEO Role
 In early-stage startups, the CEO often handles scheduling directly. As the company grows, scheduling routes to operations / chief of staff / executive assistant.
