@@ -3,7 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import Anthropic from "@anthropic-ai/sdk";
 import { processDocument, processTextInput, validateFileSize, EXTENSION_TO_TYPE } from "@/lib/document-processor";
 import { loadTaxonomy, matchTaxonomyCategory } from "@/lib/taxonomy-loader";
-import { chunkText, embedBatch, estimateTokens } from "@/lib/embeddings";
+import { embedKnowledgeContentIntoChunks } from "@/lib/knowledge-chunks-writer";
 import { getBrainIngestPrompt, getBrainIngestChunkPrompt, getBrainIngestSynthesisPrompt } from "@/lib/prompts";
 
 export const maxDuration = 300; // Extended for full-body comprehension of large documents
@@ -269,6 +269,27 @@ export async function POST(request: NextRequest) {
         chunks = processed.chunks;
       }
 
+      // Fail loud: file provided but nothing usable extracted (non-PDF paths; PDF handled above)
+      if (fileBuffer && fileName) {
+        const trimmed = contentText.trim();
+        const looksLikeExtractError = /extraction failed|PDF extraction failed|DOCX extraction failed|XLSX extraction failed/i.test(
+          contentText,
+        );
+        if (trimmed.length < 20 || looksLikeExtractError) {
+          await sb.from("knowledge_base").delete().eq("id", kbId);
+          return NextResponse.json(
+            {
+              success: false,
+              error: "no_extractable_content",
+              message: looksLikeExtractError
+                ? "The file could not be read as text. Try another format or export (e.g. .pptx or plain text)."
+                : "No readable text was found in this file. It may be empty, corrupted, or an unsupported binary.",
+            },
+            { status: 422 },
+          );
+        }
+      }
+
       // ── 4. FULL-BODY COMPREHENSION — classify the ENTIRE document ──
       // For documents ≤ 12K chars: send everything in one shot
       // For documents > 12K chars: multi-pass chunked analysis → synthesis
@@ -451,42 +472,20 @@ export async function POST(request: NextRequest) {
         .eq("id", kbId);
 
       // ── 6b. Generate embeddings and store in knowledge_chunks ──
-      let embeddingChunkCount = 0;
-      try {
-        const embeddingChunks = chunkText(contentText, 500);
-        if (embeddingChunks.length > 0) {
-          const embeddings = await embedBatch(embeddingChunks);
-          if (embeddings.length > 0) {
-            const chunkRows = embeddingChunks.map((chunk, idx) => ({
-              kb_id: kbId,
-              chunk_index: idx,
-              content: chunk,
-              token_count: estimateTokens(chunk),
-              // pgvector text format: [n1,n2,...] — no spaces, bracket-wrapped
-              embedding: `[${embeddings[idx].join(",")}]`,
-              metadata: {
-                title,
-                source_type: sourceType,
-                categories: taxonomyCategories,
-              },
-            }));
+      const {
+        vectorChunksExpected,
+        embeddingChunkCount,
+        embedOk: embedPipelineOk,
+      } = await embedKnowledgeContentIntoChunks(sb, kbId, contentText, {
+        title,
+        source_type: sourceType,
+        categories: taxonomyCategories,
+      });
 
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const { error: chunkError } = await (sb as any)
-              .schema("brain")
-              .from("knowledge_chunks")
-              .insert(chunkRows);
-
-            if (chunkError) {
-              console.warn("knowledge_chunks insert failed (non-fatal):", chunkError.message);
-            } else {
-              embeddingChunkCount = chunkRows.length;
-            }
-          }
-        }
-      } catch (embErr) {
-        console.warn("Embedding generation failed (non-fatal):", embErr);
-      }
+      const knowledgeEmbedOk = vectorChunksExpected === 0 || embedPipelineOk;
+      console.log(
+        `[memory-index] knowledge kb=${kbId} vector_expected=${vectorChunksExpected} embedded=${embeddingChunkCount} embed_ok=${knowledgeEmbedOk}`,
+      );
 
       // ── 7. Emit feed card ──
       try {
@@ -535,8 +534,17 @@ export async function POST(request: NextRequest) {
           entity_count: entityIds.length,
           chunk_count: chunks.length,
           text_length: contentText?.length || 0,
+          memory_index: "knowledge",
+          vector_chunks_expected: vectorChunksExpected,
+          vector_chunks_embedded: embeddingChunkCount,
+          embed_ok: knowledgeEmbedOk,
         },
       });
+
+      const warnings: string[] = [];
+      if (vectorChunksExpected > 0 && !embedPipelineOk) {
+        warnings.push("vector_embed_failed");
+      }
 
       return NextResponse.json({
         success: true,
@@ -549,6 +557,9 @@ export async function POST(request: NextRequest) {
         chunks: chunks.length,
         embedding_chunks: embeddingChunkCount,
         text_length: contentText?.length || 0,
+        vector_chunks_expected: vectorChunksExpected,
+        embed_ok: knowledgeEmbedOk,
+        warnings,
       });
     } catch (processingError) {
       // Update the KB row with error status

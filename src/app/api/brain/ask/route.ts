@@ -1,78 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { createClient } from "@supabase/supabase-js";
 import Anthropic from "@anthropic-ai/sdk";
 import { embedText } from "@/lib/embeddings";
 import { emitFeedCard } from "@/lib/feed-card-emitter";
 import { getBrainAskPrompt } from "@/lib/prompts";
+import { persistCanvasTurnToKnowledge } from "@/lib/clearing-turn-knowledge";
+import {
+  appendGlobalVectorMemoryToContext,
+  appendKeywordKnowledgeChunksToContext,
+  appendKnowledgeChunksToContext,
+  KNOWLEDGE_VECTOR_WEAK_FALLBACK_MAX_SIM,
+  KNOWLEDGE_VECTOR_WEAK_FALLBACK_MIN_CHUNKS,
+  searchKnowledgeForKb,
+  SCOPED_KB_MATCH_COUNT_RECENT,
+  SCOPED_KB_MATCH_COUNT_SESSION,
+  SCOPED_KB_THRESHOLD,
+} from "@/lib/search-memory";
 
 export const maxDuration = 120;
-
-/** Row shape from brain.search_knowledge / brain.search_knowledge_for_kb */
-type KnowledgeChunkRow = {
-  id: string;
-  kb_id: string;
-  chunk_index: number;
-  content: string | null;
-  token_count: number | null;
-  metadata: Record<string, unknown> | null;
-  similarity?: number;
-};
-
-function chunkDedupeKey(row: { kb_id: string; chunk_index: number }): string {
-  return `${row.kb_id}:${row.chunk_index}`;
-}
-
-async function searchKnowledgeForKb(
-  sb: SupabaseClient,
-  kbId: string,
-  embeddingStr: string,
-  matchCount: number,
-  matchThreshold: number,
-): Promise<KnowledgeChunkRow[]> {
-  const { data, error } = await sb.schema("brain").rpc("search_knowledge_for_kb", {
-    target_kb_id: kbId,
-    query_embedding: embeddingStr,
-    match_count: matchCount,
-    match_threshold: matchThreshold,
-  });
-  if (error) {
-    console.warn("[brain/ask] search_knowledge_for_kb failed:", error.message);
-    return [];
-  }
-  return (data as KnowledgeChunkRow[]) ?? [];
-}
-
-function appendKnowledgeChunksToContext(
-  contextParts: string[],
-  sourceNotes: string[],
-  title: string,
-  rows: KnowledgeChunkRow[],
-  filledVectorChunkKeys: Set<string>,
-  sectionHeader: string,
-) {
-  const fresh: KnowledgeChunkRow[] = [];
-  for (const r of rows) {
-    const k = chunkDedupeKey(r);
-    if (filledVectorChunkKeys.has(k)) continue;
-    filledVectorChunkKeys.add(k);
-    fresh.push(r);
-  }
-  if (fresh.length === 0) return;
-
-  contextParts.push(sectionHeader);
-  for (const r of fresh) {
-    const sim = r.similarity != null ? ` (similarity ${(r.similarity * 100).toFixed(0)}%)` : "";
-    contextParts.push(`[Chunk ${r.chunk_index}]${sim}`);
-    contextParts.push((r.content || "").trim());
-    contextParts.push("");
-  }
-  sourceNotes.push(`${fresh.length} vector chunk(s) from «${title}»`);
-}
-
-const GLOBAL_KNOWLEDGE_MATCH_COUNT = 48;
-const SCOPED_KB_MATCH_COUNT_SESSION = 40;
-const SCOPED_KB_MATCH_COUNT_RECENT = 36;
-const SCOPED_KB_THRESHOLD = 0.12;
 
 /**
  * POST /api/brain/ask
@@ -443,73 +388,32 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // ── 2b. Vector search (RAG) — full chunk text, deduped against scoped pulls above
+    // ── 2b. Vector search — unified Knowledge + Messages indexes (see src/lib/search-memory.ts)
     const vectorKbTitles = new Set<string>();
     const vectorCorrSubjects = new Set<string>();
-    try {
-      if (embeddingStr) {
-        const [kbResult, corrResult] = await Promise.all([
-          sb.schema("brain").rpc("search_knowledge", {
-            query_embedding: embeddingStr,
-            match_threshold: 0.18,
-            match_count: GLOBAL_KNOWLEDGE_MATCH_COUNT,
-          }),
-          sb.schema("brain").rpc("search_correspondence", {
-            query_embedding: embeddingStr,
-            match_threshold: 0.18,
-            match_count: 20,
-          }),
-        ]);
+    const vecStats = await appendGlobalVectorMemoryToContext(sb, {
+      embeddingStr,
+      filledVectorChunkKeys,
+      contextParts,
+      sourceNotes,
+      vectorKbTitles,
+      vectorCorrSubjects,
+      scope: "all",
+    });
 
-        if (kbResult.error) {
-          console.error("search_knowledge RPC error:", kbResult.error.message, kbResult.error.details);
-        }
-        if (corrResult.error) {
-          console.error("search_correspondence RPC error:", corrResult.error.message, corrResult.error.details);
-        }
-
-        const kbVectorResults = kbResult.data as KnowledgeChunkRow[] | null;
-        const corrVectorResults = corrResult.data;
-
-        if (kbVectorResults && kbVectorResults.length > 0) {
-          contextParts.push("## Knowledge Base (Vector Search — full retrieved chunks)\n");
-          let added = 0;
-          for (const r of kbVectorResults) {
-            if (r.kb_id == null) continue;
-            const key = chunkDedupeKey(r);
-            if (filledVectorChunkKeys.has(key)) continue;
-            filledVectorChunkKeys.add(key);
-
-            const title = (r.metadata?.title as string) || "Untitled";
-            vectorKbTitles.add(title);
-            const similarity = r.similarity != null ? ` (${(r.similarity * 100).toFixed(0)}% match)` : "";
-            contextParts.push(`**${title}** · chunk ${r.chunk_index}${similarity}`);
-            contextParts.push((r.content || "").trim());
-            contextParts.push("");
-            added++;
-          }
-          if (added > 0) {
-            sourceNotes.push(`${added} global vector knowledge chunk(s) (full text)`);
-          }
-        }
-
-        if (corrVectorResults && corrVectorResults.length > 0) {
-          contextParts.push("## Correspondence (Vector Search)\n");
-          for (const r of corrVectorResults) {
-            const subject = r.subject || r.metadata?.subject || "No subject";
-            vectorCorrSubjects.add(subject);
-            const similarity = r.similarity ? ` (${(r.similarity * 100).toFixed(0)}% match)` : "";
-            const dir = r.direction === "outbound" ? "SENT" : "RECEIVED";
-            const date = r.sent_at ? new Date(r.sent_at).toLocaleDateString() : "";
-            contextParts.push(`- [${r.channel || "email"}/${dir}] "${subject}" (${date})${similarity}`);
-            if (r.content) contextParts.push(`  ${r.content.trim()}`);
-          }
-          contextParts.push("");
-          sourceNotes.push(`${corrVectorResults.length} vector correspondence matches`);
-        }
-      }
-    } catch (vecErr) {
-      console.error("Vector search exception (falling back to keyword):", vecErr);
+    if (
+      embeddingStr &&
+      (vecStats.maxKbSimilarity < KNOWLEDGE_VECTOR_WEAK_FALLBACK_MAX_SIM ||
+        vecStats.kbChunksAdded < KNOWLEDGE_VECTOR_WEAK_FALLBACK_MIN_CHUNKS)
+    ) {
+      await appendKeywordKnowledgeChunksToContext(
+        sb,
+        question,
+        filledVectorChunkKeys,
+        contextParts,
+        sourceNotes,
+        vectorKbTitles,
+      );
     }
 
     // ── 3. Knowledge keyword search (title + summary + tags) ──
@@ -820,14 +724,18 @@ export async function POST(request: NextRequest) {
       const sessionId = body.session_id;
       if (sessionId) {
         try {
-          // Insert question message
-          await sb.schema("brain").from("clearing_messages").insert({
-            session_id: sessionId,
-            role: "user",
-            content: question,
-            message_type: "query",
-          });
-          // Insert brain response
+          const { data: userMsg } = await sb
+            .schema("brain")
+            .from("clearing_messages")
+            .insert({
+              session_id: sessionId,
+              role: "user",
+              content: question,
+              message_type: "query",
+            })
+            .select("id")
+            .single();
+
           const { data: respMsg } = await sb
             .schema("brain")
             .from("clearing_messages")
@@ -841,6 +749,16 @@ export async function POST(request: NextRequest) {
             .select("id")
             .single();
           clearing_message_id = respMsg?.id ?? null;
+
+          void persistCanvasTurnToKnowledge(sb, {
+            sessionId,
+            question,
+            answer,
+            clearingMessageIds: {
+              user: userMsg?.id ?? null,
+              brain: respMsg?.id ?? null,
+            },
+          });
         } catch (clearingErr) {
           console.error("Failed to persist clearing messages:", clearingErr);
         }

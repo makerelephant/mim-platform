@@ -152,25 +152,6 @@ export default function ClearingPage() {
     [activeSessionId]
   );
 
-  // ── Embed user text into permanent brain memory (fire-and-forget) ──
-  function embedToPermanentMemory(text: string) {
-    // Only embed substantive messages (50+ chars) — skip short queries like "yes" or "ok"
-    if (text.length < 50) return;
-    fetch("/api/brain/ingest", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        text,
-        title: `Canvas — ${text.slice(0, 60)}`,
-        source_type: "clearing",
-        uploaded_by: "ceo",
-        tags: ["knowledge", "clearing", "auto-embedded"],
-      }),
-    }).catch(() => {
-      // Silent — don't disrupt the conversation for embedding failures
-    });
-  }
-
   // ── Send thought or query to brain ──
   async function handleSend() {
     if (!input.trim() || !activeSessionId) return;
@@ -184,8 +165,7 @@ export default function ClearingPage() {
       type: "query",
     });
 
-    // Auto-embed into permanent knowledge (fire-and-forget)
-    embedToPermanentMemory(text);
+    // Knowledge index: server persists Q&A after /api/brain/ask (see persistCanvasTurnToKnowledge)
 
     // Auto-title session from first message
     if (activeSession && activeSession.messages.length === 0) {
@@ -219,10 +199,7 @@ export default function ClearingPage() {
         content: answer,
         type: "response",
       });
-      // Embed the Q&A exchange as permanent knowledge — brain's synthesis is institutional memory
-      if (data.answer && data.answer.length > 80) {
-        embedToPermanentMemory(`CEO asked: ${text}\n\nBrain response: ${data.answer}`);
-      }
+      // Q&A → Knowledge index is handled server-side in /api/brain/ask (no duplicate client ingest)
     } catch {
       addMessage({
         role: "brain",

@@ -10,6 +10,7 @@
 
 import { SupabaseClient } from "@supabase/supabase-js";
 import { chunkText, embedBatch, estimateTokens } from "./embeddings";
+import { logMemoryIndexWrite } from "./search-memory";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -373,6 +374,13 @@ export async function embedCorrespondence(
     const embeddings = await embedBatch(chunks);
     if (embeddings.length === 0) {
       addLog(`  Correspondence embedding skipped (no API key or error)`);
+      void logMemoryIndexWrite(sb, {
+        index: "messages",
+        sourceId: correspondenceId,
+        chunkCount: 0,
+        embedOk: false,
+        extra: { reason: "no_embeddings_batch" },
+      });
       return 0;
     }
 
@@ -392,13 +400,34 @@ export async function embedCorrespondence(
 
     if (error) {
       addLog(`  Correspondence chunk insert failed: ${error.message}`);
+      void logMemoryIndexWrite(sb, {
+        index: "messages",
+        sourceId: correspondenceId,
+        chunkCount: chunks.length,
+        embedOk: false,
+        extra: { reason: "insert_failed", error: error.message },
+      });
       return 0;
     }
+
+    void logMemoryIndexWrite(sb, {
+      index: "messages",
+      sourceId: correspondenceId,
+      chunkCount: chunks.length,
+      embedOk: true,
+    });
 
     addLog(`  Embedded correspondence ${correspondenceId} (${chunks.length} chunks)`);
     return chunks.length;
   } catch (err) {
     addLog(`  Correspondence embedding error: ${err instanceof Error ? err.message : String(err)}`);
+    void logMemoryIndexWrite(sb, {
+      index: "messages",
+      sourceId: correspondenceId,
+      chunkCount: 0,
+      embedOk: false,
+      extra: { reason: "exception", error: err instanceof Error ? err.message : String(err) },
+    });
     return 0;
   }
 }
