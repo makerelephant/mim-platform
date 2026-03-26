@@ -351,13 +351,21 @@ export default function MessageCard({
               )}
             </span>
           )}
+          {(card.message_count ?? (card.metadata as Record<string, unknown>)?.message_count as number) > 1 && (
+            <span
+              className="text-[11px] font-medium text-[#7b7f81] leading-[18px] shrink-0"
+              style={{ fontFamily: "var(--font-inter), 'Inter', sans-serif" }}
+            >
+              {(card.message_count ?? (card.metadata as Record<string, unknown>)?.message_count as number)} messages
+            </span>
+          )}
           <span
             className="text-[12px] font-medium text-[#b0b8bb] leading-[18px] truncate"
             style={{
               fontFamily: "var(--font-inter), 'Inter', sans-serif",
             }}
           >
-            {timeAgoText(card.created_at)}
+            {timeAgoText(card.thread_updated_at || card.created_at)}
           </span>
         </div>
 

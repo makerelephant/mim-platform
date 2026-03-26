@@ -3,7 +3,7 @@
   "crons": [
     {
       "path": "/api/agents/gmail-scanner",
-      "schedule": "0 11 * * *"
+      "schedule": "0 */4 * * *"
     },
     {
       "path": "/api/agents/daily-briefing",

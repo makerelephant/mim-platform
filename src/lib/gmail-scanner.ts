@@ -950,29 +950,18 @@ export async function runGmailScanner(
       // ── Resolve entities — counterparty only (never fall back to user's own email) ──
       let allMatches = resolver.resolveMultiple(counterpartyEmails);
 
-      // Auto-create contact for unresolved sender — with quality gate
-      // Skip: user's own emails, generic/automated senders, company-only names
+      // Auto-create contact for unresolved sender
+      // Only skip: user's own emails and genuinely automated senders (noreply, support, etc.)
       const JUNK_EMAIL_PATTERNS = [
         /^no[-_.]?reply@/i, /^do[-_.]?not[-_.]?reply@/i,
-        /^support@/i, /^info@/i, /^hello@/i, /^team@/i,
-        /^billing@/i, /^sales@/i, /^admin@/i,
-        /^notifications?@/i, /^alerts?@/i, /^updates?@/i,
-        /^newsletter@/i, /^digest@/i, /^mailer/i,
-        /^feedback@/i, /^help@/i, /^contact@/i,
-        /^service[s]?@/i, /^customer@/i, /^receipt/i,
-        /^order[s]?@/i, /^confirm/i, /^bounce/i,
         /^postmaster@/i, /^webmaster@/i,
+        /^bounce/i, /^mailer[-_.]?daemon@/i,
         /@.*\.docusign\./i, /@.*noreply\./i,
       ];
       const isJunkEmail = JUNK_EMAIL_PATTERNS.some(p => p.test(fromEmail));
       const senderDisplayName = fromName || fromEmail.split("@")[0];
-      const nameParts = senderDisplayName.split(' ');
-      const hasRealName = nameParts.length >= 2 && nameParts[0].length > 1 && nameParts[1].length > 1;
-      const looksLikeCompany = /^[A-Z][a-z]+$/.test(senderDisplayName.trim()) === false
-        && !senderDisplayName.includes(' ')
-        && senderDisplayName.length > 2;
 
-      if (allMatches.length === 0 && !userEmails.has(fromEmail) && !isJunkEmail && hasRealName && !looksLikeCompany) {
+      if (allMatches.length === 0 && !userEmails.has(fromEmail) && !isJunkEmail) {
         // Check if contact already exists by email
         const { data: existingByEmail } = await sb
           .schema('core').from("contacts")
@@ -987,8 +976,7 @@ export async function runGmailScanner(
         }
 
         if (!existingContactId) {
-          // Create new contact
-          const senderDisplayName = fromName || fromEmail.split("@")[0];
+          // Create new contact — no name format requirements
           const nameParts = senderDisplayName.split(' ');
           const firstName = nameParts[0];
           const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : null;
@@ -1004,7 +992,6 @@ export async function runGmailScanner(
             existingContactId = newContact.id;
             contactsCreated++;
             addLog(`  Auto-created contact: ${senderDisplayName} <${fromEmail}>`);
-            // Write provenance for auto-created contact fields
             const contactFields: Record<string, string | null> = {
               first_name: firstName,
               last_name: lastName,
@@ -1014,6 +1001,48 @@ export async function runGmailScanner(
               await writeProvenance(sb, 'contacts', newContact.id, contactFields, 'scanner', `gmail_${msgId}`, 'medium', 0.7);
             } catch (e) {
               addLog(`  Provenance write failed for contact: ${e instanceof Error ? e.message : String(e)}`);
+            }
+
+            // Auto-create org from email domain (non-free domains only)
+            const senderDomain = fromEmail.split("@")[1]?.toLowerCase().trim();
+            if (senderDomain && !FREE_EMAIL_DOMAINS.has(senderDomain)) {
+              try {
+                const { data: existingOrg } = await sb
+                  .schema('core').from("organizations")
+                  .select("id, name")
+                  .or(`website.ilike.%${senderDomain}%,website.ilike.%${senderDomain.replace(/\.\w+$/, "")}%`)
+                  .limit(1);
+
+                let orgId: string | null = null;
+
+                if (existingOrg && existingOrg.length > 0) {
+                  orgId = existingOrg[0].id;
+                  addLog(`  Linked new contact to existing org: ${existingOrg[0].name}`);
+                } else {
+                  const domainName = senderDomain.replace(/\.\w+$/, "");
+                  const { data: newOrg } = await sb.schema('core').from("organizations").insert({
+                    name: domainName,
+                    website: senderDomain,
+                    source: "gmail-scanner",
+                    created_source: "gmail-scanner",
+                  }).select("id").single();
+
+                  if (newOrg) {
+                    orgId = newOrg.id;
+                    addLog(`  Auto-created org: "${domainName}" from domain ${senderDomain}`);
+                  }
+                }
+
+                if (orgId) {
+                  await sb.schema('core').from("relationships").insert({
+                    contact_id: newContact.id,
+                    org_id: orgId,
+                    relationship_type: "member",
+                  });
+                }
+              } catch (e) {
+                addLog(`  Org auto-creation failed (non-fatal): ${e instanceof Error ? e.message : String(e)}`);
+              }
             }
           }
         }
@@ -1028,11 +1057,13 @@ export async function runGmailScanner(
             confidence: 0.5,
           });
         } else {
-          continue; // Still couldn't resolve — skip
+          // Contact creation failed — still classify the email, don't drop it
+          addLog(`  Warning: Could not create contact for ${fromEmail} — classifying anyway`);
         }
       }
 
-      if (allMatches.length === 0) continue; // No known entities — skip
+      // If still no entity match (junk email or failed auto-create), classify anyway
+      // The email is too important to silently drop
 
       // ── Thread awareness: check for existing open tasks on same thread ──
       let threadContext = "";
