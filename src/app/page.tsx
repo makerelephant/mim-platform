@@ -293,11 +293,9 @@ export default function MotionFeedPage() {
                 letterSpacing: "-0.36px",
               }}
             >
-              {scanning
-                ? scanStages[scanStage]
-                : scanError
-                  ? scanError
-                  : "Welcome to your In Motion office."}
+              {scanError
+                ? scanError
+                : "Welcome to your In Motion office."}
             </p>
           </div>
 
