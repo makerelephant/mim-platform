@@ -881,7 +881,7 @@ export async function runGmailScanner(
         addLog(`  Pre-filtered [${filterResult.category}]: ${details.subject.slice(0, 60)} — ${filterResult.reason}`);
         // Log to classification_log for tracking
         try {
-          await sb.from("classification_log").insert({
+          await sb.schema('brain').from("classification_log").insert({
             source: "gmail",
             source_message_id: msgId,
             thread_id: details.thread_id || null,
@@ -1141,7 +1141,7 @@ export async function runGmailScanner(
             addLog(`Processed (thread-update): ${details.subject.slice(0, 60)} → [${skipEntityType}] (0 tasks)`);
 
             try {
-              await sb.from("classification_log").insert({
+              await sb.schema('brain').from("classification_log").insert({
                 source: "gmail",
                 source_message_id: msgId,
                 thread_id: details.thread_id,
@@ -1162,6 +1162,179 @@ export async function runGmailScanner(
         }
       }
 
+      // ── Direction & date (compute BEFORE classification to avoid wasting API calls on outbound) ──
+      const direction = determineDirection(fromEmail, userEmails);
+      let emailDate: string | null = null;
+      if (details.internal_date) {
+        try {
+          const ts = parseInt(details.internal_date) / 1000;
+          emailDate = new Date(ts * 1000).toISOString();
+        } catch { /* ignore */ }
+      }
+
+      // ── Outbound CEO emails: auto-resolve existing cards, log correspondence, skip classification ──
+      // IMPORTANT: This must run BEFORE classification to avoid wasting Claude API calls.
+      // Outbound emails should NEVER create feed cards — they only resolve existing ones.
+      if (direction === "outbound") {
+        // Try to auto-resolve an existing feed card for this thread
+        if (details.thread_id) {
+          try {
+            const { data: threadCard } = await sb
+              .schema("brain")
+              .from("feed_cards")
+              .select("id, status, ceo_action, thread_id, entity_type, entity_id, entity_name, metadata")
+              .eq("thread_id", details.thread_id)
+              .eq("source_type", "email")
+              .in("status", ["unread", "read"])
+              .order("created_at", { ascending: false })
+              .limit(1);
+
+            if (threadCard && threadCard.length > 0) {
+              const cardId = threadCard[0].id;
+              const cardRecord = threadCard[0] as Record<string, unknown>;
+              await sb
+                .schema("brain")
+                .from("feed_cards")
+                .update({
+                  status: "acted",
+                  ceo_action: "do",
+                  ceo_action_at: new Date().toISOString(),
+                  ceo_action_note: "Auto-resolved: CEO replied in Gmail",
+                  metadata: {
+                    ...(cardRecord.metadata as Record<string, unknown> || {}),
+                    auto_resolved: true,
+                    resolved_by: "gmail_reply",
+                    resolved_message_id: msgId,
+                    resolved_at: new Date().toISOString(),
+                  },
+                })
+                .eq("id", cardId);
+
+              addLog(`  Auto-resolved card ${cardId} — CEO replied to thread ${details.thread_id}`);
+
+              // Log to decision_log for training
+              try {
+                await sb.schema("brain").from("decision_log").insert({
+                  card_id: cardId,
+                  action: "do",
+                  note: "Auto-resolved: CEO replied in Gmail",
+                  method: "auto_gmail_reply",
+                });
+              } catch { /* ignore */ }
+
+              // Use the existing card's entity info for correspondence logging
+              const outboundEntityType = (cardRecord.entity_type as string) || "contacts";
+              const outboundEntityId = (cardRecord.entity_id as string) || null;
+              if (outboundEntityId) {
+                const { data: corrRow } = await sb.schema('brain').from("correspondence").insert({
+                  entity_type: outboundEntityType,
+                  entity_id: outboundEntityId,
+                  channel: "gmail",
+                  direction: "outbound",
+                  subject: details.subject,
+                  body: details.body.slice(0, 200) || null,
+                  from_address: fromEmail,
+                  to_address: toEmails[0] || null,
+                  sent_at: emailDate,
+                  metadata: {
+                    sender_name: fromName,
+                    gmail_message_id: msgId,
+                    source_message_id: msgId,
+                    auto_resolved_card: cardId,
+                  },
+                }).select("id").single();
+
+                if (corrRow?.id) {
+                  const embeddableText = `Subject: ${details.subject}\nFrom: ${details.from}\nTo: ${details.to || ""}\n\n${details.body}`;
+                  await embedCorrespondence(sb, corrRow.id, embeddableText, addLog);
+                }
+              }
+
+              // Log activity
+              await sb.schema('brain').from("activity").insert({
+                entity_type: outboundEntityType,
+                entity_id: outboundEntityId,
+                action: "ceo_replied",
+                actor: "ceo",
+                metadata: {
+                  summary: `CEO replied to: "${details.subject.slice(0, 80)}"`,
+                  subject: details.subject,
+                  thread_id: details.thread_id,
+                  auto_resolved_card: cardId,
+                },
+              });
+
+              recordsUpdated++;
+            } else {
+              // No active card to auto-resolve — just log the outbound correspondence
+              addLog(`  Outbound (no card to resolve): "${details.subject.slice(0, 60)}"`);
+
+              // Try to find entity from counterparty emails for correspondence logging
+              const bestMatch = allMatches.find((m) => m.entity_type === "organizations") || allMatches[0];
+              const outEntityType = bestMatch?.entity_type || "contacts";
+              const outEntityId = bestMatch?.entity_id || null;
+              if (outEntityId) {
+                const { data: corrRow } = await sb.schema('brain').from("correspondence").insert({
+                  entity_type: outEntityType,
+                  entity_id: outEntityId,
+                  channel: "gmail",
+                  direction: "outbound",
+                  subject: details.subject,
+                  body: details.body.slice(0, 200) || null,
+                  from_address: fromEmail,
+                  to_address: toEmails[0] || null,
+                  sent_at: emailDate,
+                  metadata: {
+                    sender_name: fromName,
+                    gmail_message_id: msgId,
+                    source_message_id: msgId,
+                  },
+                }).select("id").single();
+
+                if (corrRow?.id) {
+                  const embeddableText = `Subject: ${details.subject}\nFrom: ${details.from}\nTo: ${details.to || ""}\n\n${details.body}`;
+                  await embedCorrespondence(sb, corrRow.id, embeddableText, addLog);
+                }
+              }
+
+              // Log activity
+              await sb.schema('brain').from("activity").insert({
+                entity_type: outEntityType,
+                entity_id: outEntityId,
+                action: "ceo_sent",
+                actor: "ceo",
+                metadata: {
+                  summary: `CEO sent: "${details.subject.slice(0, 80)}"`,
+                  subject: details.subject,
+                  thread_id: details.thread_id,
+                },
+              });
+
+              recordsUpdated++;
+            }
+          } catch (autoResolveErr) {
+            addLog(`  Auto-resolve check failed (non-fatal): ${autoResolveErr instanceof Error ? autoResolveErr.message : String(autoResolveErr)}`);
+          }
+        } else {
+          addLog(`  Outbound (no thread_id): "${details.subject.slice(0, 60)}" — skipping`);
+        }
+
+        // Log to classification_log for tracking
+        try {
+          await sb.schema('brain').from("classification_log").insert({
+            source: "gmail",
+            source_message_id: msgId,
+            thread_id: details.thread_id || null,
+            from_email: fromEmail,
+            subject: details.subject,
+            pre_filter_result: "outbound_skip",
+            agent_run_id: runId,
+          });
+        } catch { /* ignore logging error */ }
+
+        continue; // ALWAYS skip classification + card emission for outbound emails
+      }
+
       // ── Build entity dossier for primary entity ──
       const primaryEntity = allMatches.find((m) => m.entity_type === "organizations") || allMatches[0];
       let dossierRendered = "";
@@ -1176,7 +1349,7 @@ export async function runGmailScanner(
         }
       }
 
-      // ── Classify ──
+      // ── Classify (inbound emails only — outbound already handled above) ──
       const result = await classifyMessage(
         anthropic,
         { subject: details.subject, body: details.body, from: details.from },
@@ -1186,112 +1359,6 @@ export async function runGmailScanner(
         dossierRendered,
         threadContext,
       );
-
-      // ── Direction & date ──
-      const direction = determineDirection(fromEmail, userEmails);
-      let emailDate: string | null = null;
-      if (details.internal_date) {
-        try {
-          const ts = parseInt(details.internal_date) / 1000;
-          emailDate = new Date(ts * 1000).toISOString();
-        } catch { /* ignore */ }
-      }
-
-      // ── Auto-resolve: CEO replied in Gmail → mark feed card as acted ──
-      if (direction === "outbound" && details.thread_id) {
-        try {
-          const { data: threadCard } = await sb
-            .schema("brain")
-            .from("feed_cards")
-            .select("id, status, ceo_action, thread_id")
-            .eq("thread_id", details.thread_id)
-            .eq("source_type", "email")
-            .in("status", ["unread", "read"])
-            .order("created_at", { ascending: false })
-            .limit(1);
-
-          if (threadCard && threadCard.length > 0) {
-            const cardId = threadCard[0].id;
-            await sb
-              .schema("brain")
-              .from("feed_cards")
-              .update({
-                status: "acted",
-                ceo_action: "do",
-                ceo_action_at: new Date().toISOString(),
-                ceo_action_note: "Auto-resolved: CEO replied in Gmail",
-                metadata: {
-                  ...(threadCard[0] as Record<string, unknown>).metadata as Record<string, unknown> || {},
-                  auto_resolved: true,
-                  resolved_by: "gmail_reply",
-                  resolved_message_id: msgId,
-                  resolved_at: new Date().toISOString(),
-                },
-              })
-              .eq("id", cardId);
-
-            addLog(`  ✓ Auto-resolved card ${cardId} — CEO replied to thread ${details.thread_id}`);
-
-            // Log to decision_log for training
-            try {
-              await sb.schema("brain").from("decision_log").insert({
-                card_id: cardId,
-                action: "do",
-                note: "Auto-resolved: CEO replied in Gmail",
-                method: "auto_gmail_reply",
-              });
-            } catch { /* ignore */ }
-
-            // Still log correspondence below, but skip classification/card emission
-            // Log the outbound correspondence
-            const outboundEntityType = result.primary_silo;
-            const outboundEntityId = result.primary_entity_id;
-            if (outboundEntityId) {
-              const { data: corrRow } = await sb.schema('brain').from("correspondence").insert({
-                entity_type: outboundEntityType,
-                entity_id: outboundEntityId,
-                channel: "gmail",
-                direction: "outbound",
-                subject: details.subject,
-                body: details.body.slice(0, 200) || null,
-                from_address: fromEmail,
-                to_address: toEmails[0] || null,
-                sent_at: emailDate,
-                metadata: {
-                  sender_name: fromName,
-                  gmail_message_id: msgId,
-                  source_message_id: msgId,
-                  auto_resolved_card: cardId,
-                },
-              }).select("id").single();
-
-              if (corrRow?.id) {
-                const embeddableText = `Subject: ${details.subject}\nFrom: ${details.from}\nTo: ${details.to || ""}\n\n${details.body}`;
-                await embedCorrespondence(sb, corrRow.id, embeddableText, addLog);
-              }
-            }
-
-            // Log activity
-            await sb.schema('brain').from("activity").insert({
-              entity_type: outboundEntityType,
-              entity_id: outboundEntityId,
-              action: "ceo_replied",
-              actor: "ceo",
-              metadata: {
-                summary: `CEO replied to: "${details.subject.slice(0, 80)}"`,
-                subject: details.subject,
-                thread_id: details.thread_id,
-                auto_resolved_card: cardId,
-              },
-            });
-
-            recordsUpdated++;
-            continue; // Skip normal classification — reply already handled
-          }
-        } catch (autoResolveErr) {
-          addLog(`  Auto-resolve check failed (non-fatal): ${autoResolveErr instanceof Error ? autoResolveErr.message : String(autoResolveErr)}`);
-        }
-      }
 
       let entityType = result.primary_silo;
       let entityId = result.primary_entity_id;
@@ -1419,7 +1486,7 @@ export async function runGmailScanner(
 
       // ── Classification logging ──
       try {
-        await sb.from("classification_log").insert({
+        await sb.schema('brain').from("classification_log").insert({
           source: "gmail",
           source_message_id: msgId,
           thread_id: details.thread_id || null,
