@@ -46,15 +46,25 @@ export async function GET(request: NextRequest) {
 
     const sb = createClient(supabaseUrl, supabaseKey);
 
+    const sortMode = url.searchParams.get("sort") || "recency";
+
     let query = sb
       .schema("brain")
       .from("feed_cards")
       .select("*", { count: "exact" })
       .eq("visibility_scope", scope)
       .in("status", statuses)
-      .neq("status", "dismissed")
-      .order("created_at", { ascending: false })
-      .range(offset, offset + limit - 1);
+      .neq("status", "dismissed");
+
+    if (sortMode === "importance") {
+      query = query
+        .order("attention_class", { ascending: true })
+        .order("created_at", { ascending: false });
+    } else {
+      query = query.order("created_at", { ascending: false });
+    }
+
+    query = query.range(offset, offset + limit - 1);
 
     if (cardType) {
       query = query.eq("card_type", cardType);

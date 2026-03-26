@@ -32,6 +32,7 @@ export default function MotionFeedPage() {
   const [contactPanelId, setContactPanelId] = useState<string | null>(null);
   const [contactPanelName, setContactPanelName] = useState<string | null>(null);
   const [showNotePanel, setShowNotePanel] = useState(false);
+  const [sortMode, setSortMode] = useState<"recency" | "importance">("recency");
   const [editNoteId, setEditNoteId] = useState<string | null>(null);
   const limit = 12;
   const scanStages = [
@@ -48,7 +49,7 @@ export default function MotionFeedPage() {
     try {
       const typeParam = filterType !== undefined ? filterType : activeFilter;
       const statusFilter = activeFilter === "old" ? "acted" : "unread,read";
-      let feedUrl = `/api/feed?status=${statusFilter}&limit=${limit}&offset=${newOffset}`;
+      let feedUrl = `/api/feed?status=${statusFilter}&limit=${limit}&offset=${newOffset}&sort=${sortMode}`;
       if (typeParam && typeParam !== "old") feedUrl += `&card_type=${typeParam}`;
       const res = await fetch(feedUrl, { cache: "no-store" });
       const data = await res.json();
@@ -61,7 +62,7 @@ export default function MotionFeedPage() {
     } catch (err) {
       console.error("Feed load error:", err);
     }
-  }, [activeFilter]);
+  }, [activeFilter, sortMode]);
 
   useEffect(() => {
     async function init() {
@@ -94,10 +95,13 @@ export default function MotionFeedPage() {
     setLoading(false);
   }
 
+  const [scanError, setScanError] = useState<string | null>(null);
+
   // ── Run scanner with progress stages ──
   async function handleScan() {
     setScanning(true);
     setScanStage(0);
+    setScanError(null);
 
     // Cycle through visual stages while the scan runs
     const stageInterval = setInterval(() => {
@@ -105,11 +109,27 @@ export default function MotionFeedPage() {
     }, 4000);
 
     try {
-      await fetch("/api/agents/gmail-scanner", {
+      const res = await fetch("/api/agents/gmail-scanner", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ scanHours: 8, rescan: true }),
+        body: JSON.stringify({ rescan: true }),
       });
+
+      if (!res.ok) {
+        const text = await res.text().catch(() => "");
+        const msg = res.status === 401 ? "Not authenticated — please log in again."
+          : res.status === 504 ? "Scan timed out — try again shortly."
+          : `Scan failed (${res.status}). ${text.slice(0, 100)}`;
+        setScanError(msg);
+        return;
+      }
+
+      const data = await res.json().catch(() => ({}));
+      if (data.success === false) {
+        setScanError(data.error || "Scan completed with errors.");
+        return;
+      }
+
       // Show final stage briefly
       setScanStage(scanStages.length - 1);
       // Reload feed after scan
@@ -117,6 +137,7 @@ export default function MotionFeedPage() {
       setLastUpdated(new Date());
     } catch (err) {
       console.error("Scanner error:", err);
+      setScanError("Network error — check your connection.");
     } finally {
       clearInterval(stageInterval);
       setScanning(false);
@@ -233,27 +254,50 @@ export default function MotionFeedPage() {
                 </span>
                 <button
                   type="button"
-                  onClick={handleRefresh}
+                  onClick={handleScan}
                   disabled={loading || scanning}
                   className="shrink-0 p-0 leading-none cursor-pointer"
-                  title="Refresh feed"
+                  title="Scan Gmail & refresh feed"
                 >
                   <img
                     src="/icons/refresh-2.svg"
-                    alt="Refresh"
+                    alt="Scan"
                     className={`size-[32px] ${loading || scanning ? "animate-spin" : ""}`}
                   />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const next = sortMode === "recency" ? "importance" : "recency";
+                    setSortMode(next);
+                    loadCards(0, false);
+                  }}
+                  className="shrink-0 px-[10px] py-[4px] rounded-full text-[12px] font-semibold cursor-pointer transition-colors"
+                  style={{
+                    fontFamily: "var(--font-geist-sans), 'Geist', sans-serif",
+                    letterSpacing: "-0.24px",
+                    backgroundColor: sortMode === "importance" ? "rgba(40,155,255,0.15)" : "rgba(255,255,255,0.1)",
+                    color: sortMode === "importance" ? "#289bff" : "#97a5bd",
+                    border: `1px solid ${sortMode === "importance" ? "rgba(40,155,255,0.3)" : "rgba(255,255,255,0.1)"}`,
+                  }}
+                  title={`Sort by ${sortMode === "recency" ? "importance" : "recency"}`}
+                >
+                  {sortMode === "recency" ? "Recent" : "Important"}
                 </button>
               </div>
             </div>
             <p
-              className="text-[18px] font-semibold leading-[20px] text-[#97a5bd] w-full"
+              className={`text-[18px] font-semibold leading-[20px] w-full ${scanError ? "text-[#e74c3c]" : "text-[#97a5bd]"}`}
               style={{
                 fontFamily: "var(--font-geist-sans), 'Geist', sans-serif",
                 letterSpacing: "-0.36px",
               }}
             >
-              Welcome to your In Motion office.
+              {scanning
+                ? scanStages[scanStage]
+                : scanError
+                  ? scanError
+                  : "Welcome to your In Motion office."}
             </p>
           </div>
 

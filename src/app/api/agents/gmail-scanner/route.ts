@@ -4,20 +4,42 @@ import { runGmailScanner } from "@/lib/gmail-scanner";
 
 export const maxDuration = 300; // Allow up to 5 minutes for scanner (Pro plan)
 
-// GET handler for Vercel cron jobs
-export async function GET() {
-  return runScanner(4); // Cron scans last 4 hours
+const MAX_SCAN_HOURS = 72; // Safety cap
+const DEFAULT_SCAN_HOURS = 24; // Fallback if no prior run
+
+/** Compute hours since last successful gmail-scanner run */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function hoursSinceLastScan(sb: any): Promise<number> {
+  const { data } = await sb
+    .schema("brain").from("agent_runs")
+    .select("completed_at")
+    .eq("agent_name", "gmail-scanner")
+    .eq("status", "completed")
+    .order("completed_at", { ascending: false })
+    .limit(1)
+    .single();
+
+  if (data?.completed_at) {
+    const elapsed = Date.now() - new Date(data.completed_at).getTime();
+    const hours = Math.ceil(elapsed / (60 * 60 * 1000));
+    return Math.min(Math.max(hours, 1), MAX_SCAN_HOURS);
+  }
+  return DEFAULT_SCAN_HOURS;
 }
 
+// GET handler for Vercel cron jobs — scans from last successful run
+export async function GET() {
+  return runScanner(null); // null = auto-compute from last run
+}
+
+// POST handler for manual refresh — also scans from last successful run
 export async function POST(request: Request) {
   const body = await request.json().catch(() => ({}));
-  return runScanner(body.scanHours || 24, { skipDupeCheck: !!body.rescan });
+  return runScanner(null, { skipDupeCheck: !!body.rescan });
 }
 
-async function runScanner(scanHours: number, options?: { skipDupeCheck?: boolean }) {
+async function runScanner(scanHoursOverride: number | null, options?: { skipDupeCheck?: boolean }) {
   try {
-
-    // Validate required env vars
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY;
 
@@ -42,10 +64,11 @@ async function runScanner(scanHours: number, options?: { skipDupeCheck?: boolean
       );
     }
 
-    // Create a service-role Supabase client for this request
     const sb = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Run the scanner
+    // Auto-compute scan window from last successful run (no gaps)
+    const scanHours = scanHoursOverride ?? await hoursSinceLastScan(sb);
+
     const result = await runGmailScanner(sb, scanHours, options);
 
     return NextResponse.json(result, { status: result.success ? 200 : 500 });

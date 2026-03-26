@@ -165,6 +165,8 @@ export interface FeedCardData {
   ceo_action_note?: string | null;
   created_at: string;
   message_count?: number | null;
+  thread_updated_at?: string | null;
+  attention_class?: string | null;
 }
 
 interface FeedCardProps {
