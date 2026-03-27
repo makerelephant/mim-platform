@@ -511,67 +511,79 @@ async function classifyMessage(
   if (orgContext) userPrompt += `\n\n${orgContext}`;
   userPrompt += `\n\n---\n\n${msgContent}`;
 
-  try {
-    const response = await anthropic.messages.create({
-      model: opts.model,
-      max_tokens: opts.maxTokens,
-      system: opts.systemPrompt,
-      messages: [
-        { role: "user", content: userPrompt },
-        { role: "assistant", content: "{" },
-      ],
-    });
+  const MAX_RETRIES = 2;
+  let lastError: unknown = null;
 
-    const rawText = "{" + (response.content[0] as { type: "text"; text: string }).text.trim();
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      const response = await anthropic.messages.create({
+        model: opts.model,
+        max_tokens: opts.maxTokens,
+        system: opts.systemPrompt,
+        messages: [
+          { role: "user", content: userPrompt },
+          { role: "assistant", content: "{" },
+        ],
+      });
 
-    const result = parseUnifiedClassification(
-      rawText,
-      "email",
-      resolvedEntities.map((e) => ({
-        entity_type: e.entity_type,
-        entity_id: e.entity_id,
-        entity_name: e.entity_name,
-      })),
-    );
+      const rawText = "{" + (response.content[0] as { type: "text"; text: string }).text.trim();
 
-    result.prompt_tokens = response.usage?.input_tokens;
-    result.completion_tokens = response.usage?.output_tokens;
-    return result;
-  } catch (e) {
-    // Log the classification error so we can diagnose and fix
-    const errMsg = e instanceof Error ? e.message : String(e);
-    console.error(`[gmail-scanner] CLASSIFICATION ERROR for "${message.subject?.slice(0, 60)}": ${errMsg}`);
-    // Fallback classification
-    const primaryEntity = resolvedEntities[0];
-    return {
-      attention_class: "P2_delegate_or_batch",
-      relevance_score: 30,
-      subtypes: [],
-      channel: "email",
-      primary_reason: "Classification failed — defaulting to P2",
-      supporting_signals: [],
-      disqualifiers_considered: [],
-      recommended_handling: "Review manually",
-      confidence: 0.1,
-      summary_sentence: `Email: ${message.subject.slice(0, 80)}`,
-      entities: [],
-      contains_decision: false,
-      contains_action: false,
-      contains_task: false,
-      decisions: [],
-      actions: [],
-      tasks: [],
-      task_creation_candidates: [],
-      primary_silo: primaryEntity?.entity_type || "contacts",
-      primary_entity_id: primaryEntity?.entity_id || null,
-      primary_entity_name: primaryEntity?.entity_name || null,
-      tags: ["unclassified"],
-      sentiment: "neutral",
-      draft_reply: null,
-      acumen_category: null,
-      action_recommendation: null,
-    };
+      const result = parseUnifiedClassification(
+        rawText,
+        "email",
+        resolvedEntities.map((e) => ({
+          entity_type: e.entity_type,
+          entity_id: e.entity_id,
+          entity_name: e.entity_name,
+        })),
+      );
+
+      result.prompt_tokens = response.usage?.input_tokens;
+      result.completion_tokens = response.usage?.output_tokens;
+      return result;
+    } catch (e) {
+      lastError = e;
+      const errMsg = e instanceof Error ? e.message : String(e);
+      console.error(`[gmail-scanner] CLASSIFICATION ATTEMPT ${attempt + 1}/${MAX_RETRIES + 1} FAILED for "${message.subject?.slice(0, 60)}": ${errMsg}`);
+      if (attempt < MAX_RETRIES) {
+        // Wait before retry (1s, then 2s)
+        await new Promise(resolve => setTimeout(resolve, (attempt + 1) * 1000));
+      }
+    }
   }
+
+  // All retries exhausted — fallback
+  const errMsg = lastError instanceof Error ? lastError.message : String(lastError);
+  console.error(`[gmail-scanner] CLASSIFICATION FAILED after ${MAX_RETRIES + 1} attempts for "${message.subject?.slice(0, 60)}": ${errMsg}`);
+  const primaryEntity = resolvedEntities[0];
+  return {
+    attention_class: "P2_delegate_or_batch",
+    relevance_score: 30,
+    subtypes: [],
+    channel: "email",
+    primary_reason: "Classification failed — defaulting to P2",
+    supporting_signals: [],
+    disqualifiers_considered: [],
+    recommended_handling: "Review manually",
+    confidence: 0.1,
+    summary_sentence: `Email: ${message.subject.slice(0, 80)}`,
+    entities: [],
+    contains_decision: false,
+    contains_action: false,
+    contains_task: false,
+    decisions: [],
+    actions: [],
+    tasks: [],
+    task_creation_candidates: [],
+    primary_silo: primaryEntity?.entity_type || "contacts",
+    primary_entity_id: primaryEntity?.entity_id || null,
+    primary_entity_name: primaryEntity?.entity_name || null,
+    tags: ["unclassified"],
+    sentiment: "neutral",
+    draft_reply: null,
+    acumen_category: null,
+    action_recommendation: null,
+  };
 }
 
 // ─── Gmail Helpers ──────────────────────────────────────────────────────────
