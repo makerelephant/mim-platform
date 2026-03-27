@@ -282,17 +282,23 @@ export default function MessageCard({
     }
   }
 
+  const meta = (card.metadata || {}) as Record<string, unknown>;
+  const actionRec = meta.action_recommendation as string | null;
+  const draftReply = meta.draft_reply as string | null;
+  const reasoning = card.reasoning || (meta.primary_reason as string | null);
   const bodyText = card.body || card.title || "";
+
+  // Extract actions from metadata if available
+  const actions = (meta.actions as Array<{ description: string; owner?: string; due_date?: string }>) || [];
+  const decisions = (meta.decisions as Array<{ description: string; urgency?: string }>) || [];
 
   return (
     <div
-      onClick={handleCardClick}
       className={`
         w-full bg-white rounded-[12px] overflow-hidden p-[12px]
-        flex flex-col gap-[12px]
+        flex flex-col gap-[10px]
         shadow-[0px_1px_2px_rgba(0,0,0,0.04),0px_4px_12px_rgba(0,0,0,0.04)]
         transition-all duration-200
-        ${url ? "cursor-pointer hover:shadow-[0px_2px_4px_rgba(0,0,0,0.06),0px_8px_20px_rgba(0,0,0,0.08)] hover:translate-y-[-1px]" : ""}
         ${dismissing ? "opacity-40 scale-[0.98]" : ""}
       `}
     >
@@ -319,7 +325,7 @@ export default function MessageCard({
         />
       </div>
 
-      {/* ── Row 2: Natural language body with entity highlighting ── */}
+      {/* ── Row 2: Summary with entity highlighting ── */}
       <div
         className="text-[14px] font-light text-[#0c111d] leading-[18px] w-full"
         style={{
@@ -329,7 +335,59 @@ export default function MessageCard({
         {highlightEntities(bodyText, entities, onContactTap)}
       </div>
 
-      {/* ── Row 3: Status chip + Timestamp (left) | Actions + Trash (right) ── */}
+      {/* ── Row 3: Brain's recommendation — the reason to care ── */}
+      {actionRec && (
+        <div
+          className="text-[13px] font-medium text-[#1a1a1a] leading-[17px] w-full px-[10px] py-[8px] rounded-[8px]"
+          style={{
+            fontFamily: "var(--font-geist-sans), 'Geist', sans-serif",
+            backgroundColor: "#f8f7f4",
+          }}
+        >
+          {actionRec.replace(/^Recommended action:\s*/i, "")}
+        </div>
+      )}
+
+      {/* ── Row 3b: Decisions requiring CEO input ── */}
+      {decisions.length > 0 && !actionRec && (
+        <div
+          className="text-[13px] font-medium text-[#1a1a1a] leading-[17px] w-full px-[10px] py-[8px] rounded-[8px]"
+          style={{
+            fontFamily: "var(--font-geist-sans), 'Geist', sans-serif",
+            backgroundColor: "#fef9ec",
+          }}
+        >
+          {decisions[0].description}
+        </div>
+      )}
+
+      {/* ── Row 3c: Brain reasoning — why this is in the feed ── */}
+      {reasoning && !actionRec && decisions.length === 0 && (
+        <div
+          className="text-[12px] text-[#6e7b80] leading-[16px] w-full"
+          style={{
+            fontFamily: "var(--font-geist-sans), 'Geist', sans-serif",
+          }}
+        >
+          {reasoning}
+        </div>
+      )}
+
+      {/* ── Row 4: Draft reply preview — brain already wrote a response ── */}
+      {draftReply && (
+        <div
+          className="text-[12px] italic text-[#627c9e] leading-[16px] w-full px-[10px] py-[6px] rounded-[8px] border border-[#e8eaed]"
+          style={{
+            fontFamily: "var(--font-geist-sans), 'Geist', sans-serif",
+            backgroundColor: "#fbfbfa",
+          }}
+        >
+          <span className="text-[11px] font-medium text-[#9c6ade] not-italic mr-[4px]">Draft reply:</span>
+          {draftReply}
+        </div>
+      )}
+
+      {/* ── Row 5: Status chip + Timestamp (left) | Open + Trash (right) ── */}
       <div className="flex items-center justify-between w-full gap-[8px]">
         <div className="flex items-center gap-[8px] min-w-0 flex-1">
           {/* Thread status chip */}
@@ -351,12 +409,12 @@ export default function MessageCard({
               )}
             </span>
           )}
-          {(card.message_count ?? (card.metadata as Record<string, unknown>)?.message_count as number) > 1 && (
+          {(card.message_count ?? (meta.message_count as number)) > 1 && (
             <span
               className="text-[11px] font-medium text-[#7b7f81] leading-[18px] shrink-0"
               style={{ fontFamily: "var(--font-inter), 'Inter', sans-serif" }}
             >
-              {(card.message_count ?? (card.metadata as Record<string, unknown>)?.message_count as number)} messages
+              {(card.message_count ?? (meta.message_count as number))} messages
             </span>
           )}
           <span
@@ -370,6 +428,15 @@ export default function MessageCard({
         </div>
 
         <div className="flex items-center gap-[6px] shrink-0">
+          {url && (
+            <button
+              onClick={(e) => { e.stopPropagation(); window.open(url, "_blank", "noopener,noreferrer"); }}
+              className="text-[11px] font-medium text-[#289bff] hover:text-[#1a7cd6] transition-colors px-[6px] py-[2px]"
+              style={{ fontFamily: "var(--font-geist-sans), 'Geist', sans-serif" }}
+            >
+              Open
+            </button>
+          )}
           <button
             onClick={handleDismiss}
             disabled={dismissing}

@@ -867,6 +867,10 @@ export async function runSlackScanner(
                 relevance_score: result.relevance_score,
                 action_recommendation: result.action_recommendation || null,
                 draft_reply: result.draft_reply || null,
+                recommended_handling: result.recommended_handling || null,
+                decisions: result.decisions.length > 0 ? result.decisions : null,
+                actions: result.actions.length > 0 ? result.actions : null,
+                supporting_signals: result.supporting_signals.length > 0 ? result.supporting_signals : null,
               },
               agent_run_id: runId || undefined,
             }, addLog);
