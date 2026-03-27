@@ -4,7 +4,6 @@ import Anthropic from "@anthropic-ai/sdk";
 import { emitFeedCard } from "@/lib/feed-card-emitter";
 import {
   getMonthlyReportPrompt,
-  getWeeklySynthesisPrompt,
   getCustomReportPrompt,
 } from "@/lib/prompts";
 
@@ -178,12 +177,10 @@ export async function POST(req: NextRequest) {
 
     // 10. Knowledge base growth
     const { count: kbTotal } = await sb
-      .schema("brain")
       .from("knowledge_base")
       .select("id", { count: "exact", head: true });
 
     const { count: kbNew } = await sb
-      .schema("brain")
       .from("knowledge_base")
       .select("id", { count: "exact", head: true })
       .gte("created_at", cutoffISO);

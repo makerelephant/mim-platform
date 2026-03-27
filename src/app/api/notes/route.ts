@@ -2,13 +2,28 @@ export const maxDuration = 30;
 
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import OpenAI from "openai";
 import { emitFeedCard } from "@/lib/feed-card-emitter";
+import { embedKnowledgeContentIntoChunks } from "@/lib/knowledge-chunks-writer";
 
 function getSb() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
   const supabaseKey = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY!;
   return createClient(supabaseUrl, supabaseKey);
+}
+
+async function replaceKnowledgeChunks(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  sb: any,
+  kbId: string,
+  title: string,
+  content: string,
+  sourceType: string,
+) {
+  await sb.schema("brain").from("knowledge_chunks").delete().eq("kb_id", kbId);
+  await embedKnowledgeContentIntoChunks(sb, kbId, content, {
+    title,
+    source_type: sourceType,
+  });
 }
 
 // ─── GET /api/notes — List CEO notes ────────────────────────────────────────
@@ -22,8 +37,7 @@ export async function GET(req: NextRequest) {
     const offset = parseInt(searchParams.get("offset") || "0", 10);
 
     let query = sb
-      .schema("brain")
-      .from("knowledge_chunks")
+      .from("knowledge_base")
       .select("*", { count: "exact" })
       .order("created_at", { ascending: false })
       .range(offset, offset + limit - 1);
@@ -44,7 +58,21 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    return NextResponse.json({ notes: data || [], total: count || 0 });
+    const notes = (data || []).map((note: {
+      id: string;
+      title: string;
+      content_text?: string | null;
+      source_type: string;
+      created_at: string;
+    }) => ({
+      id: note.id,
+      title: note.title,
+      content: note.content_text || "",
+      source_type: note.source_type,
+      created_at: note.created_at,
+    }));
+
+    return NextResponse.json({ notes, total: count || 0 });
   } catch (err) {
     console.error("Notes GET exception:", err);
     return NextResponse.json(
@@ -60,10 +88,11 @@ export async function POST(req: NextRequest) {
   try {
     const sb = getSb();
     const body = await req.json();
-    const { title, content, save_as } = body as {
+    const { title, content, save_as, note_id } = body as {
       title: string;
       content: string;
       save_as: "knowledge" | "draft";
+      note_id?: string;
     };
 
     if (!title || !content) {
@@ -81,78 +110,86 @@ export async function POST(req: NextRequest) {
     }
 
     const sourceRef = `note_${Date.now()}`;
+    const sourceType = save_as === "knowledge" ? "ceo_note" : "ceo_note_draft";
+    const trimmedTitle = title.trim() || "Untitled Note";
+    const trimmedContent = content.trim();
 
-    if (save_as === "knowledge") {
-      // Generate embedding via OpenAI
-      const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-      const embeddingRes = await openai.embeddings.create({
-        model: "text-embedding-3-small",
-        input: `${title}\n\n${content}`.slice(0, 8000),
-      });
-      const embedding = embeddingRes.data[0].embedding;
+    let noteId = note_id || null;
 
-      // Insert into knowledge_chunks with embedding
-      const { data: noteData, error: noteError } = await sb
-        .schema("brain")
-        .from("knowledge_chunks")
-        .insert({
-          title,
-          content,
-          source_type: "ceo_note",
+    if (noteId) {
+      const { error: updateError } = await sb
+        .from("knowledge_base")
+        .update({
+          title: trimmedTitle,
+          content_text: trimmedContent,
+          source_type: sourceType,
           source_ref: sourceRef,
-          embedding: `[${embedding.join(",")}]`,
-          metadata: { created_by: "ceo", save_type: "knowledge" },
+          summary: trimmedContent.slice(0, 300),
+          processed: save_as === "knowledge",
+          processed_at: save_as === "knowledge" ? new Date().toISOString() : null,
+          metadata: { created_by: "ceo", save_type: save_as },
+        })
+        .eq("id", noteId);
+
+      if (updateError) {
+        console.error("Note update error:", updateError.message);
+        return NextResponse.json({ error: updateError.message }, { status: 500 });
+      }
+    } else {
+      const { data: noteData, error: noteError } = await sb
+        .from("knowledge_base")
+        .insert({
+          title: trimmedTitle,
+          source_type: sourceType,
+          source_ref: sourceRef,
+          content_text: trimmedContent,
+          summary: trimmedContent.slice(0, 300),
+          metadata: { created_by: "ceo", save_type: save_as },
+          processed: save_as === "knowledge",
+          processed_at: save_as === "knowledge" ? new Date().toISOString() : null,
         })
         .select("id")
         .single();
 
-      if (noteError) {
-        console.error("Note insert error:", noteError.message);
-        return NextResponse.json({ error: noteError.message }, { status: 500 });
+      if (noteError || !noteData) {
+        console.error("Note insert error:", noteError?.message);
+        return NextResponse.json({ error: noteError?.message || "Note insert failed" }, { status: 500 });
       }
 
-      // Emit a feed card of type 'signal'
+      noteId = noteData.id;
+    }
+
+    if (!noteId) {
+      return NextResponse.json({ error: "Note id unavailable after save" }, { status: 500 });
+    }
+
+    if (save_as === "knowledge") {
+      await replaceKnowledgeChunks(sb, noteId, trimmedTitle, trimmedContent, sourceType);
+
       const feedCard = await emitFeedCard(sb, {
         card_type: "signal",
-        title: title,
-        body: `You created a note called \u201c${title}\u201d. It was added to Knowledge on the platform.`,
+        title: trimmedTitle,
+        body: `You created a note called \u201c${trimmedTitle}\u201d. It was added to Knowledge on the platform.`,
         source_type: "note",
         source_ref: sourceRef,
         priority: "low",
         visibility_scope: "personal",
-        metadata: { note_id: noteData.id, created_by: "ceo" },
+        metadata: { note_id: noteId, created_by: "ceo" },
       });
 
       return NextResponse.json({
         success: true,
-        note_id: noteData.id,
+        note_id: noteId,
         feed_card_id: feedCard?.id || null,
       });
-    } else {
-      // Draft — no embedding, no feed card
-      const { data: noteData, error: noteError } = await sb
-        .schema("brain")
-        .from("knowledge_chunks")
-        .insert({
-          title,
-          content,
-          source_type: "ceo_note_draft",
-          source_ref: sourceRef,
-          metadata: { created_by: "ceo", save_type: "draft" },
-        })
-        .select("id")
-        .single();
-
-      if (noteError) {
-        console.error("Draft note insert error:", noteError.message);
-        return NextResponse.json({ error: noteError.message }, { status: 500 });
-      }
-
-      return NextResponse.json({
-        success: true,
-        note_id: noteData.id,
-      });
     }
+
+    await sb.schema("brain").from("knowledge_chunks").delete().eq("kb_id", noteId);
+
+    return NextResponse.json({
+      success: true,
+      note_id: noteId,
+    });
   } catch (err) {
     console.error("Notes POST exception:", err);
     return NextResponse.json(
@@ -181,11 +218,21 @@ export async function DELETE(req: NextRequest) {
       .schema("brain")
       .from("knowledge_chunks")
       .delete()
-      .eq("id", note_id);
+      .eq("kb_id", note_id);
 
     if (error) {
-      console.error("Note delete error:", error.message);
+      console.error("Note chunk delete error:", error.message);
       return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    const { error: kbError } = await sb
+      .from("knowledge_base")
+      .delete()
+      .eq("id", note_id);
+
+    if (kbError) {
+      console.error("Note delete error:", kbError.message);
+      return NextResponse.json({ error: kbError.message }, { status: 500 });
     }
 
     return NextResponse.json({ success: true });

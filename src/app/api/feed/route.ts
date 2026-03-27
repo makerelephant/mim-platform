@@ -47,6 +47,12 @@ export async function GET(request: NextRequest) {
     const sb = createClient(supabaseUrl, supabaseKey);
 
     const sortMode = url.searchParams.get("sort") || "recency";
+    const priorityRank: Record<string, number> = {
+      critical: 4,
+      high: 3,
+      medium: 2,
+      low: 1,
+    };
 
     let query = sb
       .schema("brain")
@@ -56,13 +62,7 @@ export async function GET(request: NextRequest) {
       .in("status", statuses)
       .neq("status", "dismissed");
 
-    if (sortMode === "importance") {
-      query = query
-        .order("attention_class", { ascending: true })
-        .order("created_at", { ascending: false });
-    } else {
-      query = query.order("created_at", { ascending: false });
-    }
+    query = query.order("created_at", { ascending: false });
 
     query = query.range(offset, offset + limit - 1);
 
@@ -80,9 +80,20 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
+    const cards = [...(data || [])];
+    if (sortMode === "importance") {
+      cards.sort((a, b) => {
+        const priorityDelta =
+          (priorityRank[b.priority || "medium"] || 0) -
+          (priorityRank[a.priority || "medium"] || 0);
+        if (priorityDelta !== 0) return priorityDelta;
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      });
+    }
+
     return NextResponse.json(
       {
-        cards: data || [],
+        cards,
         total: count || 0,
         limit,
         offset,

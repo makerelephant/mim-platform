@@ -132,12 +132,10 @@ export async function GET() {
 
     // ── 10. Knowledge base growth ──
     const { count: kbTotal } = await sb
-      .schema("brain")
       .from("knowledge_base")
       .select("id", { count: "exact", head: true });
 
     const { count: kbNew } = await sb
-      .schema("brain")
       .from("knowledge_base")
       .select("id", { count: "exact", head: true })
       .gte("created_at", cutoffISO);

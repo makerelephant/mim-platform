@@ -102,7 +102,6 @@ export async function POST(request: NextRequest) {
         // Fetch full content of recently ingested documents
         if (recentDocTitles.length > 0) {
           const { data: recentDocs } = await sb
-            .schema("brain")
             .from("knowledge_base")
             .select("id, title, content_text, summary, taxonomy_categories, tags")
             .eq("processed", true)
@@ -187,7 +186,6 @@ export async function POST(request: NextRequest) {
           if (fileRefMatch) {
             const searchTitle = fileRefMatch[1].trim();
             const { data: matchedDocs } = await sb
-              .schema("brain")
               .from("knowledge_base")
               .select("id, title, content_text, summary")
               .eq("processed", true)
@@ -266,7 +264,6 @@ export async function POST(request: NextRequest) {
       try {
         const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
         const { data: recentKb } = await sb
-          .schema("brain")
           .from("knowledge_base")
           .select("id, title, content_text, summary, source_type, processed_at")
           .eq("processed", true)
@@ -425,7 +422,6 @@ export async function POST(request: NextRequest) {
         `summary.ilike.%${w}%`,
       ]);
       const { data: kbResults } = await sb
-        .schema("brain")
         .from("knowledge_base")
         .select("title, summary, source_type, taxonomy_categories, tags")
         .eq("processed", true)
