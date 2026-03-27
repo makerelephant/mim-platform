@@ -1,11 +1,39 @@
 # Master Effort List
 > **Author:** Mark Slater, Co-founder & CEO — Made in Motion PBC
-> **Status:** Active strategic document.
-> **Last updated:** 2026-03-22
+> **Status:** Active strategic document. Use as a historical inventory, not as proof that listed capabilities are trustworthy in production.
+> **Last updated:** 2026-03-27
 
 ---
 
-## Complete / Operational
+## Read This First
+
+This document has historically mixed together:
+
+- things that exist in code
+- things that shipped at some point
+- things that are truly reliable in live operation
+
+Those are not the same thing.
+
+As of the current recovery effort:
+
+- the main phase-1 problem is feed trust
+- the feed is not yet a reliable operational inbox
+- measurement and training claims are only partially trustworthy
+- schema/runtime drift has existed
+
+Use this file as an inventory of efforts and implementation work, not as the source of truth for what is currently working well.
+
+For current operating posture, read first:
+
+1. `CLAUDE.md`
+2. `docs/operational/agent-recovery-rules.md`
+3. `docs/context-primer.md`
+4. `docs/intelligence-deficit-analysis.md`
+
+---
+
+## Exists In Code / Historically Delivered
 
 1. **Core Data Layer** — Contacts, organisations, pipeline, tasks, support issues, activity log. CRUD complete, entity linking, multi-schema DB architecture. Operational. *(The old static CRM UI exists but is being deprecated — data layer remains.)*
 
@@ -21,33 +49,33 @@
 
 7. **Acumen Classifier System** — 11 email categories with harness rules, department docs, harness loader, classification pipeline. Complete and classifying live email.
 
-8. **Your Motion — Feed Architecture** — ✅ COMPLETE. Single scrollable feed of interactive cards at root route. Card types: Decision, Action, Signal, Briefing, Snapshot, Intelligence, Reflection. Cards show email context (from/to/subject), priority-based title styling (high=black, medium=slate-500, low=slate-400), Do/Hold/No actions, "More about this" expansion. `brain.feed_cards` table with visibility_scope, ingestion_log for audit. Filter pills: All, Decisions, Actions, Signals, Intel, Briefings, Old.
+8. **Your Motion — Feed Architecture** — Implemented. This should not be read as proof that the feed is currently useful, quiet, or trustworthy.
 
 9. **Snapshotting Engine** — ✅ COMPLETE. `/api/brain/snapshot` accepts natural language queries, uses Claude to determine which tables to query, executes against Supabase, formats results into markdown snapshot cards in the feed. Replaces static pages. Motion search bar wired to snapshotting.
 
 10. **Your Canvas** — ✅ COMPLETE. `/clearing` route (UI label: Canvas). Thought capture and brain-assisted Q&A routed entirely to `/api/brain/ask`. File ingestion via drag-and-drop. Multiple sessions, dissolve when done. Gate for deeper work — not a creation tool.
 
-11. **Engine Room + Motion Map** — ✅ COMPLETE. `/engine` route. Four tabs: Motion Map (renders harness classifier markdown files), Brain Accuracy (per-category stats from CEO actions), Autonomy (category progress toward self-governance), Integrations (connection status). Signal Quality and Priority Calibration panels added.
+11. **Engine Room + Motion Map** — Implemented. Metrics and dashboards should be treated cautiously until live instrumentation is verified.
 
-12. **Classifier Training at Scale** — ✅ COMPLETE (infrastructure). `/api/brain/accuracy` computes per-category accuracy from CEO feed actions (Do=correct, No=incorrect). Daily cron scheduling via Vercel (Gopher at 6am EST, briefing at 7am EST). Training velocity depends on CEO daily review cadence.
+12. **Classifier Training at Scale** — Infrastructure exists. Do not interpret this as proof of a healthy learning loop.
 
 13. **Daily Synthesis Loop** — ✅ COMPLETE. `/api/agents/daily-briefing` runs 7 parallel queries (feed_cards, correspondence, tasks created/completed, open tasks, activity, CEO actions) from last 24h. Skips generation when genuinely nothing to report. Claude synthesises into concise briefing card. Runs automatically via Vercel cron at 7am EST.
 
-14. **Behavioral Adaptation / Autonomy Engine** — ✅ COMPLETE. Real learning loop: corrections cluster into rules via Claude, stored in `brain.behavioral_rules`, injected into classifier prompts. Gmail scanner checks autonomous categories at scan start, auto-acts qualifying cards (CEO never sees them). Reflection card summarises autonomous actions per scan. `getAutonomousCategories()` shared utility. Autonomy tab in Engine Room shows progress. Thresholds: 20+ reviews, 90%+ accuracy.
+14. **Behavioral Adaptation / Autonomy Engine** — Implemented in code. This is not a current phase-1 proof point and should not be treated as operationally validated.
 
 15. **Knowledge Ingestion Enhancement** — ✅ COMPLETE. `/api/brain/ingest` emits feed cards for ingested documents. Canvas uses this for file drop ingestion.
 
-16. **Single Ingestion Point** — Core architectural principle documented and enforced. All data enters through one endpoint. Brain classifies, decides, acts, emits cards. No UI writes directly to database.
+16. **Single Ingestion Point** — Core architectural principle. Verify actual write paths before assuming current implementation conforms perfectly.
 
 17. **Visibility Scope** — `visibility_scope` field on every feed card: `personal` (Phase 1), `team` (Phase 2), `regiment` (Phase 3). Publish/subscribe model for teams — no RBAC.
 
-18. **Correction Learning Pipeline** — ✅ COMPLETE. `/api/brain/learn` processes CEO corrections (wrong_category, wrong_priority, should_not_exist) and stores structured corrections in `brain.knowledge_base` as institutional memory. Feed card PATCH auto-fires learning. Brain improves from every No action.
+18. **Correction Learning Pipeline** — Implemented. The claim that the brain meaningfully improves from every correction remains to be proven in live use.
 
-19. **Embedding & RAG Pipeline** — ✅ COMPLETE. `src/lib/embeddings.ts` (OpenAI text-embedding-3-small, 1536 dimensions). Auto-embeds on ingestion into `brain.knowledge_chunks` (pgvector). `/api/brain/ask` uses vector similarity search before keyword search. `search_knowledge` and `search_correspondence` RPC functions. `/api/brain/embed-backfill` for backfilling. `OPENAI_API_KEY` set in Vercel env.
+19. **Embedding & RAG Pipeline** — Implemented. Helpful memory infrastructure, but not evidence that the feed attention layer is working.
 
 20. **Bulk Data Import Gopher** — ✅ COMPLETE. `/engine/import` UI page + `/api/agents/gmail-bulk-import` endpoint. Import N days of historical email in chunked batches. Progress bar, stats, abort support. Also accessible as a direct link row on the Me page ("Bulk Data Import Gopher").
 
-21. **Thread Consolidation** — ✅ COMPLETE. `src/lib/feed-card-emitter.ts` with fetch-then-update pattern on `source_ref` (handles partial unique index — replaces broken upsert approach). Gmail Gopher checks for existing thread card before creating new one. Same Gmail thread → one card that evolves. Priority upgrades if new message is higher. Card resurfaces as unread. Shows "N messages" badge.
+21. **Thread Consolidation** — Implemented in the feed layer, but thread auditability has been weak and should not be assumed correct without verification.
 
 22. **Card Type Inference** — ✅ COMPLETE. Only `critical` priority → decision. High priority → intelligence. Has action items → action. Newsletter/automated/marketing → signal. Has draft reply (Slack) → action. Everything else → signal. Stoplights only on decision/action cards.
 
@@ -93,7 +121,7 @@
 
 41. **Unified Classifier — Prompt Surface Layer** — ✅ COMPLETE. `src/lib/unified-classifier.ts` implements P0-P3/S0-S3 attention labels. Both gmail-scanner and slack-scanner use `buildUnifiedClassifierPrompt()`. Card type mapped from attention class (P0→decision, P1→action, P2→signal, P3→suppressed). Task creation gated on `qualifiesForTaskCreation() + should_create_task`. Pre-filter still handles obvious noise; classifier handles nuanced P3/S3 judgment.
 
-42. **Measurement Layer** — ✅ COMPLETE. `brain.events` table (step-29). `/api/brain/track` for card_expanded/card_action/filter_changed events. `/api/brain/metrics` computes SNR, priority calibration, category accuracy trends, volume stats, expansion rate, autonomy readiness. FeedCard fires expansion tracking. Engine Room Metrics tab with full dashboard.
+42. **Measurement Layer** — Implemented in code, but not reliable enough to call complete. Live recovery checks found expected measurement tables unavailable in the live schema cache.
 
 43. **Market Intelligence Gophers** — ✅ COMPLETE. Web Intelligence Gopher: `src/lib/web-intelligence-scanner.ts` fetches configured URLs, Claude analyses for insights, emits intelligence cards. Content hash dedup. Default monitors for youth sports, generative commerce, MiM mentions. `/api/agents/web-intelligence` route. Vercel cron daily 9am EST. Source URLs now configurable from Engine Room Integrations tab — `/api/engine/web-sources` CRUD API, add/remove sources, auto-migrates defaults on first custom add.
 
@@ -129,7 +157,7 @@
 
 66. **Entity Resolution Depth** — ✅ COMPLETE. Fuzzy matching via Levenshtein distance (~20% edit distance threshold). First/last name partial matching (4+ char names). Email address and prefix matching. Domain matching. Acronym detection. Entity fetch limits raised (200→500). Rich dossiers: org contacts, pipeline notes, correspondence history, contact org relationships, feed card activity.
 
-67. **CEO Action Decision Logging** — ✅ COMPLETE. Every Do/No/Hold action on feed cards now logs to `brain.decision_log` (not just corrections). Every CEO interaction is training data.
+67. **CEO Action Decision Logging** — Implemented. Do not equate logging with useful learning.
 
 68. **Learning Pipeline Embeddings** — ✅ COMPLETE. CEO corrections via `/api/brain/learn` now write to correct `brain` schema, generate vector embeddings for RAG retrieval, use correct `kb_id` column.
 
@@ -147,13 +175,13 @@
 
 73. **Sidebar Redesign** — ✅ COMPLETE. Per Figma 94:4010. "Every Step Together." tagline at top (18px bold, #e9e9e9). Icons moved left of labels (was label-left/icon-right). Font bumped to 14px (was 12px), letter-spacing -0.28px. Mark's avatar (30px rounded) + "Account Settings" (14px, #3e4c60). In Motion logo + Release at bottom.
 
-74. **Note-Taking Feature** — ✅ COMPLETE. "Write" button in action bar opens NotePanel on right side of screen with dark overlay on feed. Title input + rich text area + bold/italic/list formatting toolbar. "All Notes" / "Drafts" tab badges with counts. Existing note previews. Save to Knowledge (generates OpenAI embedding, emits signal feed card), Save Draft, Delete actions. `/api/notes` route (GET/POST/DELETE). Notes stored in `brain.knowledge_chunks` as `ceo_note` or `ceo_note_draft` source types.
+74. **Note-Taking Feature** — Implemented. Agents should verify schema conformity before treating note storage claims as ground truth.
 
 75. **Feed Refresh Button** — ✅ COMPLETE. Rotating refresh icon triggers feed data reload. Accurate "updated X ago" timer.
 
 76. **Background Consistency Fix** — ✅ COMPLETE. Background image (`background.png`) moved to AppShell `<main>` element so it covers the full viewport including sidebar padding area. Eliminates the recurring empty-column stripe behind the semi-transparent sidebar. Page-level backgrounds removed (duplicate).
 
-76b. **Thread Status Polling** — ✅ COMPLETE. MessageCard polls Gmail every 60s for status changes on cards with thread_ids. Initial poll after 5s. Stops polling once terminal status (replied/archived) is reached. Batch endpoint: `GET /api/gmail/actions?thread_ids=id1,id2,id3` supports up to 20 concurrent status checks. Status chips update live when CEO takes action in Gmail.
+76b. **Thread Status Polling** — Implemented. Thread identity and thread usefulness still require operational verification.
 
 76c. **Note Save Flow Redesign** — ✅ COMPLETE. Per Figma: "Save" button replaces "Add to Knowledge" — every saved note goes to feed AND knowledge simultaneously. Gray checkmark turns green on success with "Added to Knowledge" label, then auto-clears after 2s. Feed note cards are tappable to reopen NotePanel with note loaded in edit mode. `editNoteId` prop on NotePanel, `onNoteTap` callback on FeedCard.
 
@@ -199,4 +227,4 @@
 
 ---
 
-*Last updated: 2026-03-22 (v12) — All 76 efforts complete through UI Pivot phase. Status chips pixel-perfect per Figma with icon assets. Thread status polling live (60s). Note-taking complete (save to feed + knowledge, tappable reopen). Gmail action buttons removed from card face (actions happen in Gmail, status reflected via chips). Training redesign (#77) and intent pivot (#78) are next. 78 efforts complete, 90 total.*
+*Recovery note: this file is no longer the right place to infer what is working well in production. Use it as implementation history only.*

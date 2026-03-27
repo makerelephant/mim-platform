@@ -1,7 +1,7 @@
 # In Motion — Context Primer Prompt
 > **Author:** Mark Slater, Co-founder & CEO — Made in Motion PBC
-> **Status:** Active strategic document.
-> **Last updated:** 2026-03-22
+> **Status:** Active strategic document. Use with caution: product claims below are constrained by live-system recovery findings.
+> **Last updated:** 2026-03-27
 
 ---
 
@@ -9,7 +9,7 @@ You are being onboarded to the current state of In Motion — an autonomous busi
 
 ---
 
-## === WHAT IS BUILT ===
+## === WHAT EXISTS IN CODE ===
 
 **Three surfaces — all live in production at `mim-platform.vercel.app`:**
 
@@ -17,41 +17,50 @@ You are being onboarded to the current state of In Motion — an autonomous busi
 - **Your Canvas** (`/clearing`) — Persistent brain-assisted thinking space. Sessions and messages stored in DB. File ingestion, brain Q&A, Launch a Gopher agents. NOT a creation tool.
 - **Engine Room** (`/engine`) — Motion Map (harness classifier markdown), Brain Accuracy, Autonomy progress, Integrations status, Platform Health, Gophers tab.
 
-**Backend infrastructure — all built and operational:**
+**Backend infrastructure present in the codebase:**
 
-- Gmail Gopher classifying live email into 11 Acumen categories, full-body comprehension (8K chars), thread consolidation, auto-resolve on CEO reply
-- Gmail Actions API — Reply, Draft (brain-generated), Archive, Star — with thread status detection reflected as Figma-accurate chips (Replied/Forwarded/Archived/Draft/Starred)
-- Slack Gopher — same Acumen classifier, noise filter, action extraction
-- Decision logging, correction learning pipeline (`/api/brain/learn`)
-- Daily briefing cron (7am EST), Gmail Gopher cron (6am EST)
-- Autonomy engine — categories earn self-governance at 20+ reviews / 90%+ accuracy
-- Snapshotting engine — natural language → data query → card in feed
-- Bulk email import at `/engine/import`
-- Embedding/RAG pipeline — `brain.knowledge_chunks` with pgvector, OpenAI text-embedding-3-small, semantic search ACTIVE
-- Bulletproof recall — 7-day guaranteed window, lowered vector thresholds, expanded result nets, keyword fallbacks
-- Entity resolution — fuzzy Levenshtein matching, alias resolution, first/last name partials, rich dossiers
-- Note-taking — `/api/notes` with knowledge embedding, feed card emission, draft support. Save = feed + knowledge simultaneously. Feed note cards tappable to reopen in edit mode.
-- Thread status polling — MessageCard polls Gmail every 60s, status chips update live when CEO acts in Gmail
-- Web Intelligence Gopher — configurable source monitoring, daily cron
+- Gmail Gopher, Gmail Actions API, Slack Gopher, bulk import, snapshotting, note-taking, and multiple reporting/measurement routes all exist in the repo.
+- Embedding and retrieval infrastructure exists (`knowledge_base`, `brain.knowledge_chunks`, pgvector, OpenAI embeddings).
+- Thread consolidation and Gmail status polling exist in code.
+- Decision logging, correction routes, autonomy logic, and reporting logic exist in code.
+
+Do not read the list above as proof that these systems are reliable in production. It means they exist, not that they are trustworthy.
+
+---
+
+## === WHAT IS TRUE ON THE GROUND ===
+
+- The core phase-1 product goal is a trustworthy CEO operational inbox. The current feed does not yet meet that bar.
+- The feed currently suffers from both false positives and likely false negatives:
+  - low-value cards are surfacing
+  - some important correspondence is plausibly not surfacing or not surfacing usefully
+- Measurement is not decision-grade yet. During live audit, expected measurement tables such as `brain.events` and `brain.classification_log` were not available in the live schema cache, so parts of the reported training/accuracy story cannot be treated as proven.
+- Schema/code drift has been real. Parts of the repo previously referenced table shapes and source types that did not match the live database.
+- The architecture is ambitious, but phase-1 trustworthiness is not yet proven. Treat the platform as a recovery effort, not as a stable intelligence asset.
 
 ---
 
 ## === WHAT IS NOT WORKING YET ===
 
-- **Training redesign needed (Effort #77)** — Current training UX confuses three concepts: (1) classifier correction on FeedCard via "Correct?" dropdown panel, (2) knowledge ingestion via notes "Add to Knowledge", (3) MessageCard has NO training at all — trash just dismisses without logging. Planned fix: implicit learning from every interaction — dismissals log as negative signal, tap-throughs log as positive signal, simple ✓/✗ replaces category dropdowns. Every interaction trains.
+- **Feed trust is not established** — The main failure is not missing features. It is that the feed is not yet reliably useful as an executive inbox. Signal-to-noise, missed-item coverage, summary quality, and priority calibration are not under control.
+- **Training is overstated relative to reality** — The system stores corrections and some interaction data, but the claim that “every interaction trains the brain” is not yet true in an operationally trustworthy sense.
+- **Measurement layer is incomplete or unreliable** — Several of the product’s claimed quality loops are not yet backed by dependable live instrumentation.
+- **Schema and runtime drift have existed** — Future agents should assume schema claims must be verified against the live database before relying on them.
 - **MCP Server not deployed** — 28 tools built, not yet on a host for external access.
-- **Intent suggestion UI not yet shipped (Effort #78)** — Cards still show Do/Hold/No alongside the new natural language layout. Read/Respond/Write/Schedule intent buttons are next after training redesign.
+- **Intent suggestion UI not yet shipped (Effort #78)** — Cards still show Do/Hold/No alongside the new natural language layout. This is not the main blocker; feed usefulness is.
 
 ---
 
 ## === WHAT THIS MEANS ===
 
-The system operates end-to-end. It ingests, classifies, surfaces, learns, recalls, and can execute Gmail actions. Semantic memory is active. Entity resolution is fuzzy-matching. The brain is structurally complete and experientially growing.
+The system is not best understood as “working but unfinished.” It is better understood as “architecturally broad, operationally under-proven.”
+
+It can ingest, classify, store, retrieve, and execute some actions. But the key question for phase 1 is not whether these subsystems exist. It is whether the feed reduces cognitive load and surfaces the right things at the right time. That remains unproven and is currently the main recovery problem.
 
 **What unlocks the next phase:**
-1. **Training redesign (#77)** — Make every interaction (dismiss, tap-through, checkmark) a training signal so data accumulates passively
-2. **Intent suggestion pivot (#78)** — Replace Do/Hold/No with Read/Respond/Write/Schedule
-3. Consistent daily CEO use of the feed to accumulate training data for autonomy
+1. **Recovery of feed trust** — establish a working evaluation loop for surfacing quality, false negatives, summary quality, and priority calibration
+2. **Measurement that can be trusted** — ensure the live system actually captures the data the product claims to use
+3. **Only then:** training redesign and intent-suggestion evolution
 
 Do not assume intelligence exists where it has not been proven.
 
@@ -60,7 +69,7 @@ Do not assume intelligence exists where it has not been proven.
 ## === ARCHITECTURE RULES (NEVER VIOLATE) ===
 
 - **Feed is truth.** No static pages. Data views are snapshots generated on demand.
-- **Single ingestion point.** All data enters via the ingestion API. No UI writes directly to the database.
+- **Single ingestion point is a target architecture rule, not a guaranteed current reality.** Verify actual write paths before assuming conformance.
 - **Gate, not workshop.** The platform doesn't compete with Google Slides, Excel, or any creation tool.
 - **No notification badges.** The feed IS the notification system.
 - **`architecture-mimbrain-v2.md` is the north star.** Do not change the backend architecture without explicit instruction.
@@ -83,8 +92,8 @@ Do not assume intelligence exists where it has not been proven.
 Before touching code:
 
 1. **Confirm where you are:** Run `cd /Users/markslater/Desktop/mim-platform && git branch` — you must be on `main`. If not, stop and get there.
-2. **Understand what actually exists** — read `CLAUDE.md` and `docs/master-effort-list.md` for the honest current state.
-3. **Identify what must happen next** for the brain to become reliable — prioritise embeddings decision, training cadence, then additional data sources.
+2. **Understand what actually exists** — read `CLAUDE.md`, `docs/operational/agent-recovery-rules.md`, and `docs/master-effort-list.md` for the honest current state.
+3. **Identify what must happen next** for the feed to become trustworthy — prioritise evaluation, instrumentation, and attention-quality recovery over new features.
 4. **List what work is unnecessary at this stage** — do not build Phase 2/3 features (teams, multi-user auth, mobile app, external-facing product) until Phase 1 is proven.
 
 ---

@@ -1,7 +1,7 @@
 # CLAUDE.md — Read This First
 > **Author:** Mark Slater, Co-founder & CEO — Made in Motion PBC
-> **Status:** Active session instructions. Must be read before any work begins.
-> **Last updated:** 2026-03-22
+> **Status:** Active session instructions. Must be read before any work begins. Claims below have been tightened to match recovery findings.
+> **Last updated:** 2026-03-27
 
 ---
 
@@ -38,13 +38,14 @@ There is also a **Me page** (`/me`) showing brain accuracy stats, manual scan tr
 ## Doc Reading Order
 
 1. `docs/strategic/platform-pivot-march-2026.md` — **START HERE.** Strategic pivot from correctness to contextual suggestions. Foundation excellence requirements. Build order.
-2. `docs/product/ui-requirements.md` — Governing architecture (Motion, Canvas, Engine Room, card types, emotional design)
-3. `docs/product/design-brief.md` — Figma-actionable specs (card anatomy, screen layouts, visual language)
-4. `docs/technical/architecture-mimbrain-v2.md` — Backend architecture (entity-centric, three memory types, harness, autonomy layer) — north star
-5. `docs/master-effort-list.md` — All efforts/epics with status
-6. `docs/product/stack-glossary.md` — Vocabulary definitions
-7. `docs/technical/specs/unified-classifier-spec.md` — Attention classification, signal quality, Decision/Action/Task ontology
-8. `docs/technical/specs/brain-intelligence-layer-spec.md` — RAG architecture, instruction persistence, MCP integration
+2. `docs/operational/agent-recovery-rules.md` — Required operating posture for agents working on product recovery. Read before proposing fixes.
+3. `docs/product/ui-requirements.md` — Governing architecture (Motion, Canvas, Engine Room, card types, emotional design)
+4. `docs/product/design-brief.md` — Figma-actionable specs (card anatomy, screen layouts, visual language)
+5. `docs/technical/architecture-mimbrain-v2.md` — Backend architecture (entity-centric, three memory types, harness, autonomy layer) — north star
+6. `docs/master-effort-list.md` — All efforts/epics with status
+7. `docs/product/stack-glossary.md` — Vocabulary definitions
+8. `docs/technical/specs/unified-classifier-spec.md` — Attention classification, signal quality, Decision/Action/Task ontology
+9. `docs/technical/specs/brain-intelligence-layer-spec.md` — RAG architecture, instruction persistence, MCP integration
 
 ---
 
@@ -81,19 +82,23 @@ There is also a **Me page** (`/me`) showing brain accuracy stats, manual scan tr
 
 > **Full decision document:** `docs/strategic/platform-pivot-march-2026.md`
 
-The platform is pivoting from **zero-tolerance correctness** (Do/Hold/No) to **contextual intent suggestions** (Read/Respond/Write/Schedule). The backend intelligence (Acumen categories, embeddings, classification log, behavioral rules, autonomy engine) continues unchanged — the shift is in how suggestions are presented to the CEO.
+The platform is pivoting from **zero-tolerance correctness** (Do/Hold/No) to **contextual intent suggestions** (Read/Respond/Write/Schedule).
 
-**Foundation excellence is COMPLETE (March 21, 2026):**
-1. Full-body comprehension (8K char windows, full email bodies) — ✅ COMPLETE
-2. Bulletproof recall (7-day guaranteed window, lowered thresholds, expanded results) — ✅ COMPLETE
-3. Entity resolution depth (fuzzy Levenshtein matching, alias resolution, rich dossiers) — ✅ COMPLETE
-4. Natural language card UI (MessageCard, gopher icons, intent icons, entity highlighting) — ✅ COMPLETE
-5. Gmail bidirectional integration (auto-resolve, status chips, thread polling) — ✅ COMPLETE
-6. Note-taking feature (knowledge embedding, drafts, feed card emission) — ✅ COMPLETE
+That said, do not assume the underlying intelligence layer is currently trustworthy just because it is broad. The immediate phase-1 problem is feed usefulness, not UI polish.
+
+**What exists in code is broader than what is proven in operation.**
+
+Do not use “foundation excellence complete” as an operating assumption. Live recovery findings have shown:
+
+1. the feed is not yet trustworthy
+2. measurement and training claims are partially overstated
+3. schema/runtime drift has existed
+4. subsystem existence is not proof of phase-1 value
 
 **Next up:**
-7. Training redesign — implicit learning from every interaction (#77) — 🟡 NEXT
-8. Intent suggestion UI (Read/Respond/Write/Schedule formal pivot, #78) — 🟡 PLANNED
+1. feed trust recovery
+2. reliable instrumentation
+3. only then: training redesign and intent-suggestion evolution
 
 **Key principle:** The death of this product is when data is submitted and it cannot be recalled, or is incomplete in its recollection. All or nothing — partial comprehension has zero value.
 
@@ -101,36 +106,29 @@ The platform is pivoting from **zero-tolerance correctness** (Do/Hold/No) to **c
 
 ## Current State (March 22, 2026)
 
-### What Is Built and Working
+### What Exists
 
-- **Gmail Gopher** — Classifying live email with 11 Acumen categories, full-body comprehension (8K chars), thread consolidation, deduplication via `source_ref`, auto-resolve on CEO reply detection
-- **Gmail Actions API** — `/api/gmail/actions` for Reply (threaded with headers), Draft (brain-generated via Claude), Archive, Star. Thread status polling (replied/forwarded/drafted/starred/archived). Every action creates a status.
-- **Slack Gopher** — Scanning Slack with the same Acumen classifier, assistant prefill for reliable JSON output, noise filter (P3/S3 cards suppressed), action extraction rules
-- **Feed cards** (`brain.feed_cards`) — Two card components: MessageCard (email/Slack — natural language, gopher icons, intent icons, entity highlighting, Figma-accurate thread status chips with icons) and FeedCard (briefings/snapshots/reflections — badge styles, Do/Hold/No actions, Train modal)
-- **Your Motion** — Feed-first architecture complete at `/`. Filter pills. Action bar with Write/Plan/Add buttons. Note-taking panel. Refresh button with accurate timer. Actioned cards disappear immediately from active view.
-- **Your Canvas** — Persistent sessions/messages at `/clearing`. Brain Q&A with multi-turn conversation history. File ingestion via drag-and-drop (pdf-parse, Claude Vision, Supabase Storage). Auto-embedding of all substantive messages into permanent knowledge base. Cross-session memory retrieval.
-- **Engine Room** — Motion Map (harness classifier MDs), Brain Accuracy (per-category stats), Autonomy progress, Integrations status, Platform Health, Signal Quality metrics
-- **Decision logging** — `brain.classification_log` records every classification. Every CEO action (Do/No/Hold) logged to `brain.decision_log` as training data.
-- **Correction learning** — `/api/brain/learn` stores corrections as institutional memory with vector embeddings for RAG retrieval. Feed card PATCH auto-fires learning.
-- **Daily briefing** — Vercel cron at 7am EST synthesises last 24h into briefing card
-- **Gmail Gopher cron** — Vercel cron at 6am EST scans last 4 hours
-- **Autonomy engine** — Categories earn self-governance at 20+ reviews / 90%+ accuracy
-- **Behavioral rules engine** — `brain.behavioral_rules` table with adaptation agent
-- **Instruction loader** — `src/lib/instruction-loader.ts` loads CEO standing orders into scanner prompts
-- **Snapshotting** — Natural language → data query → snapshot card in feed. Visual charts (bar, line, area, pie) via Recharts when data supports visualization.
-- **Visual chart rendering** — `src/components/FeedChart.tsx` + Recharts. Claude generates ` ```chart` JSON blocks in snapshots, briefings, and reports. Supports bar, line, area, pie, horizontal bar, multi-series. Dynamic import (no SSR).
-- **Web Intelligence source configuration** — Engine Room Integrations tab has source manager UI. Add/remove RSS feeds and webpage URLs. `/api/engine/web-sources` CRUD API. Auto-migrates defaults on first custom add.
-- **Bulk Data Import Gopher** — `/engine/import` for historical email ingestion. Also accessible as a row on the Me page.
-- **Embedding/RAG pipeline** — `brain.knowledge_chunks` table with pgvector. `search_knowledge` and `search_correspondence` RPC functions. OpenAI `text-embedding-3-small` embeddings generating on ingestion. Semantic search active. Canvas messages auto-embedded.
-- **Document ingestion** — pdf-parse (text PDFs), Claude Vision fallback (image-based PDFs < 5MB), direct Supabase Storage signed upload (files > 4MB), XLSX/PPTX/DOCX/TXT/CSV support
+- Gmail/Slack scanners, Gmail actions, feed rendering, canvas, engine room, import paths, note-taking, embedding/RAG, reporting, and autonomy logic all exist in the repo.
+- Many of these systems can execute.
+- Their existence should not be mistaken for reliable phase-1 product performance.
 
-- **Note-taking** — Write button → NotePanel. Title + rich text editor with formatting toolbar. Save = feed + knowledge simultaneously (generates OpenAI embedding, emits signal feed card, shows green checkmark success). Feed note cards tappable to reopen NotePanel in edit mode. Save Draft available. `/api/notes` CRUD. Notes stored in `brain.knowledge_chunks` as `ceo_note`/`ceo_note_draft`.
+### What Is Not Yet Proven Or Is Known To Be Weak
 
-### Active Gaps
+- **Feed usefulness** — This is the main product failure. Low-value cards surface and important items are plausibly missed.
+- **Measurement reliability** — Parts of the claimed measurement/training layer are not dependable enough to use as ground truth. Live recovery checks found expected tables such as `brain.events` and `brain.classification_log` unavailable in the schema cache.
+- **Training claims** — The platform stores corrections and interaction data, but “every interaction trains the brain” is not yet an honest operating assumption.
+- **Schema/runtime conformity** — Agents should verify database shape and live behavior before trusting repo claims about storage, source types, or metrics.
+- **Notes and other secondary workflows** — Treat as unproven until verified against the live system and the current schema.
 
 - **Training redesign (Effort #77)** — Current training UX confuses three concepts: (1) classifier correction via FeedCard "Correct?" dropdown panel, (2) knowledge ingestion via notes "Add to Knowledge", (3) MessageCard has NO training at all — trash just dismisses without logging. The fix: make every interaction a training signal — dismissals = negative, tap-throughs = positive, simple ✓/✗ replaces category dropdowns. Gmail action buttons already removed from card face (actions happen in Gmail, status reflected via chips).
 - **Intent suggestion UI (Effort #78)** — Cards still show Do/Hold/No alongside natural language layout. Formal Read/Respond/Write/Schedule intent buttons are the next major effort after training redesign.
 - **MCP Server deployment** — 28 tools built, not yet deployed to a host.
+
+### Recovery Posture
+
+- Treat this project as a product recovery effort, not a feature-delivery effort.
+- Prioritize feed trust, evaluation quality, and instrumentation over new capability.
+- Do not assume the architecture is sound just because it is sophisticated.
 
 ---
 
@@ -142,7 +140,7 @@ The platform is pivoting from **zero-tolerance correctness** (Do/Hold/No) to **c
 - **Never build static CRM pages** or add sidebar navigation items
 - **Never build creation tools** inside Your Canvas (it's a gate, not a workshop)
 - **Never add notification badges or counts**
-- **Never change the backend architecture** — `architecture-mimbrain-v2.md` is the north star
+- **Never change the backend architecture casually** — `architecture-mimbrain-v2.md` is the north star, but do not assume current implementation fully conforms to it
 - **Use "In Motion"** as the platform name (not MiMBrain)
 - **Use "Gopher"** for automated workers (not Scanner)
 - **Use "Canvas"** as the UI label for the `/clearing` route

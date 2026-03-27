@@ -1,7 +1,7 @@
 # Documentation Tree
 > **Author:** Mark Slater, Co-founder & CEO — Made in Motion PBC
-> **Status:** Active reference document. Updated as documents are added or archived.
-> **Last updated:** 2026-03-22
+> **Status:** Active reference document. Updated to reflect recovery-era reading order and to remove stale status assumptions.
+> **Last updated:** 2026-03-27
 
 ---
 
@@ -10,19 +10,20 @@
 Read documents in this order when onboarding to the project:
 
 1. `docs/strategic/platform-pivot-march-2026.md` — **START HERE.** Strategic pivot, foundation excellence, build order.
-2. `docs/product/ui-requirements.md` — Governing UI architecture (Motion, Canvas, Engine Room, card types, emotional design)
-3. `docs/product/design-brief.md` — Figma-actionable specs (card anatomy, screen layouts, visual language)
-4. `docs/technical/architecture-mimbrain-v2.md` — Backend architecture north star
-5. `docs/master-effort-list.md` — All efforts/epics with status
-6. `docs/product/stack-glossary.md` — Vocabulary definitions
-7. `docs/technical/specs/unified-classifier-spec.md` — Attention classification, signal quality, Decision/Action/Task ontology
-8. `docs/technical/specs/brain-intelligence-layer-spec.md` — RAG architecture, instruction persistence, MCP integration
+2. `docs/operational/agent-recovery-rules.md` — Required operating posture for recovery work
+3. `CLAUDE.md` — Current operating assumptions, recovery posture, and critical rules
+4. `docs/context-primer.md` — Current state summary with recovery warnings
+5. `docs/intelligence-deficit-analysis.md` — The right measurement frame for phase-1 recovery
+6. `docs/product/ui-requirements.md` — Governing UI architecture (Motion, Canvas, Engine Room, card types, emotional design)
+7. `docs/product/design-brief.md` — Figma-actionable specs (card anatomy, screen layouts, visual language)
+8. `docs/technical/architecture-mimbrain-v2.md` — Backend architecture north star
+9. `docs/master-effort-list.md` — Historical effort inventory, not proof of live reliability
 
 Specialised reading:
 - `docs/technical/memory-approach.md` — Three-layer memory architecture
 - `docs/technical/rag-spec.md` — RAG implementation and retrieval details
 - `docs/technical/mcp-functional-spec.md` — MCP server tools and deployment
-- `docs/context-primer.md` — Quick onboarding prompt with key file locations
+- `docs/context-primer.md` — Recovery-aware onboarding prompt with key file locations
 
 ---
 
@@ -75,12 +76,12 @@ Specialised reading:
 
 | File | Purpose |
 |------|---------|
+| `agent-recovery-rules.md` | Recovery operating posture for agents. Read before proposing changes. |
 | `harness-scope-email-categories.md` | 11 email classification categories with definitions, keywords, and routing rules. |
 | `training-plan.md` | Classifier training phases T1–T4. Cadence, volume targets, accuracy thresholds. |
 | `memory-indexes.md` | Supabase table index for all memory/intelligence tables. |
 | `recall-golden-checklist.md` | QA checklist for verifying recall quality. |
 | `teams-data-prep.md` | Design note for future Teams data model. |
-| `progress-march-19.md` | Point-in-time progress snapshot (March 19, 2026). |
 
 ---
 
@@ -88,9 +89,9 @@ Specialised reading:
 
 | File | Purpose |
 |------|---------|
-| `master-effort-list.md` | All efforts and epics with status. Single source of truth for what's built, what's in progress, and what's planned. Updated with every significant change. |
+| `master-effort-list.md` | Historical effort inventory. Do not treat as proof that listed systems are reliable in production. |
 | `context-primer.md` | Quick onboarding prompt with key file locations, architecture rules, and current state summary. |
-| `intelligence-deficit-analysis.md` | **Reference only — superseded by `unified-classifier-spec.md`.** The 10 intelligence measurement gaps that drove the unified classifier spec. |
+| `intelligence-deficit-analysis.md` | Recovery measurement frame for the feed. Not superseded for phase-1 diagnosis. |
 
 ---
 

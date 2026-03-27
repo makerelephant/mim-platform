@@ -1,11 +1,13 @@
 # Intelligence Deficit Analysis
 > **Author:** Mark Slater, Co-founder & CEO — Made in Motion PBC
-> **Status:** Active strategic document. Solutions for deficits 1 and 2 in progress.
-> **Last updated:** 2026-03-18
+> **Status:** Active recovery document. Deficits remain largely uninstrumented in the live system.
+> **Last updated:** 2026-03-27
 
 ---
 
 ## What We Measure Today
+
+This document describes the correct measurement frame for the product. It should not be read as evidence that these measures are already implemented or trustworthy in production.
 
 One thing: Did the brain put this email in the right bucket? (fundraising, partnership, product, etc.)
 
