@@ -7,7 +7,9 @@
 
 ## What is this project?
 
-**In Motion** is an autonomous business intelligence platform for Made in Motion PBC, a business engaged in creating innovative new methods and products for the Generative or Agentic Commerce future. The In Motion platform processes business data (emails, messages, documents), classifies it, prioritises it, and recommends actions — with the goal of becoming an autonomous or semi autonomous execution asset to the Chief Operating Officer in phase 1, to the founding team in phase 2, and then finally to the market that the company is seeking to participate in in phase 3.
+**In Motion** is an autonomous business intelligence platform for Made in Motion PBC, a business engaged in creating innovative new methods and products for the Generative or Agentic Commerce future. 
+
+The In Motion platform processes business data (emails, messages, documents), classifies it, prioritises it, and recommends actions — with the goal of becoming an autonomous or semi autonomous execution asset to the Chief Operating Officer in phase 1, to the founding team in phase 2, and then finally to the market that the company is seeking to participate in in phase 3.
 
 **We are in Phase 1 (The 1):** One user — the CEO — operating entirely through the feed. Everything else is horizon planning.
 
@@ -28,7 +30,7 @@ There is also a **Me page** (`/me`) showing brain accuracy stats, manual scan tr
 - **No Pages** — Data views are "snapshots" generated on demand into the feed, not static routes
 - **Burning Man** — Celebrate impermanence. Nothing persists as a permanent page.
 - **Gate, Not Workshop** — We don't compete with Google Slides, Excel, etc. We're the gate everything passes through.
-- **No notification badges** — The feed IS the notification system
+- **No notification badges** — The feed IS the notification system. where possible, avoid noisy UI elements that complicate the UI and distract the User. 
 - **Single Ingestion Point** — All data enters through one endpoint. Brain classifies, decides, acts, emits cards. No UI writes directly to the database.
 
 ---
