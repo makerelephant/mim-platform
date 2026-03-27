@@ -50,3 +50,4 @@ scripts/agents/credentials.json
 scripts/agents/token.json
 scripts/agents/.env
 .env*.local
+mim-platform/mim-platform/
