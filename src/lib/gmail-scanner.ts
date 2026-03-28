@@ -72,6 +72,7 @@ export interface ScannerResult {
   contactsCreated: number;
   preFiltered: number;
   threadSkipped: number;
+  timeoutAborted?: number;
   log: string[];
   error?: string;
 }
@@ -489,7 +490,7 @@ async function classifyMessage(
   orgContext: string = "",
   entityDossier: string = "",
   threadContext: string = "",
-): Promise<UnifiedClassificationResult> {
+): Promise<UnifiedClassificationResult | null> {
   // Build entity context
   let entityContext: string;
   if (resolvedEntities.length > 0) {
@@ -552,38 +553,10 @@ async function classifyMessage(
     }
   }
 
-  // All retries exhausted — fallback
+  // All retries exhausted — return null to signal "do not emit a card"
   const errMsg = lastError instanceof Error ? lastError.message : String(lastError);
-  console.error(`[gmail-scanner] CLASSIFICATION FAILED after ${MAX_RETRIES + 1} attempts for "${message.subject?.slice(0, 60)}": ${errMsg}`);
-  const primaryEntity = resolvedEntities[0];
-  return {
-    attention_class: "P2_delegate_or_batch",
-    relevance_score: 30,
-    subtypes: [],
-    channel: "email",
-    primary_reason: "Classification failed — defaulting to P2",
-    supporting_signals: [],
-    disqualifiers_considered: [],
-    recommended_handling: "Review manually",
-    confidence: 0.1,
-    summary_sentence: `Email: ${message.subject.slice(0, 80)}`,
-    entities: [],
-    contains_decision: false,
-    contains_action: false,
-    contains_task: false,
-    decisions: [],
-    actions: [],
-    tasks: [],
-    task_creation_candidates: [],
-    primary_silo: primaryEntity?.entity_type || "contacts",
-    primary_entity_id: primaryEntity?.entity_id || null,
-    primary_entity_name: primaryEntity?.entity_name || null,
-    tags: ["unclassified"],
-    sentiment: "neutral",
-    draft_reply: null,
-    acumen_category: null,
-    action_recommendation: null,
-  };
+  console.error(`[gmail-scanner] CLASSIFICATION FAILED PERMANENTLY after ${MAX_RETRIES + 1} attempts for "${message.subject?.slice(0, 60)}": ${errMsg}`);
+  return null;
 }
 
 // ─── Gmail Helpers ──────────────────────────────────────────────────────────
@@ -804,7 +777,7 @@ export async function runGmailScanner(
     const afterTs = Math.floor((Date.now() - scanHours * 60 * 60 * 1000) / 1000);
     const query = `after:${afterTs}`;
     const MAX_MESSAGES_PER_SCAN = 500;
-    const messages: Array<{ id?: string | null; threadId?: string | null }> = [];
+    const rawMessages: Array<{ id?: string | null; threadId?: string | null }> = [];
     let pageToken: string | undefined = undefined;
 
     do {
@@ -817,17 +790,51 @@ export async function runGmailScanner(
       const listResult = await gmail.users.messages.list(listParams);
 
       const pageMessages = listResult.data.messages || [];
-      messages.push(...pageMessages);
+      rawMessages.push(...pageMessages);
       pageToken = listResult.data.nextPageToken ?? undefined;
-      addLog(`Fetched page of ${pageMessages.length} messages (total so far: ${messages.length})`);
-    } while (pageToken && messages.length < MAX_MESSAGES_PER_SCAN);
+      addLog(`Fetched page of ${pageMessages.length} messages (total so far: ${rawMessages.length})`);
+    } while (pageToken && rawMessages.length < MAX_MESSAGES_PER_SCAN);
 
-    // Trim to cap in case the last page pushed us over
-    if (messages.length > MAX_MESSAGES_PER_SCAN) {
-      messages.length = MAX_MESSAGES_PER_SCAN;
+    if (rawMessages.length > MAX_MESSAGES_PER_SCAN) {
+      rawMessages.length = MAX_MESSAGES_PER_SCAN;
     }
 
-    addLog(`Found ${messages.length} messages in the last ${scanHours} hours`);
+    // ── Prioritize by Gmail labels: IMPORTANT+PERSONAL first, PROMOTIONS last ──
+    // Metadata-only fetch in parallel batches to get labelIds for sorting.
+    // This ensures if the timeout budget runs out, important emails were already processed.
+    const labelMap = new Map<string, string[]>();
+    const LABEL_BATCH = 25;
+    for (let i = 0; i < rawMessages.length; i += LABEL_BATCH) {
+      const chunk = rawMessages.slice(i, i + LABEL_BATCH);
+      const results = await Promise.all(
+        chunk.map(async (m) => {
+          try {
+            const res = await gmail.users.messages.get({ userId: "me", id: m.id!, format: "metadata", metadataHeaders: ["From"] });
+            return { id: m.id!, labels: res.data.labelIds || [] };
+          } catch {
+            return { id: m.id!, labels: [] as string[] };
+          }
+        })
+      );
+      for (const r of results) labelMap.set(r.id, r.labels);
+    }
+
+    function msgPriority(id: string): number {
+      const labels = labelMap.get(id) || [];
+      const imp = labels.includes("IMPORTANT");
+      const pers = labels.includes("CATEGORY_PERSONAL");
+      const promo = labels.includes("CATEGORY_PROMOTIONS");
+      const social = labels.includes("CATEGORY_SOCIAL");
+      if (imp && pers) return 0;
+      if (imp) return 1;
+      if (pers) return 2;
+      if (social) return 4;
+      if (promo) return 5;
+      return 3;
+    }
+
+    const messages = [...rawMessages].sort((a, b) => msgPriority(a.id!) - msgPriority(b.id!));
+    addLog(`Found ${messages.length} messages in the last ${scanHours} hours (sorted by Gmail priority labels)`);
 
     let recordsProcessed = 0;
     let recordsUpdated = 0;
@@ -835,10 +842,22 @@ export async function runGmailScanner(
     let preFiltered = 0;
     let threadSkipped = 0;
     let autoActed = 0;
+    let timeoutAborted = 0;
     const autoActedByCategory = new Map<string, number>();
     const processedEntities: Array<{ entity_type: string; entity_id: string }> = [];
 
+    // Timeout guard: stop 30s before Vercel kills the function
+    const SCAN_START = Date.now();
+    const TIMEOUT_BUDGET_MS = 270_000; // 4.5 min (Vercel limit = 5 min)
+
     for (const msgRef of messages) {
+      const elapsed = Date.now() - SCAN_START;
+      if (elapsed > TIMEOUT_BUDGET_MS) {
+        timeoutAborted = messages.length - recordsProcessed;
+        addLog(`⚠️ TIMEOUT GUARD: ${Math.round(elapsed / 1000)}s elapsed, aborting with ${timeoutAborted} messages unprocessed (important messages were processed first)`);
+        break;
+      }
+
       recordsProcessed++;
       const msgId = msgRef.id!;
 
@@ -1372,6 +1391,24 @@ export async function runGmailScanner(
         threadContext,
       );
 
+      // Classification failed after all retries — skip card emission entirely.
+      // No garbage card. Email will be retried on next scan (no correspondence record = no dedup hit).
+      if (!result) {
+        addLog(`  ❌ Classification failed permanently: "${details.subject.slice(0, 60)}" — no card emitted`);
+        try {
+          await sb.schema('brain').from("classification_log").insert({
+            source: "gmail",
+            source_message_id: msgId,
+            thread_id: details.thread_id || null,
+            from_email: fromEmail,
+            subject: details.subject,
+            pre_filter_result: "classification_failed",
+            agent_run_id: runId,
+          });
+        } catch { /* ignore logging error */ }
+        continue;
+      }
+
       let entityType = result.primary_silo;
       let entityId = result.primary_entity_id;
 
@@ -1723,15 +1760,24 @@ export async function runGmailScanner(
     }
 
     // ── Complete run ──
+    // If timeout guard fired, mark as "partial" — NOT "completed".
+    // hoursSinceLastScan only looks at "completed" runs to set the watermark.
+    // A "partial" run does not advance the watermark, so the next scan's
+    // window still covers the unprocessed messages.
+    const runStatus = timeoutAborted > 0 ? "partial" : "completed";
     if (runId) {
       await sb.schema('brain').from("agent_runs").update({
-        status: "completed",
+        status: runStatus,
         completed_at: new Date().toISOString(),
-        output: { records_processed: recordsProcessed, records_updated: recordsUpdated },
+        output: {
+          records_processed: recordsProcessed,
+          records_updated: recordsUpdated,
+          timeout_aborted: timeoutAborted,
+        },
       }).eq("id", runId);
     }
 
-    addLog(`Completed — processed: ${recordsProcessed}, updated: ${recordsUpdated}, skipped dupes: ${skippedDupes}`);
+    addLog(`Completed — processed: ${recordsProcessed}, updated: ${recordsUpdated}, skipped dupes: ${skippedDupes}${timeoutAborted > 0 ? `, timeout-aborted: ${timeoutAborted}` : ""}`);
 
     addLog(`Contacts auto-created: ${contactsCreated}`);
     addLog(`Pre-filtered: ${preFiltered}, Thread-skipped: ${threadSkipped}`);
@@ -1770,6 +1816,7 @@ export async function runGmailScanner(
       contactsCreated,
       preFiltered,
       threadSkipped,
+      timeoutAborted,
       log,
     };
   } catch (e) {
