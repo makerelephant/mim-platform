@@ -301,6 +301,72 @@ export function qualifiesForTaskCreation(attentionClass: AttentionClass): boolea
   ].includes(attentionClass);
 }
 
+// ─── Post-Classification Priority Override ──────────────────────────────────
+
+/**
+ * Phase 1 priority override: promote P2 → P1 when classification evidence
+ * strongly indicates CEO-relevant business threads.
+ *
+ * Runs AFTER classification, BEFORE card emission.
+ * Never downgrades. Only promotes P2 → P1 (or P2 → P0 for closing signals).
+ *
+ * Returns the corrected attention class, or the original if no override applies.
+ */
+export function applyPhase1PriorityOverride(
+  result: {
+    attention_class: AttentionClass;
+    acumen_category: string | null;
+    tags: string[];
+    summary_sentence: string;
+    actions: { description: string }[];
+    contains_decision: boolean;
+  },
+  channel: "email" | "slack" = "email",
+): AttentionClass {
+  const ac = result.attention_class;
+
+  // Only promote P2/S2 — never touch P0/P1 (already elevated) or P3 (noise)
+  if (ac !== "P2_delegate_or_batch" && ac !== "S2_batch_or_delegate") return ac;
+
+  const category = (result.acumen_category || "").toLowerCase();
+  const tags = result.tags.map(t => t.toLowerCase());
+  const text = (result.summary_sentence || "").toLowerCase();
+  const actionText = result.actions.map(a => a.description.toLowerCase()).join(" ");
+  const combined = `${text} ${actionText} ${tags.join(" ")}`;
+
+  // Signal groups — each tests content, not sender brand
+  const isFundraisingClosing = (
+    category === "fundraising" ||
+    tags.some(t => ["fundraising", "investment", "investor", "closing", "term-sheet"].includes(t))
+  ) && /safe|wire|side.?letter|pro.?rata|closing|term.?sheet|investment|valuation|cap.?table|dilution|round/.test(combined);
+
+  const isLegalCounsel = (
+    category === "legal" ||
+    tags.some(t => ["legal", "compliance", "counsel"].includes(t))
+  ) && /counsel|attorney|filing|agreement|amendment|incorporation|83.?b|securities/.test(combined);
+
+  const isActivePartnerOutreach = (
+    category === "customer-partner-ops" ||
+    tags.some(t => ["partnership", "pilot", "demo", "beta", "onboarding"].includes(t))
+  ) && /demo|walkthrough|schedule.*meeting|product.*link|drop.*link|partnership.*rolling|onboard/.test(combined);
+
+  const isDecisionRequired = result.contains_decision && (
+    isFundraisingClosing || isLegalCounsel
+  );
+
+  // P2 → P0 for active closing/wire/signing events
+  if (isFundraisingClosing && /wire|sign|closing|execute|fund/.test(combined)) {
+    return channel === "email" ? "P0_ceo_now" : "S0_interrupt_now";
+  }
+
+  // P2 → P1 for fundraising negotiation, legal counsel, active partner outreach, or CEO decisions
+  if (isFundraisingClosing || isLegalCounsel || isActivePartnerOutreach || isDecisionRequired) {
+    return channel === "email" ? "P1_ceo_soon" : "S1_review_soon";
+  }
+
+  return ac;
+}
+
 // ─── Parse Unified Classification Response ──────────────────────────────────
 
 /**

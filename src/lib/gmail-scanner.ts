@@ -25,6 +25,7 @@ import {
   attentionClassToPriority,
   shouldSuppressCard,
   qualifiesForTaskCreation,
+  applyPhase1PriorityOverride,
   UnifiedClassificationResult,
 } from "./unified-classifier";
 
@@ -1569,6 +1570,13 @@ export async function runGmailScanner(
           ceo_review_status: "pending",
         });
       } catch { /* ignore logging error */ }
+
+      // ── Phase 1 priority override (post-classification, pre-emission) ──
+      const originalAttention = result.attention_class;
+      result.attention_class = applyPhase1PriorityOverride(result, "email");
+      if (result.attention_class !== originalAttention) {
+        addLog(`  Priority override: ${originalAttention} → ${result.attention_class}`);
+      }
 
       // ── Suppress P3 cards (low-value noise) ──
       if (shouldSuppressCard(result.attention_class)) {
