@@ -392,33 +392,68 @@ export function parseUnifiedClassification(
     if (jsonMatch) text = jsonMatch[0];
   }
 
-  const data = JSON.parse(text);
+  // Attempt parse, with truncation recovery for incomplete JSON
+  let data: Record<string, unknown>;
+  try {
+    data = JSON.parse(text);
+  } catch {
+    // Likely truncated output — try closing open braces/brackets
+    let repaired = text;
+    // Remove trailing incomplete string value (e.g. `"key": "value that got cut`)
+    repaired = repaired.replace(/,\s*"[^"]*"?\s*:\s*"[^"]*$/, "");
+    repaired = repaired.replace(/,\s*"[^"]*$/, "");
+    // Count unclosed braces/brackets and close them
+    const openBraces = (repaired.match(/\{/g) || []).length - (repaired.match(/\}/g) || []).length;
+    const openBrackets = (repaired.match(/\[/g) || []).length - (repaired.match(/\]/g) || []).length;
+    for (let i = 0; i < openBrackets; i++) repaired += "]";
+    for (let i = 0; i < openBraces; i++) repaired += "}";
+    try {
+      data = JSON.parse(repaired);
+    } catch {
+      // Final fallback: extract key fields with regex
+      const summary = text.match(/"summary_sentence"\s*:\s*"([^"]+)"/)?.[1] || "Communication processed";
+      const attention = text.match(/"attention_class"\s*:\s*"([^"]+)"/)?.[1] || null;
+      const acumen = text.match(/"acumen_category"\s*:\s*"([^"]+)"/)?.[1] || null;
+      const recommendation = text.match(/"action_recommendation"\s*:\s*"([^"]+)"/)?.[1] || null;
+      const handling = text.match(/"recommended_handling"\s*:\s*"([^"]+)"/)?.[1] || null;
+      data = {
+        summary_sentence: summary,
+        attention_class: attention,
+        acumen_category: acumen,
+        action_recommendation: recommendation,
+        recommended_handling: handling,
+      };
+    }
+  }
   const primaryEntity = fallbackEntities[0];
 
   // Default attention class based on channel
-  const defaultAttention = channel === "email" ? "P2_delegate_or_batch" : "S2_batch_or_delegate";
+  const defaultAttention: AttentionClass = channel === "email" ? "P2_delegate_or_batch" : "S2_batch_or_delegate";
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const d = data as any;
 
   return {
-    attention_class: data.attention_class || defaultAttention,
-    relevance_score: typeof data.relevance_score === "number" ? data.relevance_score : 50,
-    subtypes: Array.isArray(data.subtypes) ? data.subtypes : [],
+    attention_class: d.attention_class || defaultAttention,
+    relevance_score: typeof d.relevance_score === "number" ? d.relevance_score : 50,
+    subtypes: Array.isArray(d.subtypes) ? d.subtypes : [],
     channel,
-    primary_reason: data.primary_reason || "",
-    supporting_signals: Array.isArray(data.supporting_signals) ? data.supporting_signals : [],
-    disqualifiers_considered: Array.isArray(data.disqualifiers_considered) ? data.disqualifiers_considered : [],
-    recommended_handling: data.recommended_handling || "",
-    confidence: typeof data.confidence === "number" ? data.confidence : 0.5,
+    primary_reason: d.primary_reason || "",
+    supporting_signals: Array.isArray(d.supporting_signals) ? d.supporting_signals : [],
+    disqualifiers_considered: Array.isArray(d.disqualifiers_considered) ? d.disqualifiers_considered : [],
+    recommended_handling: d.recommended_handling || "",
+    confidence: typeof d.confidence === "number" ? d.confidence : 0.5,
 
-    summary_sentence: data.summary_sentence || data.summary || "Communication processed",
+    summary_sentence: d.summary_sentence || d.summary || "Communication processed",
 
-    entities: Array.isArray(data.entities) ? data.entities : [],
+    entities: Array.isArray(d.entities) ? d.entities : [],
 
-    contains_decision: !!data.contains_decision,
-    contains_action: !!data.contains_action,
-    contains_task: !!data.contains_task,
+    contains_decision: !!d.contains_decision,
+    contains_action: !!d.contains_action,
+    contains_task: !!d.contains_task,
 
-    decisions: Array.isArray(data.decisions) ? data.decisions : [],
-    actions: Array.isArray(data.actions) ? data.actions.map((a: Record<string, unknown>) => ({
+    decisions: Array.isArray(d.decisions) ? d.decisions : [],
+    actions: Array.isArray(d.actions) ? d.actions.map((a: Record<string, unknown>) => ({
       description: (a.description as string) || "",
       owner: (a.owner as string) || "CEO",
       target_object: (a.target_object as string) || null,
@@ -428,8 +463,8 @@ export function parseUnifiedClassification(
     })) : [],
     tasks: [],
 
-    task_creation_candidates: Array.isArray(data.task_creation_candidates)
-      ? data.task_creation_candidates.map((t: Record<string, unknown>) => ({
+    task_creation_candidates: Array.isArray(d.task_creation_candidates)
+      ? d.task_creation_candidates.map((t: Record<string, unknown>) => ({
           should_create_task: !!t.should_create_task,
           rationale: (t.rationale as string) || "",
           proposed_task_title: (t.proposed_task_title as string) || "Untitled task",
@@ -440,13 +475,13 @@ export function parseUnifiedClassification(
         }))
       : [],
 
-    primary_silo: data.primary_silo || primaryEntity?.entity_type || "contacts",
-    primary_entity_id: data.primary_entity_id || primaryEntity?.entity_id || null,
-    primary_entity_name: data.primary_entity_name || primaryEntity?.entity_name || null,
-    tags: Array.isArray(data.tags) ? data.tags : [],
-    sentiment: data.sentiment || "neutral",
-    draft_reply: data.draft_reply || null,
-    acumen_category: data.acumen_category || null,
-    action_recommendation: data.action_recommendation || null,
+    primary_silo: d.primary_silo || primaryEntity?.entity_type || "contacts",
+    primary_entity_id: d.primary_entity_id || primaryEntity?.entity_id || null,
+    primary_entity_name: d.primary_entity_name || primaryEntity?.entity_name || null,
+    tags: Array.isArray(d.tags) ? d.tags : [],
+    sentiment: d.sentiment || "neutral",
+    draft_reply: d.draft_reply || null,
+    acumen_category: d.acumen_category || null,
+    action_recommendation: d.action_recommendation || null,
   };
 }

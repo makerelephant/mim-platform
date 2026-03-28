@@ -87,7 +87,7 @@ const DEFAULT_USER_EMAILS = [
 ];
 
 const DEFAULT_MODEL = "claude-sonnet-4-6";
-const DEFAULT_MAX_TOKENS = 1200;
+const DEFAULT_MAX_TOKENS = 2048;
 
 const FREE_EMAIL_DOMAINS = new Set([
   "gmail.com", "yahoo.com", "outlook.com", "hotmail.com",
