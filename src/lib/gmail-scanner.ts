@@ -862,6 +862,20 @@ export async function runGmailScanner(
       recordsProcessed++;
       const msgId = msgRef.id!;
 
+      // ── Gmail label pre-filter: skip obvious noise BEFORE fetching full message ──
+      // CATEGORY_PROMOTIONS and CATEGORY_SOCIAL without IMPORTANT flag are almost
+      // never CEO-relevant. Skipping them saves ~25s per message (no body fetch,
+      // no Claude API call). This is the single highest-leverage throughput fix.
+      const msgLabels = labelMap.get(msgId) || [];
+      const isImportant = msgLabels.includes("IMPORTANT");
+      const isPromo = msgLabels.includes("CATEGORY_PROMOTIONS");
+      const isSocial = msgLabels.includes("CATEGORY_SOCIAL");
+      if ((isPromo || isSocial) && !isImportant) {
+        preFiltered++;
+        addLog(`  Pre-filtered [gmail-label]: "${(msgRef as Record<string, unknown>).threadId || msgId}" — ${isPromo ? "PROMOTIONS" : "SOCIAL"} without IMPORTANT`);
+        continue;
+      }
+
       // ── Deduplication check (skip if force re-scan) ──
       if (!options?.skipDupeCheck) {
         const { data: dupeCheck } = await sb
