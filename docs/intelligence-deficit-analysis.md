@@ -1,13 +1,15 @@
 # Intelligence Deficit Analysis
 > **Author:** Mark Slater, Co-founder & CEO — Made in Motion PBC
 > **Status:** Active recovery document. Deficits remain largely uninstrumented in the live system.
-> **Last updated:** 2026-03-27
+> **Last updated:** 2026-03-28
 
 ---
 
 ## What We Measure Today
 
 This document describes the correct measurement frame for the product. It should not be read as evidence that these measures are already implemented or trustworthy in production.
+
+Email recovery work during March 28 materially improved the platform's ability to surface known-important correspondence and render it more credibly. That progress matters. It does **not** remove the need for the measurement frame below. The reason is simple: proving that several anchor threads now surface is not the same thing as proving that the feed is broadly trustworthy.
 
 One thing: Did the brain put this email in the right bucket? (fundraising, partnership, product, etc.)
 
@@ -90,6 +92,8 @@ A critical email from 6 hours ago that surfaces after the CEO has already dealt 
 
 **Metric:** Ingestion-to-surface latency. Also: Hold cards that expire or get dismissed when they resurface (the moment passed).
 
+**Recovery note (2026-03-28):** recent-window Gmail timeliness is materially better than it was before recovery work. Long-window backlog timeliness is still weaker and may require multiple passes, so this deficit remains open.
+
 ---
 
 ### 7. Completeness (False Negatives)
@@ -116,6 +120,8 @@ We infer card type from priority and content (critical → decision, has action 
 Thread consolidation exists but we never measure whether it's too aggressive (merging unrelated messages) or too loose (same thread spawning multiple cards).
 
 **Metric:** Cards-per-thread ratio. CEO "should not exist" corrections that reference duplicate content.
+
+**Recovery note (2026-03-28):** thread refresh and card updating are better than they were, but thread usefulness is still not fully proven because expanded history is incomplete and thread-state behavior can still be shallow.
 
 ---
 

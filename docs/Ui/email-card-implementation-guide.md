@@ -11,6 +11,8 @@ This document applies to **email cards only**.
 
 It is a simple implementation guide for building the email card UI now that backend email recovery has improved enough to support interface work.
 
+**Recovery status:** the current card implementation now has visible thread-state chips, a recommendation band, a contextual action area, and a conversation toggle. Remaining work is about trust and behavior quality, not starting from zero.
+
 ---
 
 ## Card Structure
@@ -22,7 +24,7 @@ Build the email card in this order:
 Show:
 
 - source icon
-- tool / gopher identifier
+- tool / gopher identifier when available in the UI data
 - thread-state chip
 - timestamp
 - permanent remove-from-feed control
@@ -76,6 +78,8 @@ If earlier thread history exists, show:
 Do not label this as `thread context`.
 Use human language only.
 
+If the toggle is shown, expanding it must reveal actual earlier-message content. A dead toggle is worse than no toggle.
+
 ---
 
 ## Permanent Control
@@ -106,11 +110,7 @@ Recommendation style:
 - action-oriented
 - direct
 
-CTA examples:
-
-- `Reply`
-- `Open thread`
-- `Schedule`
+CTA examples depend on the design/Figma and recommendation logic. The key rule is that they must reflect the thread's current posture and not contradict visible state.
 
 ---
 
@@ -125,11 +125,6 @@ Recommendation style:
 - monitor
 - wait
 - track next response
-
-CTA examples:
-
-- `Open thread`
-- `Monitor`
 
 Do not show:
 
@@ -148,11 +143,6 @@ Recommendation style:
 - wait for recipient input
 - track outcome
 
-CTA examples:
-
-- `Open thread`
-- `Monitor`
-
 Do not show:
 
 - `Reply`
@@ -169,11 +159,6 @@ Recommendation style:
 
 - review draft
 - decide whether to send
-
-CTA examples:
-
-- `Review draft`
-- `Open thread`
 
 ---
 
@@ -197,6 +182,8 @@ Recommendation examples:
 
 - `No action needed unless the thread changes`
 - `Monitor only if counsel replies again`
+
+If the design includes `Reply`, `Schedule`, or `Add to Tasks`, they must be justified by the recommendation and card state. `Remove from feed` remains the only permanent universal control.
 
 ---
 

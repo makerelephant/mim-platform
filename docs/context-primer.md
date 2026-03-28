@@ -1,7 +1,7 @@
 # In Motion — Context Primer Prompt
 > **Author:** Mark Slater, Co-founder & CEO — Made in Motion PBC
 > **Status:** Active strategic document. Use with caution: product claims below are constrained by live-system recovery findings.
-> **Last updated:** 2026-03-27
+> **Last updated:** 2026-03-28
 
 ---
 
@@ -13,7 +13,7 @@ You are being onboarded to the current state of In Motion — an autonomous busi
 
 **Three surfaces — all live in production at `mim-platform.vercel.app`:**
 
-- **Your Motion** (`/`) — Scrollable feed of interactive cards. The CEO's operational inbox. Two card types: MessageCard (email/Slack sources — clean natural language with gopher icons, intent icons, entity highlighting, Figma-accurate thread status chips) and FeedCard (briefings/snapshots/reflections). Filter pills: All, Decisions, Actions, Signals, Intel, Briefings, Old. Action bar with Write/Plan/Add buttons. Note-taking panel accessible via Write button.
+- **Your Motion** (`/`) — Scrollable feed of interactive cards. The CEO's operational inbox. Two card types: MessageCard (email/Slack sources — natural-language card layout with gopher/source header, thread-state chips, participant line, recommendation band, and contextual action area now in active implementation) and FeedCard (briefings/snapshots/reflections). Filter pills: All, Decisions, Actions, Signals, Intel, Briefings, Old. Action bar with Write/Plan/Add buttons. Note-taking panel accessible via Write button.
 - **Your Canvas** (`/clearing`) — Persistent brain-assisted thinking space. Sessions and messages stored in DB. File ingestion, brain Q&A, Launch a Gopher agents. NOT a creation tool.
 - **Engine Room** (`/engine`) — Motion Map (harness classifier markdown), Brain Accuracy, Autonomy progress, Integrations status, Platform Health, Gophers tab.
 
@@ -23,6 +23,7 @@ You are being onboarded to the current state of In Motion — an autonomous busi
 - Embedding and retrieval infrastructure exists (`knowledge_base`, `brain.knowledge_chunks`, pgvector, OpenAI embeddings).
 - Thread consolidation and Gmail status polling exist in code.
 - Decision logging, correction routes, autonomy logic, and reporting logic exist in code.
+- Recent email recovery work materially improved Gmail coverage, classifier robustness, thread refresh behavior, and priority handling on known-important threads.
 
 Do not read the list above as proof that these systems are reliable in production. It means they exist, not that they are trustworthy.
 
@@ -37,17 +38,18 @@ Do not read the list above as proof that these systems are reliable in productio
 - Measurement is not decision-grade yet. During live audit, expected measurement tables such as `brain.events` and `brain.classification_log` were not available in the live schema cache, so parts of the reported training/accuracy story cannot be treated as proven.
 - Schema/code drift has been real. Parts of the repo previously referenced table shapes and source types that did not match the live database.
 - The architecture is ambitious, but phase-1 trustworthiness is not yet proven. Treat the platform as a recovery effort, not as a stable intelligence asset.
+- Email is the clearest area of progress so far: several previously broken important threads now surface correctly or much more credibly. That is progress, not final proof of feed trust.
 
 ---
 
 ## === WHAT IS NOT WORKING YET ===
 
-- **Feed trust is not established** — The main failure is not missing features. It is that the feed is not yet reliably useful as an executive inbox. Signal-to-noise, missed-item coverage, summary quality, and priority calibration are not under control.
+- **Feed trust is not established** — The main failure is still not missing features. It is that the feed is not yet reliably useful as an executive inbox. Signal-to-noise, broader missed-item coverage, summary quality, and priority calibration are not fully under control.
 - **Training is overstated relative to reality** — The system stores corrections and some interaction data, but the claim that “every interaction trains the brain” is not yet true in an operationally trustworthy sense.
 - **Measurement layer is incomplete or unreliable** — Several of the product’s claimed quality loops are not yet backed by dependable live instrumentation.
 - **Schema and runtime drift have existed** — Future agents should assume schema claims must be verified against the live database before relying on them.
 - **MCP Server not deployed** — 28 tools built, not yet on a host for external access.
-- **Intent suggestion UI not yet shipped (Effort #78)** — Cards still show Do/Hold/No alongside the new natural language layout. This is not the main blocker; feed usefulness is.
+- **Email card UI is mid-implementation, not finished** — the email card now has visible thread-state chips and a more intentional structure, but contextual action behavior, thread expansion, and trust at a glance are not yet finished.
 
 ---
 
@@ -60,7 +62,8 @@ It can ingest, classify, store, retrieve, and execute some actions. But the key 
 **What unlocks the next phase:**
 1. **Recovery of feed trust** — establish a working evaluation loop for surfacing quality, false negatives, summary quality, and priority calibration
 2. **Measurement that can be trusted** — ensure the live system actually captures the data the product claims to use
-3. **Only then:** training redesign and intent-suggestion evolution
+3. **Then:** finish email card trust and state-aware behavior
+4. **Only then:** training redesign and broader intent-suggestion evolution
 
 Do not assume intelligence exists where it has not been proven.
 
@@ -116,7 +119,7 @@ Before touching code:
 | File | Purpose |
 |------|---------|
 | `src/app/page.tsx` | Your Motion feed page — filter pills, action bar, card routing (MessageCard vs FeedCard), note panel |
-| `src/components/MessageCard.tsx` | Natural language cards for email/Slack — gopher icons, intent icons, entity highlighting, thread status chips |
+| `src/components/MessageCard.tsx` | Email/Slack message cards — active recovery surface for thread-state chips, participant line, recommendation band, contextual actions |
 | `src/components/FeedCard.tsx` | Briefing/snapshot/reflection cards — badge styles, Do/Hold/No actions, Train modal |
 | `src/app/clearing/page.tsx` | Your Canvas — sessions, messages, gopher launcher, file ingestion |
 | `src/app/engine/page.tsx` | Engine Room — Motion Map, accuracy, autonomy, integrations, health |

@@ -1,7 +1,7 @@
 # CLAUDE.md — Read This First
 > **Author:** Mark Slater, Co-founder & CEO — Made in Motion PBC
 > **Status:** Active session instructions. Must be read before any work begins. Claims below have been tightened to match recovery findings.
-> **Last updated:** 2026-03-27
+> **Last updated:** 2026-03-28
 
 ---
 
@@ -104,7 +104,7 @@ Do not use “foundation excellence complete” as an operating assumption. Live
 
 ---
 
-## Current State (March 22, 2026)
+## Current State (March 28, 2026)
 
 ### What Exists
 
@@ -112,16 +112,25 @@ Do not use “foundation excellence complete” as an operating assumption. Live
 - Many of these systems can execute.
 - Their existence should not be mistaken for reliable phase-1 product performance.
 
+### What Improved During Email Recovery
+
+- **Recent email coverage is materially better** — the Gmail Gopher no longer stalls on recent-window scans in the same way it did before recovery work. Recent inbox windows now complete cleanly enough to support live product work.
+- **Known-important correspondence now surfaces far more credibly** — previously broken examples such as partner outreach, fundraising/legal threads, and wire-confirmation threads now classify and surface with far better summaries, priorities, and recommendations.
+- **Classifier failure handling is safer** — obvious garbage cards like raw `Email: Fwd:` fallbacks have been reduced, and thread refresh behavior now preserves more useful intelligence.
+- **Email card UI work has begun in earnest** — `src/components/MessageCard.tsx` now has a more realistic card structure with visible thread-state chips, participant line, recommendation band, and contextual action area.
+
 ### What Is Not Yet Proven Or Is Known To Be Weak
 
-- **Feed usefulness** — This is the main product failure. Low-value cards surface and important items are plausibly missed.
+- **Feed usefulness** — This is still the main product failure. Email is materially better than it was, but the overall feed is not yet proven trustworthy as the CEO's source of truth.
 - **Measurement reliability** — Parts of the claimed measurement/training layer are not dependable enough to use as ground truth. Live recovery checks found expected tables such as `brain.events` and `brain.classification_log` unavailable in the schema cache.
 - **Training claims** — The platform stores corrections and interaction data, but “every interaction trains the brain” is not yet an honest operating assumption.
 - **Schema/runtime conformity** — Agents should verify database shape and live behavior before trusting repo claims about storage, source types, or metrics.
 - **Notes and other secondary workflows** — Treat as unproven until verified against the live system and the current schema.
+- **Long-window Gmail throughput** — recent-window throughput is much better, but 7-day backlog handling still takes multiple passes and should not be described as solved.
+- **Thread-state behavior quality** — thread-state chips now exist in the email card UI, but state-aware recommendation/action behavior and real thread expansion remain incomplete.
 
 - **Training redesign (Effort #77)** — Current training UX confuses three concepts: (1) classifier correction via FeedCard "Correct?" dropdown panel, (2) knowledge ingestion via notes "Add to Knowledge", (3) MessageCard has NO training at all — trash just dismisses without logging. The fix: make every interaction a training signal — dismissals = negative, tap-throughs = positive, simple ✓/✗ replaces category dropdowns. Gmail action buttons already removed from card face (actions happen in Gmail, status reflected via chips).
-- **Intent suggestion UI (Effort #78)** — Cards still show Do/Hold/No alongside natural language layout. Formal Read/Respond/Write/Schedule intent buttons are the next major effort after training redesign.
+- **Intent suggestion UI (Effort #78)** — Email card UI now has a recommendation band and contextual action area in progress, but state-aware behavior and trustworthiness are not yet complete enough to call this shipped.
 - **MCP Server deployment** — 28 tools built, not yet deployed to a host.
 
 ### Recovery Posture

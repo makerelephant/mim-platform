@@ -1,7 +1,7 @@
 # Documentation Tree
 > **Author:** Mark Slater, Co-founder & CEO — Made in Motion PBC
 > **Status:** Active reference document. Updated to reflect recovery-era reading order and to remove stale status assumptions.
-> **Last updated:** 2026-03-27
+> **Last updated:** 2026-03-28
 
 ---
 
@@ -18,6 +18,7 @@ Read documents in this order when onboarding to the project:
 7. `docs/product/design-brief.md` — Figma-actionable specs (card anatomy, screen layouts, visual language)
 8. `docs/technical/architecture-mimbrain-v2.md` — Backend architecture north star
 9. `docs/master-effort-list.md` — Historical effort inventory, not proof of live reliability
+10. `docs/Ui/email-card-implementation-guide.md` — Current email-card implementation guidance and state-aware behavior rules
 
 Specialised reading:
 - `docs/technical/memory-approach.md` — Three-layer memory architecture
@@ -82,6 +83,12 @@ Specialised reading:
 | `memory-indexes.md` | Supabase table index for all memory/intelligence tables. |
 | `recall-golden-checklist.md` | QA checklist for verifying recall quality. |
 | `teams-data-prep.md` | Design note for future Teams data model. |
+
+## docs/Ui/
+
+| File | Purpose |
+|------|---------|
+| `email-card-implementation-guide.md` | Focused implementation guide for email cards. Covers card structure, recommendation band, permanent remove-from-feed control, and state-aware behavior expectations. |
 
 ---
 
