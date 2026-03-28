@@ -32,10 +32,11 @@ export async function GET() {
   return runScanner(null); // null = auto-compute from last run
 }
 
-// POST handler for manual refresh — also scans from last successful run
+// POST handler for manual refresh — accepts optional scanHours override
 export async function POST(request: Request) {
   const body = await request.json().catch(() => ({}));
-  return runScanner(null, { skipDupeCheck: !!body.rescan });
+  const scanHoursOverride = typeof body.scanHours === "number" ? Math.min(Math.max(body.scanHours, 1), MAX_SCAN_HOURS) : null;
+  return runScanner(scanHoursOverride, { skipDupeCheck: !!body.rescan });
 }
 
 async function runScanner(scanHoursOverride: number | null, options?: { skipDupeCheck?: boolean }) {
