@@ -469,10 +469,31 @@ async function loadOrgContext(sb: SupabaseClient): Promise<string> {
     if (lowerTypes.includes("customer") || types.length === 0) communities.push(label);
   }
 
+  // Cap org context to reduce prompt size (~38K → ~8K). Prioritize investors
+  // and partners — they're the entities where classification matters most.
+  // Communities/customers are only included if space remains.
+  const MAX_ORG_CONTEXT_CHARS = 8000;
+
   let ctx = "KNOWN ORGANIZATIONS IN OUR CRM (use these IDs when you find a name match):\n\n";
   if (investors.length > 0) ctx += `Investors (${investors.length}): ${investors.join(", ")}\n\n`;
   if (partners.length > 0) ctx += `Partners (${partners.length}): ${partners.join(", ")}\n\n`;
-  if (communities.length > 0) ctx += `Communities/Customers (${communities.length}): ${communities.join(", ")}\n\n`;
+  if (ctx.length < MAX_ORG_CONTEXT_CHARS && communities.length > 0) {
+    const remaining = MAX_ORG_CONTEXT_CHARS - ctx.length;
+    const communityStr = communities.join(", ");
+    if (communityStr.length <= remaining) {
+      ctx += `Communities/Customers (${communities.length}): ${communityStr}\n\n`;
+    } else {
+      // Include as many as fit
+      let truncated = "";
+      let count = 0;
+      for (const c of communities) {
+        if ((truncated + c).length > remaining - 50) break;
+        truncated += (truncated ? ", " : "") + c;
+        count++;
+      }
+      if (count > 0) ctx += `Communities/Customers (${count} of ${communities.length}): ${truncated}\n\n`;
+    }
+  }
 
   return ctx;
 }
