@@ -4,7 +4,7 @@ import { runGmailScanner } from "@/lib/gmail-scanner";
 
 export const maxDuration = 300; // Allow up to 5 minutes for scanner (Pro plan)
 
-const MAX_SCAN_HOURS = 72; // Safety cap
+const MAX_SCAN_HOURS = 720; // Safety cap (30 days — needed for backfill)
 const DEFAULT_SCAN_HOURS = 24; // Fallback if no prior run
 
 /** Compute hours since last successful gmail-scanner run */
