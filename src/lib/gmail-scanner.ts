@@ -1581,9 +1581,15 @@ export async function runGmailScanner(
         const cardType = attentionClassToCardType(result.attention_class);
         const cardPriority = attentionClassToPriority(result.attention_class);
 
+        // Use summary_sentence as title when subject is empty/generic (e.g. "Fwd:", "Re:", "")
+        const subjectTrimmed = (details.subject || "").replace(/^(fwd|re|fw)\s*:\s*/gi, "").trim();
+        const cardTitle = subjectTrimmed.length >= 5
+          ? details.subject
+          : (result.summary_sentence || details.subject).slice(0, 120);
+
         const card = await emitFeedCard(sb, {
           card_type: cardType,
-          title: details.subject,
+          title: cardTitle,
           body: result.summary_sentence,
           reasoning: result.primary_reason || undefined,
           source_type: "email",

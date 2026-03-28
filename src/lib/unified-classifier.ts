@@ -143,11 +143,15 @@ A communication is CEO-relevant ONLY if at least one is true:
 
 If none are true, default to P2/S2 or P3/S3.
 
-#### Conservative Bias
-False positives destroy executive attention. False negatives can be partially recovered via digests.
-Do not elevate on weak evidence. Require genuine CEO-specific relevance for P0/S0 and P1/S1.
+#### Phase 1 Calibration (GOVERNS ALL PRIORITY DECISIONS)
+This is a one-person company. The CEO is the sole operator, salesperson, fundraiser, and relationship manager. There is no delegation layer. There is no team inbox.
 
-**Early-stage note:** The CEO is currently also the operator, salesperson, and relationship manager. P2/S2 items should still surface as signal cards. The conservative bias applies at the P3/S3 boundary.
+Therefore:
+- Any business correspondence involving active relationships, partnerships, fundraising, legal, or revenue is CEO-relevant by definition. Assign P1 minimum.
+- Co-founder correspondence (Walt Doyle) is always P1 minimum, P0 if it involves investor/partner/legal threads.
+- Conservative bias applies ONLY at the P3 boundary: suppress newsletters, promotions, automated notifications, cold outreach. Do NOT use conservative bias to push real business correspondence from P1 down to P2.
+- P2 is for genuine low-weight signals: FYI threads where the CEO is CC'd but not addressed, informational updates with no action needed, internal tool notifications.
+- When in doubt between P1 and P2 for business correspondence, choose P1. The cost of missing an important thread far exceeds the cost of surfacing a low-value one.
 
 #### Decision / Action / Task Ontology
 
@@ -223,12 +227,12 @@ Respond with ONLY a JSON object in this exact format:
   "sentiment": "positive | neutral | negative | urgent",
   "draft_reply": "Ready-to-send 2-3 sentence reply as CEO, or null",
   "acumen_category": "fundraising | legal | customer-partner-ops | accounting-finance | scheduling | product-engineering | ux-design | marketing | ai | family | administration | null",
-  "action_recommendation": "Recommended action: [specific 1-2 sentence recommendation] | null"
+  "action_recommendation": "One plain-English sentence: what the CEO should do next. REQUIRED for all classifications except P3/S3."
 }
 
 CRITICAL RULES:
 - summary_sentence must be specific. NEVER return "Message processed" — describe what actually happened.
-- If the message requires a decision or action from the CEO, provide action_recommendation.
+- action_recommendation is REQUIRED for P0, P1, and P2 classifications. Never return null for these. Even if the action is "No response needed — monitor thread for updates", state it. The CEO needs to know what to do with every card.
 - draft_reply: write as CEO Mark. Set null for newsletters, automated notifications, or messages needing no reply.
 - task_creation_candidates: ONLY set should_create_task=true when work is discrete, bounded, ownable, and tracking adds real value. Do NOT create tasks for trivial acknowledgements or FYI items.
 - For ${channel === "email" ? "P3_low_value_noise" : "S3_suppress_noise"}: still return the full JSON but with empty actions/tasks/decisions arrays.`;
