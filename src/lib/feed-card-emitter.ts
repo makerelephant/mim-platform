@@ -158,9 +158,20 @@ export async function updateThreadCard(
   const currentCount = (existing.message_count as number) || 1;
   const now = new Date().toISOString();
 
+  // Upgrade title if new title is more informative than existing
+  const existingTitle = (existing.title as string) || "";
+  const newTitle = input.title || "";
+  const existingTitleJunk = /^(fwd|re|fw)\s*:\s*$/i.test(existingTitle.trim()) || existingTitle.trim().length < 5;
+  const updatedTitle = (existingTitleJunk && newTitle.length >= 5) ? newTitle
+    : (newTitle.length > existingTitle.length && newTitle.length >= 10) ? newTitle
+    : existingTitle;
+
   const updates: Record<string, unknown> = {
+    title: updatedTitle,
     body: input.body || existing.body,
     reasoning: input.reasoning || existing.reasoning,
+    // Upgrade card_type if new classification is higher urgency
+    card_type: newRank > existingRank ? input.card_type : existing.card_type,
     // Upgrade priority if new message is higher
     priority: newRank > existingRank ? input.priority : existing.priority,
     // Resurface as unread

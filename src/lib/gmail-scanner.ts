@@ -1612,7 +1612,9 @@ export async function runGmailScanner(
             tags: result.tags,
             sentiment: result.sentiment,
             thread_id: details.thread_id,
-            action_recommendation: result.action_recommendation || null,
+            action_recommendation: result.action_recommendation
+              || result.recommended_handling
+              || (result.actions.length > 0 ? result.actions[0].description : null),
             draft_reply: result.draft_reply || null,
             recommended_handling: result.recommended_handling || null,
             decisions: result.decisions.length > 0 ? result.decisions : null,
