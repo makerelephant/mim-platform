@@ -23,7 +23,6 @@ const STATUS_CHIPS: Record<string, { label: string; color: string; bg: string; i
 const GOPHER_COUNT = 17;
 
 function gopherPath(cardId: string): string {
-  // Deterministic "random" from card ID so it stays consistent across renders
   let hash = 0;
   for (let i = 0; i < cardId.length; i++) {
     hash = ((hash << 5) - hash + cardId.charCodeAt(i)) | 0;
@@ -32,81 +31,67 @@ function gopherPath(cardId: string): string {
   return `/icons/gophers/gopher-${idx}.png`;
 }
 
-// ─── Intent Icon Logic ───────────────────────────────────────────────────────
+// ─── Action type for the suggestion section ─────────────────────────────────
 
-type IntentType = "respond" | "read" | "write" | "schedule";
+type ActionType = "reply" | "schedule" | "add_to_tasks" | null;
 
-const INTENT_ICONS: Record<IntentType, string> = {
-  respond: "/icons/intent/respond.png",
-  read: "/icons/intent/read.png",
-  write: "/icons/intent/write.png",
-  schedule: "/icons/intent/schedule.png",
-};
+function inferAction(card: FeedCardData, threadStatus: ThreadStatus): ActionType {
+  // State-aware: do not show Reply if already replied or forwarded
+  if (threadStatus === "replied" || threadStatus === "forwarded") return null;
 
-/**
- * Determine the suggested intent from card metadata.
- * The classifier already has action_recommendation, priority, and acumen_category —
- * we use simple heuristics to map to the 4 intent verbs.
- */
-function inferIntent(card: FeedCardData): IntentType {
+  const rec = ((card.metadata?.action_recommendation as string) || "").toLowerCase();
   const body = (card.body || "").toLowerCase();
-  const title = (card.title || "").toLowerCase();
-  const rec = (
-    (card.metadata?.action_recommendation as string) || ""
-  ).toLowerCase();
-  const combined = `${title} ${body} ${rec}`;
+  const combined = `${body} ${rec}`;
 
   // Schedule signals
   if (
-    combined.includes("meeting") ||
     combined.includes("schedule") ||
+    combined.includes("meeting") ||
     combined.includes("calendar") ||
-    combined.includes("call") ||
-    combined.includes("google meet") ||
-    combined.includes("zoom") ||
-    combined.includes("when we speak") ||
     combined.includes("availability") ||
-    combined.includes("book") ||
-    combined.includes("reschedule")
+    combined.includes("book a") ||
+    combined.includes("reschedule") ||
+    combined.includes("set up a call") ||
+    combined.includes("set up a time")
   ) {
     return "schedule";
   }
 
-  // Write signals — needs a written response/action
+  // Task signals — specific deliverables or requests
   if (
-    combined.includes("sign") ||
-    combined.includes("docusign") ||
-    combined.includes("approve") ||
-    combined.includes("review and sign") ||
-    combined.includes("send") ||
-    combined.includes("draft") ||
+    combined.includes("add to task") ||
+    combined.includes("complete") ||
     combined.includes("submit") ||
     combined.includes("fill out") ||
-    combined.includes("complete the form")
+    combined.includes("upload") ||
+    combined.includes("sign") ||
+    combined.includes("docusign") ||
+    combined.includes("closing mechanic")
   ) {
-    return "write";
+    return "add_to_tasks";
   }
 
-  // Respond signals — needs attention / reply
+  // Reply signals — needs a response
   if (
-    card.priority === "critical" ||
-    card.priority === "high" ||
-    combined.includes("urgent") ||
-    combined.includes("asap") ||
-    combined.includes("please respond") ||
-    combined.includes("action required") ||
-    combined.includes("waiting on") ||
-    combined.includes("follow up") ||
     combined.includes("reply") ||
-    combined.includes("question") ||
-    combined.includes("?")
+    combined.includes("respond") ||
+    combined.includes("answer") ||
+    combined.includes("position on") ||
+    combined.includes("confirm") ||
+    card.priority === "critical" ||
+    card.priority === "high"
   ) {
-    return "respond";
+    return "reply";
   }
 
-  // Default: read
-  return "read";
+  return null;
 }
+
+const ACTION_CONFIG: Record<string, { label: string; icon: string }> = {
+  reply: { label: "Reply", icon: "/icons/status/replied.png" },
+  schedule: { label: "Schedule", icon: "/icons/intent/schedule.png" },
+  add_to_tasks: { label: "Add To Tasks", icon: "/icons/intent/respond.png" },
+};
 
 // ─── Source URL builder ──────────────────────────────────────────────────────
 
@@ -116,7 +101,6 @@ function sourceUrl(card: FeedCardData): string | null {
   if (threadId && card.source_type?.toLowerCase().includes("email")) {
     return `https://mail.google.com/mail/u/0/#inbox/${threadId}`;
   }
-  // Slack deep link could go here in future
   return null;
 }
 
@@ -133,7 +117,7 @@ function sourceIcon(card: FeedCardData): string {
 interface EntityMatch {
   name: string;
   id?: string;
-  type?: string; // "contact" | "contacts" | "organization"
+  type?: string;
 }
 
 function highlightEntities(
@@ -157,8 +141,7 @@ function highlightEntities(
       (e) => e.name.toLowerCase() === part.toLowerCase(),
     );
     if (match) {
-      const isContact =
-        match.type === "contacts" || match.type === "contact";
+      const isContact = match.type === "contacts" || match.type === "contact";
       if (isContact && onContactTap && match.id) {
         return (
           <button
@@ -168,24 +151,21 @@ function highlightEntities(
               e.stopPropagation();
               onContactTap(match.id!, match.name);
             }}
-            className="inline text-[#289bff] underline decoration-dotted cursor-pointer"
+            className="inline underline decoration-dotted cursor-pointer"
             style={{
               background: "none",
               border: "none",
               padding: 0,
               font: "inherit",
+              color: "#1873de",
             }}
           >
             {part}
           </button>
         );
       }
-      // Organization or unlinked entity — styled but not tappable (yet)
       return (
-        <span
-          key={i}
-          className="text-[#289bff] underline decoration-dotted"
-        >
+        <span key={i} className="underline decoration-dotted" style={{ color: "#1873de" }}>
           {part}
         </span>
       );
@@ -198,7 +178,47 @@ function highlightEntities(
 
 function timeAgoText(dateStr: string): string {
   const dist = formatDistanceToNow(new Date(dateStr), { addSuffix: false });
-  return `${dist} ago...`;
+  // Capitalize first letter
+  return dist.charAt(0).toUpperCase() + dist.slice(1) + " Ago";
+}
+
+// ─── Thread participant extractor ────────────────────────────────────────────
+
+function extractParticipants(card: FeedCardData): string[] {
+  const meta = (card.metadata || {}) as Record<string, unknown>;
+  const names: string[] = [];
+
+  // From entity_name + related_entities
+  if (card.entity_name) names.push(card.entity_name);
+  if (card.related_entities) {
+    for (const e of card.related_entities) {
+      if (e.name && !names.includes(e.name)) names.push(e.name);
+    }
+  }
+
+  // Also extract from/to/cc if available
+  const from = meta.from as string | undefined;
+  if (from) {
+    const fromName = from.includes("<") ? from.split("<")[0].trim().replace(/"/g, "") : null;
+    if (fromName && !names.some(n => n.toLowerCase() === fromName.toLowerCase())) {
+      names.push(fromName);
+    }
+  }
+
+  return names;
+}
+
+// ─── Suggestion text for state-changed cards ─────────────────────────────────
+
+function getStateSuggestion(threadStatus: ThreadStatus, actionRec: string | null): string | null {
+  if (threadStatus === "replied") {
+    return "Waiting on investor response. No action needed unless terms change.";
+  }
+  if (threadStatus === "forwarded") {
+    return "Waiting on input from forwarded recipients before responding";
+  }
+  // No state change — use the action recommendation from the classifier
+  return actionRec ? actionRec.replace(/^Recommended action:\s*/i, "") : null;
 }
 
 // ─── Component ───────────────────────────────────────────────────────────────
@@ -218,12 +238,14 @@ export default function MessageCard({
   const [threadStatus, setThreadStatus] = useState<ThreadStatus>(
     (card.metadata as Record<string, unknown>)?.thread_status as ThreadStatus || null,
   );
+  const [threadExpanded, setThreadExpanded] = useState(false);
 
-  const intent = inferIntent(card);
   const url = sourceUrl(card);
   const threadId = (card.metadata as Record<string, unknown>)?.thread_id as string | undefined;
+  const meta = (card.metadata || {}) as Record<string, unknown>;
+  const messageCount = card.message_count ?? (meta.message_count as number) ?? 1;
 
-  // ── Thread status polling — check Gmail every 60s for status changes ──
+  // ── Thread status polling ──
   const isTerminal = threadStatus === "replied" || threadStatus === "archived";
   const pollStatus = useCallback(async () => {
     if (!threadId || isTerminal) return;
@@ -234,15 +256,13 @@ export default function MessageCard({
         setThreadStatus(data.status as ThreadStatus);
       }
     } catch {
-      // silent — polling is best-effort
+      // silent
     }
   }, [threadId, isTerminal]);
 
   useEffect(() => {
     if (!threadId || isTerminal) return;
-    // Initial poll after 5s (gives time for card to render)
     const initialTimeout = setTimeout(pollStatus, 5000);
-    // Then every 60s
     const interval = setInterval(pollStatus, 60000);
     return () => {
       clearTimeout(initialTimeout);
@@ -250,7 +270,7 @@ export default function MessageCard({
     };
   }, [threadId, isTerminal, pollStatus]);
 
-  // Build entity list from card data
+  // Build entity list
   const entities: EntityMatch[] = [];
   if (card.entity_name) {
     entities.push({
@@ -265,6 +285,15 @@ export default function MessageCard({
     }
   }
 
+  // Derived values
+  const actionRec = meta.action_recommendation as string | null;
+  const action = inferAction(card, threadStatus);
+  const suggestion = getStateSuggestion(threadStatus, actionRec);
+  const participants = extractParticipants(card);
+  let bodyText = card.body || card.title || "";
+  bodyText = bodyText.replace(/^Email:\s*/i, "").trim();
+  const titleText = card.title?.replace(/^Email:\s*/i, "").replace(/^Re:\s*/i, "").replace(/^Fwd:\s*/i, "").trim() || "";
+
   async function handleDismiss(e: React.MouseEvent) {
     e.preventDefault();
     e.stopPropagation();
@@ -276,183 +305,60 @@ export default function MessageCard({
     }
   }
 
-  function handleCardClick() {
-    if (url) {
-      window.open(url, "_blank", "noopener,noreferrer");
-    }
-  }
-
-  const meta = (card.metadata || {}) as Record<string, unknown>;
-  const actionRec = meta.action_recommendation as string | null;
-  const draftReply = meta.draft_reply as string | null;
-  const reasoning = card.reasoning || (meta.primary_reason as string | null);
-  const bodyText = card.body || card.title || "";
-
-  // Extract actions from metadata if available
-  const actions = (meta.actions as Array<{ description: string; owner?: string; due_date?: string }>) || [];
-  const decisions = (meta.decisions as Array<{ description: string; urgency?: string }>) || [];
-
   return (
     <div
       className={`
         w-full bg-white rounded-[12px] overflow-hidden p-[12px]
-        flex flex-col gap-[10px]
-        shadow-[0px_1px_2px_rgba(0,0,0,0.04),0px_4px_12px_rgba(0,0,0,0.04)]
+        flex flex-col gap-[12px]
         transition-all duration-200
         ${dismissing ? "opacity-40 scale-[0.98]" : ""}
       `}
     >
-      {/* ── Row 1: Gopher + Source Icon (left) | Intent Icon (right) ── */}
-      <div className="flex items-center justify-between w-full">
-        <div className="flex items-center gap-[6px]">
-          <div className="w-[24px] h-[24px] rounded-full overflow-hidden shrink-0">
-            <img
-              src={gopherPath(card.id)}
-              alt=""
-              className="w-full h-full object-cover"
-            />
-          </div>
-          <img
-            src={sourceIcon(card)}
-            alt=""
-            className="w-[20px] h-[20px] shrink-0"
-          />
-        </div>
-        <img
-          src={INTENT_ICONS[intent]}
-          alt={intent}
-          className="w-[24px] h-[24px] shrink-0 opacity-70"
-        />
-      </div>
-
-      {/* ── Row 2: Summary with entity highlighting ── */}
-      <div
-        className="text-[14px] font-light text-[#0c111d] leading-[18px] w-full"
-        style={{
-          fontFamily: "var(--font-geist-sans), 'Geist', sans-serif",
-        }}
-      >
-        {highlightEntities(bodyText, entities, onContactTap)}
-      </div>
-
-      {/* ── Row 3: Brain's recommendation — the reason to care ── */}
-      {actionRec && (
-        <div
-          className="text-[13px] font-medium text-[#1a1a1a] leading-[17px] w-full px-[10px] py-[8px] rounded-[8px]"
-          style={{
-            fontFamily: "var(--font-geist-sans), 'Geist', sans-serif",
-            backgroundColor: "#f8f7f4",
-          }}
-        >
-          {actionRec.replace(/^Recommended action:\s*/i, "")}
-        </div>
-      )}
-
-      {/* ── Row 3b: Decisions requiring CEO input ── */}
-      {decisions.length > 0 && !actionRec && (
-        <div
-          className="text-[13px] font-medium text-[#1a1a1a] leading-[17px] w-full px-[10px] py-[8px] rounded-[8px]"
-          style={{
-            fontFamily: "var(--font-geist-sans), 'Geist', sans-serif",
-            backgroundColor: "#fef9ec",
-          }}
-        >
-          {decisions[0].description}
-        </div>
-      )}
-
-      {/* ── Row 3c: Brain reasoning — why this is in the feed ── */}
-      {reasoning && !actionRec && decisions.length === 0 && (
-        <div
-          className="text-[12px] text-[#6e7b80] leading-[16px] w-full"
-          style={{
-            fontFamily: "var(--font-geist-sans), 'Geist', sans-serif",
-          }}
-        >
-          {reasoning}
-        </div>
-      )}
-
-      {/* ── Row 4: Draft reply preview — brain already wrote a response ── */}
-      {draftReply && (
-        <div
-          className="text-[12px] italic text-[#627c9e] leading-[16px] w-full px-[10px] py-[6px] rounded-[8px] border border-[#e8eaed]"
-          style={{
-            fontFamily: "var(--font-geist-sans), 'Geist', sans-serif",
-            backgroundColor: "#fbfbfa",
-          }}
-        >
-          <span className="text-[11px] font-medium text-[#9c6ade] not-italic mr-[4px]">Draft reply:</span>
-          {draftReply}
-        </div>
-      )}
-
-      {/* ── Row 5: Status chip + Timestamp (left) | Open + Trash (right) ── */}
-      <div className="flex items-center justify-between w-full gap-[8px]">
-        <div className="flex items-center gap-[8px] min-w-0 flex-1">
-          {/* Thread status chip */}
-          {threadStatus && threadStatus !== "unactioned" && STATUS_CHIPS[threadStatus] && (
-            <span
-              className="flex items-center gap-[4px] text-[12px] font-medium pl-[6px] pr-[8px] py-[2px] rounded-[6px] shrink-0"
-              style={{
-                color: STATUS_CHIPS[threadStatus].color,
-                backgroundColor: STATUS_CHIPS[threadStatus].bg,
-                fontFamily: "var(--font-geist-sans), 'Geist', sans-serif",
-              }}
-            >
-              {STATUS_CHIPS[threadStatus].iconPosition === "left" && (
-                <img src={STATUS_CHIPS[threadStatus].icon} alt="" className="w-[12px] h-[12px]" />
-              )}
-              {STATUS_CHIPS[threadStatus].label}
-              {STATUS_CHIPS[threadStatus].iconPosition === "right" && (
-                <img src={STATUS_CHIPS[threadStatus].icon} alt="" className="w-[12px] h-[12px]" />
-              )}
-            </span>
-          )}
-          {(card.message_count ?? (meta.message_count as number)) > 1 && (
-            <span
-              className="text-[11px] font-medium text-[#7b7f81] leading-[18px] shrink-0"
-              style={{ fontFamily: "var(--font-inter), 'Inter', sans-serif" }}
-            >
-              {(card.message_count ?? (meta.message_count as number))} messages
-            </span>
-          )}
-          <span
-            className="text-[12px] font-medium text-[#b0b8bb] leading-[18px] truncate"
-            style={{
-              fontFamily: "var(--font-inter), 'Inter', sans-serif",
-            }}
-          >
-            {timeAgoText(card.thread_updated_at || card.created_at)}
-          </span>
-        </div>
-
+      {/* ── Header bar: Gopher + Source icon (left) | Status chip + Time + Trash (right) ── */}
+      <div className="flex items-center gap-[6px] w-full" style={{ backgroundColor: "#f8f8f8", padding: "4px" }}>
         <div className="flex items-center gap-[6px] shrink-0">
-          {url && (
-            <button
-              onClick={(e) => { e.stopPropagation(); window.open(url, "_blank", "noopener,noreferrer"); }}
-              className="text-[11px] font-medium text-[#289bff] hover:text-[#1a7cd6] transition-colors px-[6px] py-[2px]"
-              style={{ fontFamily: "var(--font-geist-sans), 'Geist', sans-serif" }}
+          <div className="w-[24px] h-[24px] rounded-full overflow-hidden shrink-0">
+            <img src={gopherPath(card.id)} alt="" className="w-full h-full object-cover" />
+          </div>
+          <img src={sourceIcon(card)} alt="" className="w-[24px] h-[24px] shrink-0" />
+        </div>
+
+        <div className="flex flex-1 items-center justify-between min-w-0">
+          <div className="flex items-center gap-[6px]">
+            {/* Thread status chip — only when state is detected */}
+            {threadStatus && threadStatus !== "unactioned" && STATUS_CHIPS[threadStatus] && (
+              <span
+                className="flex items-center gap-[4px] text-[12px] font-medium pl-[6px] pr-[8px] py-[3px] rounded-[6px] shrink-0"
+                style={{
+                  color: STATUS_CHIPS[threadStatus].color,
+                  backgroundColor: STATUS_CHIPS[threadStatus].bg,
+                  fontFamily: "'SF Pro Display', -apple-system, sans-serif",
+                }}
+              >
+                {STATUS_CHIPS[threadStatus].iconPosition === "left" && (
+                  <img src={STATUS_CHIPS[threadStatus].icon} alt="" className="w-[12px] h-[12px]" />
+                )}
+                {STATUS_CHIPS[threadStatus].label}
+                {STATUS_CHIPS[threadStatus].iconPosition === "right" && (
+                  <img src={STATUS_CHIPS[threadStatus].icon} alt="" className="w-[12px] h-[12px]" />
+                )}
+              </span>
+            )}
+            <span
+              className="text-[12px] font-medium text-[#b0b8bb] leading-[18px]"
+              style={{ fontFamily: "'Inter', sans-serif" }}
             >
-              Open
-            </button>
-          )}
+              {timeAgoText(card.thread_updated_at || card.created_at)}
+            </span>
+          </div>
+
           <button
             onClick={handleDismiss}
             disabled={dismissing}
-            className="w-[24px] h-[24px] flex items-center justify-center opacity-40 hover:opacity-70 transition-opacity disabled:opacity-20"
-            title="Dismiss"
+            className="w-[20px] h-[20px] flex items-center justify-center opacity-50 hover:opacity-80 transition-opacity disabled:opacity-20 shrink-0"
+            title="Remove from feed"
           >
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="#6e7b80"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6e7b80" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
               <polyline points="3 6 5 6 21 6" />
               <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
             </svg>
@@ -460,6 +366,128 @@ export default function MessageCard({
         </div>
       </div>
 
+      {/* ── Participants row ── */}
+      {participants.length > 0 && (
+        <div className="flex items-center gap-[4px] flex-wrap">
+          <div className="flex items-center gap-[2px]">
+            {participants.map((name, i) => (
+              <span
+                key={i}
+                className="text-[10px] font-medium leading-[12px] underline decoration-dotted cursor-pointer"
+                style={{
+                  fontFamily: "var(--font-geist-sans), 'Geist', sans-serif",
+                  color: "#1873de",
+                }}
+                onClick={() => {
+                  const entity = entities.find(e => e.name === name);
+                  if (entity?.id && onContactTap) onContactTap(entity.id, name);
+                }}
+              >
+                {name}{i < participants.length - 1 ? ", " : ""}
+              </span>
+            ))}
+          </div>
+          <span
+            className="text-[10px] font-medium leading-[12px]"
+            style={{
+              fontFamily: "var(--font-geist-sans), 'Geist', sans-serif",
+              color: "#3e4c60",
+            }}
+          >
+            {threadStatus ? "are in this thread" : "On Thread"}
+          </span>
+        </div>
+      )}
+
+      {/* ── Title ── */}
+      {titleText && titleText !== bodyText && (
+        <div
+          className="text-[14px] font-medium text-black leading-[18px] w-full"
+          style={{ fontFamily: "var(--font-geist-sans), 'Geist', sans-serif" }}
+        >
+          {titleText}
+        </div>
+      )}
+
+      {/* ── Body / Summary with entity highlighting ── */}
+      <div
+        className="text-[12px] font-normal leading-[16px] w-full"
+        style={{
+          fontFamily: "var(--font-geist-sans), 'Geist', sans-serif",
+          color: "#0c111d",
+        }}
+      >
+        {highlightEntities(bodyText, entities, onContactTap)}
+      </div>
+
+      {/* ── Suggestion section — amber box with action button ── */}
+      {suggestion && (
+        <div
+          className="flex items-center gap-[6px] w-full rounded-[12px] px-[12px] py-[6px]"
+          style={{
+            backgroundColor: "rgba(255, 244, 224, 0.5)",
+            border: "0.5px solid #ffb20a",
+          }}
+        >
+          <div
+            className="flex-1 text-[12px] font-normal leading-[18px] min-w-0"
+            style={{
+              fontFamily: "var(--font-geist-sans), 'Geist', sans-serif",
+              color: "#b48b08",
+              letterSpacing: "-0.24px",
+            }}
+          >
+            {suggestion}
+          </div>
+
+          {/* Action button — only shown when action is relevant and not contradicted by state */}
+          {action && ACTION_CONFIG[action] && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                if (url) window.open(url, "_blank", "noopener,noreferrer");
+              }}
+              className="flex items-center gap-[2px] px-[8px] py-[4px] rounded-[4px] bg-white shrink-0"
+              style={{
+                boxShadow: "0px 0px 2px rgba(0, 0, 0, 0.25)",
+                fontFamily: "var(--font-geist-sans), 'Geist', sans-serif",
+              }}
+            >
+              <img src={ACTION_CONFIG[action].icon} alt="" className="w-[12px] h-[12px]" />
+              <span className="text-[12px] font-medium leading-[14px]" style={{ color: "#1e252a" }}>
+                {ACTION_CONFIG[action].label}
+              </span>
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* ── Thread expand toggle ── */}
+      {messageCount > 1 && (
+        <div className="flex justify-end">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setThreadExpanded(!threadExpanded);
+            }}
+            className="flex items-center gap-[6px] px-[12px] py-[4px] rounded-[8px]"
+            style={{
+              backgroundColor: "#f3f2ed",
+              fontFamily: "var(--font-geist-sans), 'Geist', sans-serif",
+            }}
+          >
+            <span className="text-[12px] font-medium leading-[14px]" style={{ color: "#1e252a" }}>
+              {threadExpanded ? "Hide" : `View ${messageCount - 1} earlier messages`}
+            </span>
+            <svg
+              width="6" height="3" viewBox="0 0 6 3" fill="none"
+              style={{ transform: threadExpanded ? "rotate(180deg)" : "none", transition: "transform 0.2s" }}
+            >
+              <path d="M3 3L0 0H6L3 3Z" fill="#1e252a" />
+            </svg>
+          </button>
+        </div>
+      )}
     </div>
   );
 }
