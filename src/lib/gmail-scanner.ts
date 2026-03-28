@@ -868,47 +868,75 @@ export async function runGmailScanner(
     const autoActedByCategory = new Map<string, number>();
     const processedEntities: Array<{ entity_type: string; entity_id: string }> = [];
 
+    // ── Batch pre-processing: label filter + dedup in bulk BEFORE the main loop ──
+    // This moves O(n) sequential queries out of the timeout-budgeted loop.
+    // Label filter: skip PROMOTIONS/SOCIAL without IMPORTANT
+    const labelFiltered = new Set<string>();
+    for (const msgRef of messages) {
+      const id = msgRef.id!;
+      const msgLabels = labelMap.get(id) || [];
+      const isImportant = msgLabels.includes("IMPORTANT");
+      const isPromo = msgLabels.includes("CATEGORY_PROMOTIONS");
+      const isSocial = msgLabels.includes("CATEGORY_SOCIAL");
+      if ((isPromo || isSocial) && !isImportant) {
+        labelFiltered.add(id);
+        preFiltered++;
+      }
+    }
+    if (labelFiltered.size > 0) {
+      addLog(`Pre-filtered ${labelFiltered.size} messages by Gmail label (PROMOTIONS/SOCIAL without IMPORTANT)`);
+    }
+
+    // Batch dedup: single query to find all already-processed message IDs
+    const dedupSet = new Set<string>();
+    if (!options?.skipDupeCheck) {
+      const candidateIds = messages
+        .filter(m => !labelFiltered.has(m.id!))
+        .map(m => m.id!);
+
+      // Query in batches of 50 (Supabase OR filter limit)
+      const DEDUP_BATCH = 50;
+      for (let i = 0; i < candidateIds.length; i += DEDUP_BATCH) {
+        const batch = candidateIds.slice(i, i + DEDUP_BATCH);
+        const orFilter = batch.map(id => `metadata.cs.{"gmail_message_id":"${id}"}`).join(",");
+        const { data: dupes } = await sb
+          .schema('brain').from("correspondence")
+          .select("metadata")
+          .or(orFilter);
+        if (dupes) {
+          for (const d of dupes) {
+            const meta = d.metadata as Record<string, unknown>;
+            if (meta?.gmail_message_id) dedupSet.add(meta.gmail_message_id as string);
+          }
+        }
+      }
+      if (dedupSet.size > 0) {
+        skippedDupes = dedupSet.size;
+        addLog(`Dedup: ${dedupSet.size} messages already processed (batch query)`);
+      }
+    }
+
+    // Build final processing queue: only messages that passed both filters
+    const processingQueue = messages.filter(m => {
+      const id = m.id!;
+      return !labelFiltered.has(id) && !dedupSet.has(id);
+    });
+    addLog(`Processing queue: ${processingQueue.length} messages to classify (${labelFiltered.size} label-filtered, ${dedupSet.size} deduped, ${messages.length} total)`);
+
     // Timeout guard: stop 30s before Vercel kills the function
     const SCAN_START = Date.now();
     const TIMEOUT_BUDGET_MS = 270_000; // 4.5 min (Vercel limit = 5 min)
 
-    for (const msgRef of messages) {
+    for (const msgRef of processingQueue) {
       const elapsed = Date.now() - SCAN_START;
       if (elapsed > TIMEOUT_BUDGET_MS) {
-        timeoutAborted = messages.length - recordsProcessed;
+        timeoutAborted = processingQueue.length - recordsProcessed;
         addLog(`⚠️ TIMEOUT GUARD: ${Math.round(elapsed / 1000)}s elapsed, aborting with ${timeoutAborted} messages unprocessed (important messages were processed first)`);
         break;
       }
 
       recordsProcessed++;
       const msgId = msgRef.id!;
-
-      // ── Gmail label pre-filter: skip obvious noise BEFORE fetching full message ──
-      // CATEGORY_PROMOTIONS and CATEGORY_SOCIAL without IMPORTANT flag are almost
-      // never CEO-relevant. Skipping them saves ~25s per message (no body fetch,
-      // no Claude API call). This is the single highest-leverage throughput fix.
-      const msgLabels = labelMap.get(msgId) || [];
-      const isImportant = msgLabels.includes("IMPORTANT");
-      const isPromo = msgLabels.includes("CATEGORY_PROMOTIONS");
-      const isSocial = msgLabels.includes("CATEGORY_SOCIAL");
-      if ((isPromo || isSocial) && !isImportant) {
-        preFiltered++;
-        addLog(`  Pre-filtered [gmail-label]: "${(msgRef as Record<string, unknown>).threadId || msgId}" — ${isPromo ? "PROMOTIONS" : "SOCIAL"} without IMPORTANT`);
-        continue;
-      }
-
-      // ── Deduplication check (skip if force re-scan) ──
-      if (!options?.skipDupeCheck) {
-        const { data: dupeCheck } = await sb
-          .schema('brain').from("correspondence")
-          .select("id")
-          .contains("metadata", { gmail_message_id: msgId })
-          .limit(1);
-        if (dupeCheck && dupeCheck.length > 0) {
-          skippedDupes++;
-          continue;
-        }
-      }
 
       // ── Get full message ──
       const msgResult = await gmail.users.messages.get({
