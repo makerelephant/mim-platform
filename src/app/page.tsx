@@ -394,32 +394,7 @@ export default function MotionFeedPage() {
           </button>
         </div>
 
-        {/* ── Filter pills ── */}
-        <div className="flex gap-[8px] items-center w-full overflow-x-auto">
-          {[
-            { key: null, label: "All" },
-            { key: "decision", label: "Decisions" },
-            { key: "action", label: "Actions" },
-            { key: "signal", label: "Signals" },
-            { key: "intelligence", label: "Intel" },
-            { key: "briefing", label: "Briefings" },
-            { key: "old", label: "Old" },
-          ].map((f) => (
-            <button
-              key={f.key || "all"}
-              onClick={() => handleFilter(f.key)}
-              className="px-[12px] py-[4px] rounded-[14px] text-[11px] font-medium whitespace-nowrap transition-colors"
-              style={{
-                fontFamily: "var(--font-geist-sans), 'Geist', sans-serif",
-                backgroundColor: activeFilter === f.key ? "#3e4c60" : "rgba(255,255,255,0.6)",
-                color: activeFilter === f.key ? "#ffffff" : "#6e7b80",
-                border: activeFilter === f.key ? "none" : "1px solid #e0e0e0",
-              }}
-            >
-              {f.label}
-            </button>
-          ))}
-        </div>
+        {/* Filter pills removed — no longer relevant to card UI */}
 
         {/* ══════════════════════════════════════════════════════════════════
             FEED CARDS
