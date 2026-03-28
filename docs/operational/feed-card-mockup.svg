@@ -1,0 +1,119 @@
+<svg width="1400" height="1180" viewBox="0 0 1400 1180" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1400" y2="1180" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#EDF4F8"/>
+      <stop offset="1" stop-color="#D8E6EE"/>
+    </linearGradient>
+    <filter id="shadow" x="210" y="110" width="980" height="860" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feFlood flood-opacity="0" result="BackgroundImageFix"/>
+      <feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/>
+      <feOffset dy="22"/>
+      <feGaussianBlur stdDeviation="28"/>
+      <feColorMatrix type="matrix" values="0 0 0 0 0.145098 0 0 0 0 0.188235 0 0 0 0 0.223529 0 0 0 0.14 0"/>
+      <feBlend mode="normal" in2="BackgroundImageFix" result="effect1_dropShadow_1_1"/>
+      <feBlend mode="normal" in="SourceGraphic" in2="effect1_dropShadow_1_1" result="shape"/>
+    </filter>
+  </defs>
+
+  <rect width="1400" height="1180" fill="url(#bg)"/>
+
+  <text x="700" y="86" text-anchor="middle" fill="#22303B" font-family="Arial, sans-serif" font-size="42" font-weight="700">
+    MessageCard Mockup
+  </text>
+  <text x="700" y="126" text-anchor="middle" fill="#556572" font-family="Arial, sans-serif" font-size="20">
+    Clean card only. Notes separated below.
+  </text>
+
+  <g filter="url(#shadow)">
+    <rect x="280" y="160" width="840" height="760" rx="34" fill="#FFFFFF"/>
+  </g>
+
+  <rect x="318" y="196" width="764" height="84" rx="22" fill="#F4F8FB"/>
+  <circle cx="362" cy="238" r="22" fill="#E8F0FF"/>
+  <text x="362" y="245" text-anchor="middle" fill="#2A78FF" font-family="Arial, sans-serif" font-size="17" font-weight="700">G</text>
+  <text x="398" y="232" fill="#1D2A34" font-family="Arial, sans-serif" font-size="22" font-weight="700">Gmail</text>
+  <text x="398" y="258" fill="#648095" font-family="Arial, sans-serif" font-size="16">Gmail Gopher</text>
+
+  <rect x="790" y="216" width="116" height="40" rx="20" fill="#E6F7FF"/>
+  <text x="848" y="241" text-anchor="middle" fill="#0E7DA2" font-family="Arial, sans-serif" font-size="16" font-weight="700">Replied</text>
+
+  <rect x="922" y="216" width="130" height="40" rx="20" fill="#EFF3F6"/>
+  <text x="987" y="241" text-anchor="middle" fill="#42535F" font-family="Arial, sans-serif" font-size="16" font-weight="700">17 messages</text>
+  <text x="1012" y="270" fill="#788896" font-family="Arial, sans-serif" font-size="15">2h ago</text>
+
+  <text x="340" y="372" fill="#16242D" font-family="Arial, sans-serif" font-size="36" font-weight="700">
+    SAFE side-letter terms are now back with counsel
+  </text>
+
+  <text x="340" y="430" fill="#334552" font-family="Arial, sans-serif" font-size="24">
+    Ben Howe confirms Blitzscaling's super pro rata request matches the earlier
+  </text>
+  <text x="340" y="464" fill="#334552" font-family="Arial, sans-serif" font-size="24">
+    investor ask and the closing thread is waiting on a company position.
+  </text>
+
+  <text x="340" y="536" fill="#2A78FF" font-family="Arial, sans-serif" font-size="19" font-weight="700">
+    Scott Johnson
+  </text>
+  <text x="470" y="536" fill="#6C7C88" font-family="Arial, sans-serif" font-size="19">, </text>
+  <text x="486" y="536" fill="#2A78FF" font-family="Arial, sans-serif" font-size="19" font-weight="700">
+    Walt Doyle
+  </text>
+  <text x="594" y="536" fill="#6C7C88" font-family="Arial, sans-serif" font-size="19">, </text>
+  <text x="610" y="536" fill="#2A78FF" font-family="Arial, sans-serif" font-size="19" font-weight="700">
+    Ben Howe
+  </text>
+  <text x="726" y="536" fill="#6C7C88" font-family="Arial, sans-serif" font-size="19">
+    + Jim, Nathan, Mark on thread
+  </text>
+
+  <rect x="318" y="582" width="764" height="144" rx="24" fill="#FFF4DB" stroke="#F2CB73" stroke-width="2"/>
+  <text x="352" y="624" fill="#8A6200" font-family="Arial, sans-serif" font-size="17" font-weight="700">Suggested action</text>
+  <text x="352" y="668" fill="#342600" font-family="Arial, sans-serif" font-size="24" font-weight="700">
+    Reply today with your position on the side-letter terms so counsel can close.
+  </text>
+
+  <rect x="352" y="688" width="132" height="32" rx="16" fill="#152531"/>
+  <text x="418" y="709" text-anchor="middle" fill="#FFFFFF" font-family="Arial, sans-serif" font-size="15" font-weight="700">Respond</text>
+  <rect x="496" y="688" width="118" height="32" rx="16" fill="#FFFFFF"/>
+  <text x="555" y="709" text-anchor="middle" fill="#24323E" font-family="Arial, sans-serif" font-size="15" font-weight="700">Schedule</text>
+  <rect x="626" y="688" width="88" height="32" rx="16" fill="#FFFFFF"/>
+  <text x="670" y="709" text-anchor="middle" fill="#24323E" font-family="Arial, sans-serif" font-size="15" font-weight="700">Star</text>
+  <rect x="726" y="688" width="142" height="32" rx="16" fill="#FFFFFF"/>
+  <text x="797" y="709" text-anchor="middle" fill="#24323E" font-family="Arial, sans-serif" font-size="15" font-weight="700">Add to To-Do</text>
+  <rect x="880" y="688" width="92" height="32" rx="16" fill="#FFFFFF"/>
+  <text x="926" y="709" text-anchor="middle" fill="#24323E" font-family="Arial, sans-serif" font-size="15" font-weight="700">Trash</text>
+
+  <text x="340" y="796" fill="#1F2D37" font-family="Arial, sans-serif" font-size="20" font-weight="700">Thread context</text>
+  <text x="974" y="796" fill="#2A78FF" font-family="Arial, sans-serif" font-size="18" font-weight="700">Expanded</text>
+
+  <rect x="318" y="820" width="764" height="88" rx="20" fill="#F5F8FB"/>
+  <text x="350" y="854" fill="#7B8D9A" font-family="Arial, sans-serif" font-size="16" font-weight="700">Latest</text>
+  <text x="438" y="854" fill="#273743" font-family="Arial, sans-serif" font-size="16">Ben Howe · 2h ago</text>
+  <text x="350" y="892" fill="#3C4F5D" font-family="Arial, sans-serif" font-size="17">
+    "The pro rata request is the same as before. Need company position on whether to accept."
+  </text>
+
+  <rect x="318" y="924" width="764" height="42" rx="18" fill="#EDF3F7"/>
+  <text x="700" y="951" text-anchor="middle" fill="#455763" font-family="Arial, sans-serif" font-size="16" font-weight="700">
+    Show 16 earlier messages
+  </text>
+
+  <rect x="110" y="1018" width="1180" height="112" rx="28" fill="#F7FAFC"/>
+
+  <rect x="148" y="1046" width="252" height="56" rx="18" fill="#FFFFFF"/>
+  <text x="170" y="1070" fill="#546672" font-family="Arial, sans-serif" font-size="18" font-weight="700">Header strip</text>
+  <text x="170" y="1092" fill="#738591" font-family="Arial, sans-serif" font-size="15">Source, tool, time, status, count</text>
+
+  <rect x="430" y="1046" width="252" height="56" rx="18" fill="#FFFFFF"/>
+  <text x="452" y="1070" fill="#546672" font-family="Arial, sans-serif" font-size="18" font-weight="700">Summary block</text>
+  <text x="452" y="1092" fill="#738591" font-family="Arial, sans-serif" font-size="15">Readable message + participants</text>
+
+  <rect x="712" y="1046" width="252" height="56" rx="18" fill="#FFFFFF"/>
+  <text x="734" y="1070" fill="#546672" font-family="Arial, sans-serif" font-size="18" font-weight="700">Action band</text>
+  <text x="734" y="1092" fill="#738591" font-family="Arial, sans-serif" font-size="15">Recommendation + action buttons</text>
+
+  <rect x="994" y="1046" width="252" height="56" rx="18" fill="#FFFFFF"/>
+  <text x="1016" y="1070" fill="#546672" font-family="Arial, sans-serif" font-size="18" font-weight="700">Expandable context</text>
+  <text x="1016" y="1092" fill="#738591" font-family="Arial, sans-serif" font-size="15">Thread history only on demand</text>
+</svg>
