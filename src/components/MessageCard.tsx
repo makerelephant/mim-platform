@@ -11,12 +11,13 @@ import type { FeedCardData } from "./FeedCard";
 type ThreadStatus = "replied" | "drafted" | "forwarded" | "starred" | "archived" | "unactioned" | null;
 
 // Status chips — Figma node 137-1453: 2px radius, px-6 py-3, tracking -0.24px, 12px Geist medium
+// Icons from Assets/Icons/Chip Icons/
 const STATUS_CHIPS: Record<string, { label: string; color: string; bg: string; icon: string; iconPosition: "left" | "right" }> = {
-  replied: { label: "Replied", color: "#289bff", bg: "#ecfaff", icon: "/icons/status/replied.png", iconPosition: "left" },
-  drafted: { label: "Draft", color: "#9c6ade", bg: "#f9f3ff", icon: "/icons/status/draft.png", iconPosition: "left" },
-  forwarded: { label: "Forwarded", color: "#1bba92", bg: "#e3fff5", icon: "/icons/status/forwarded.png", iconPosition: "right" },
+  replied: { label: "Replied", color: "#289bff", bg: "#ecfaff", icon: "/icons/chips/Replied.png", iconPosition: "left" },
+  drafted: { label: "Draft", color: "#9c6ade", bg: "#f9f3ff", icon: "/icons/chips/Draft.png", iconPosition: "left" },
+  forwarded: { label: "Forwarded", color: "#1bba92", bg: "#e3fff5", icon: "/icons/chips/Forward.png", iconPosition: "right" },
   starred: { label: "Starred", color: "#7b7f81", bg: "transparent", icon: "/icons/status/star-on.png", iconPosition: "left" },
-  archived: { label: "Archived", color: "#3e4c60", bg: "#f3f3f3", icon: "/icons/status/archived.png", iconPosition: "left" },
+  archived: { label: "Archived", color: "#3e4c60", bg: "#f3f3f3", icon: "/icons/chips/Archive.png", iconPosition: "left" },
 };
 
 // ─── Gopher Icons ────────────────────────────────────────────────────────────
@@ -67,10 +68,11 @@ function inferAction(card: FeedCardData, threadStatus: ThreadStatus): ActionType
   return null;
 }
 
+// Card buttons — Figma 137-1453: icons from Assets/Icons/Button Icons/
 const ACTION_CONFIG: Record<string, { label: string; icon: string }> = {
-  reply: { label: "Reply", icon: "/icons/status/replied.png" },
-  schedule: { label: "Schedule", icon: "/icons/calendar-plus.svg" },
-  add_to_tasks: { label: "Add To Tasks", icon: "/icons/intent/respond.png" },
+  reply: { label: "Reply", icon: "/icons/buttons/Replied.png" },
+  schedule: { label: "Schedule", icon: "/icons/buttons/calendar-plus.png" },
+  add_to_tasks: { label: "Add To Tasks", icon: "/icons/buttons/Add Task.png" },
 };
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────

@@ -322,7 +322,7 @@ export default function MotionFeedPage() {
             className="flex gap-[4px] items-center justify-center overflow-hidden px-[12px] py-[4px] rounded-[8px] bg-white cursor-pointer hover:bg-gray-50 transition-colors"
             style={{ boxShadow: "0px 0px 2px 0px rgba(0,0,0,0.25)" }}
           >
-            <img src="/icons/intent/write.png" alt="" className="size-[16px]" />
+            <img src="/icons/buttons/users-edit.png" alt="" className="size-[16px]" />
             <span
               className="whitespace-nowrap"
               style={{
@@ -341,7 +341,7 @@ export default function MotionFeedPage() {
             className="flex gap-[4px] items-center justify-center overflow-hidden px-[12px] py-[4px] rounded-[8px] bg-white cursor-pointer hover:bg-gray-50 transition-colors"
             style={{ boxShadow: "0px 0px 2px 0px rgba(0,0,0,0.25)" }}
           >
-            <img src="/icons/calendar-plus.svg" alt="" className="size-[16px]" />
+            <img src="/icons/buttons/calendar-plus.png" alt="" className="size-[16px]" />
             <span
               className="whitespace-nowrap"
               style={{
@@ -360,7 +360,7 @@ export default function MotionFeedPage() {
             className="flex gap-[4px] items-center justify-center overflow-hidden px-[12px] py-[4px] rounded-[8px] bg-white cursor-pointer hover:bg-gray-50 transition-colors"
             style={{ boxShadow: "0px 0px 2px 0px rgba(0,0,0,0.25)" }}
           >
-            <img src="/icons/satellite.svg" alt="" className="size-[16px]" />
+            <img src="/icons/buttons/atom.png" alt="" className="size-[16px]" />
             <span
               className="whitespace-nowrap"
               style={{
