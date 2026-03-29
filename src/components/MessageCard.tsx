@@ -306,23 +306,24 @@ export default function MessageCard({ card, onDismiss, onContactTap }: MessageCa
 
       {/* ── Suggestion section ── */}
       {suggestion && (
-        <div className="flex items-center gap-[6px] w-full rounded-[12px] px-[12px] py-[6px]"
+        <div className="flex flex-col gap-[6px] w-full rounded-[12px] px-[12px] py-[6px]"
           style={{ backgroundColor: "rgba(255, 244, 224, 0.5)", border: "0.5px solid #ffb20a" }}>
-          <div className="flex-1 text-[12px] font-normal leading-[18px] min-w-0"
-            style={{ fontFamily: "var(--font-geist-sans), 'Geist', sans-serif", color: "#b48b08", letterSpacing: "0px" }}>
-            {suggestion}
+          <div className="flex items-end gap-[6px] w-full">
+            <div className="flex-1 text-[12px] font-normal leading-[18px] min-w-0"
+              style={{ fontFamily: "var(--font-geist-sans), 'Geist', sans-serif", color: "#b48b08" }}>
+              {suggestion}
+            </div>
+            {action && ACTION_CONFIG[action] && (
+              <button onClick={(e) => { e.stopPropagation(); if (url) window.open(url, "_blank", "noopener,noreferrer"); }}
+                className="flex items-center gap-[4px] px-[12px] py-[3px] rounded-[8px] shrink-0 ml-auto"
+                style={{ backgroundColor: "#ffffff", boxShadow: "0px 0px 2px rgba(0,0,0,0.25)", fontFamily: "var(--font-geist-sans), 'Geist', sans-serif" }}>
+                <img src={ACTION_CONFIG[action].icon} alt="" className="w-[12px] h-[12px]" />
+                <span className="text-[12px] font-medium leading-[16px]" style={{ color: "#1e252a" }}>
+                  {ACTION_CONFIG[action].label}
+                </span>
+              </button>
+            )}
           </div>
-          {/* Card button — Figma 137-1453: #f8f8f8 bg, 8px radius, px-12 py-3, 4px gap, 12px icon, Geist medium 12/16, -2% spacing */}
-          {action && ACTION_CONFIG[action] && (
-            <button onClick={(e) => { e.stopPropagation(); if (url) window.open(url, "_blank", "noopener,noreferrer"); }}
-              className="flex items-center gap-[4px] px-[12px] py-[3px] rounded-[8px] shrink-0"
-              style={{ backgroundColor: "#ffffff", fontFamily: "var(--font-geist-sans), 'Geist', sans-serif" }}>
-              <img src={ACTION_CONFIG[action].icon} alt="" className="w-[12px] h-[12px]" />
-              <span className="text-[12px] font-medium leading-[16px]" style={{ color: "#1e252a", letterSpacing: "0px" }}>
-                {ACTION_CONFIG[action].label}
-              </span>
-            </button>
-          )}
         </div>
       )}
 

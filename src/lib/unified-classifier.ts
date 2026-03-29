@@ -232,6 +232,7 @@ Respond with ONLY a JSON object in this exact format:
 
 CRITICAL RULES:
 - summary_sentence must be specific. NEVER return "Message processed" — describe what actually happened.
+- summary_sentence MUST NOT fabricate affiliations. Do NOT write "X from Y" or "X at Y" unless the email explicitly states that relationship or the entity dossier includes a verified role/title at that organization. A CRM association between a contact and an org does NOT mean the contact works there or represents them. When in doubt, use the person's name only.
 - action_recommendation is REQUIRED for P0, P1, and P2 classifications. Never return null for these. Even if the action is "No response needed — monitor thread for updates", state it. The CEO needs to know what to do with every card.
 - draft_reply: write as CEO Mark. Set null for newsletters, automated notifications, or messages needing no reply.
 - task_creation_candidates: ONLY set should_create_task=true when work is discrete, bounded, ownable, and tracking adds real value. Do NOT create tasks for trivial acknowledgements or FYI items.
