@@ -71,7 +71,12 @@ export function Sidebar() {
           COLLAPSED RAIL (< lg) — icon-only, transparent bg
           ════════════════════════════════════════════════════════════ */}
       <div
-        className="flex flex-col items-center rounded-[12px] px-[14px] py-[12px] shadow-[0px_0px_40px_0px_rgba(0,0,0,0.08)] lg:hidden"
+        className="flex flex-col items-center rounded-[12px] px-[14px] py-[12px] shadow-[0px_0px_40px_0px_rgba(0,0,0,0.12)] lg:hidden"
+        style={{
+          backgroundColor: "rgba(255,255,255,0.5)",
+          backdropFilter: "blur(4px)",
+          WebkitBackdropFilter: "blur(4px)",
+        }}
       >
         <div className="flex flex-col items-center gap-[5px]">
           {NAV_ITEMS.map((item) => {
