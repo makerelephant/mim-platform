@@ -262,7 +262,7 @@ export default function MotionFeedPage() {
                   <img
                     src="/icons/refresh-2.svg"
                     alt="Scan"
-                    className={`size-[32px] ${loading || scanning ? "animate-spin" : ""}`}
+                    className={`size-[24px] ${loading || scanning ? "animate-spin" : ""}`}
                   />
                 </button>
 {/* Sort toggle removed — not in Figma design */}
