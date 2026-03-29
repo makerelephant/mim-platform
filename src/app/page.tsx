@@ -313,10 +313,9 @@ export default function MotionFeedPage() {
               />
             </div>
           </div>
-        </div>
 
-        {/* ── Header buttons: Write, Plan, Add Knowledge — Figma 95-839 / 137-1453 ── */}
-        <div className="flex gap-[12px] items-center self-start">
+          {/* ── Header buttons: Write, Plan, Add Knowledge — Figma 95-839 / 137-1453 ── */}
+          <div className="flex gap-[12px] items-center">
           <button
             onClick={() => { setEditNoteId(null); setShowNotePanel(true); }}
             className="flex gap-[4px] items-center justify-center overflow-hidden px-[12px] py-[4px] rounded-[8px] bg-white cursor-pointer hover:bg-gray-50 transition-colors"
@@ -375,6 +374,7 @@ export default function MotionFeedPage() {
               Add Knowledge
             </span>
           </button>
+          </div>
         </div>
 
         {/* Filter pills removed — no longer relevant to card UI */}
