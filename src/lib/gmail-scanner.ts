@@ -1184,7 +1184,7 @@ export async function runGmailScanner(
 
             // Use the existing task's entity info for activity logging
             /* eslint-disable @typescript-eslint/no-explicit-any */
-            const bestMatch = allMatches.find((m) => m.entity_type === "organizations") || allMatches[0];
+            const bestMatch = allMatches.find((m) => m.entity_type === "contacts" && m.match_method === "email_direct") || allMatches[0];
             const skipEntityType = String((newestTask as any).entity_type || (bestMatch ? bestMatch.entity_type : "contacts"));
             const skipEntityId = ((newestTask as any).entity_id || (bestMatch ? bestMatch.entity_id : null)) as string | null;
             /* eslint-enable @typescript-eslint/no-explicit-any */
@@ -1365,7 +1365,7 @@ export async function runGmailScanner(
               addLog(`  Outbound (no card to resolve): "${details.subject.slice(0, 60)}"`);
 
               // Try to find entity from counterparty emails for correspondence logging
-              const bestMatch = allMatches.find((m) => m.entity_type === "organizations") || allMatches[0];
+              const bestMatch = allMatches.find((m) => m.entity_type === "contacts" && m.match_method === "email_direct") || allMatches[0];
               const outEntityType = bestMatch?.entity_type || "contacts";
               const outEntityId = bestMatch?.entity_id || null;
               if (outEntityId) {
@@ -1430,8 +1430,19 @@ export async function runGmailScanner(
         continue; // ALWAYS skip classification + card emission for outbound emails
       }
 
-      // ── Build entity dossier for primary entity ──
-      const primaryEntity = allMatches.find((m) => m.entity_type === "organizations") || allMatches[0];
+      // ── Select primary entity ──
+      // For emails, the sender/contact is the primary entity — NOT an associated org.
+      // An org resolved via email_junction (contact→org relationship) is supporting context,
+      // not the primary. Only use org as primary when matched via domain_fallback (the sender's
+      // email domain matches the org's website) or when no contact was resolved.
+      const senderContact = allMatches.find(
+        (m) => m.entity_type === "contacts" && m.match_method === "email_direct"
+      );
+      const domainOrg = allMatches.find(
+        (m) => m.entity_type === "organizations" && m.match_method === "domain_fallback"
+      );
+      // Prefer: sender contact > domain-matched org > first match
+      const primaryEntity = senderContact || domainOrg || allMatches[0];
       let dossierRendered = "";
       if (primaryEntity?.entity_id) {
         try {
