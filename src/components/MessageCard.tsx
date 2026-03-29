@@ -10,10 +10,11 @@ import type { FeedCardData } from "./FeedCard";
 
 type ThreadStatus = "replied" | "drafted" | "forwarded" | "starred" | "archived" | "unactioned" | null;
 
+// Status chips — Figma node 137-1453: 2px radius, px-6 py-3, tracking -0.24px, 12px Geist medium
 const STATUS_CHIPS: Record<string, { label: string; color: string; bg: string; icon: string; iconPosition: "left" | "right" }> = {
   replied: { label: "Replied", color: "#289bff", bg: "#ecfaff", icon: "/icons/status/replied.png", iconPosition: "left" },
   drafted: { label: "Draft", color: "#9c6ade", bg: "#f9f3ff", icon: "/icons/status/draft.png", iconPosition: "left" },
-  forwarded: { label: "Forwarded", color: "#5ad1b3", bg: "#e3fff5", icon: "/icons/status/forwarded.png", iconPosition: "right" },
+  forwarded: { label: "Forwarded", color: "#1bba92", bg: "#e3fff5", icon: "/icons/status/forwarded.png", iconPosition: "right" },
   starred: { label: "Starred", color: "#7b7f81", bg: "transparent", icon: "/icons/status/star-on.png", iconPosition: "left" },
   archived: { label: "Archived", color: "#3e4c60", bg: "#f3f3f3", icon: "/icons/status/archived.png", iconPosition: "left" },
 };
@@ -248,8 +249,8 @@ export default function MessageCard({ card, onDismiss, onContactTap }: MessageCa
         <div className="flex flex-1 items-center justify-between min-w-0">
           <div className="flex items-center gap-[6px]">
             {threadStatus && threadStatus !== "unactioned" && STATUS_CHIPS[threadStatus] && (
-              <span className="flex items-center gap-[4px] text-[12px] font-medium pl-[6px] pr-[8px] py-[3px] rounded-[6px] shrink-0"
-                style={{ color: STATUS_CHIPS[threadStatus].color, backgroundColor: STATUS_CHIPS[threadStatus].bg, fontFamily: "'SF Pro Display', -apple-system, sans-serif" }}>
+              <span className="flex items-center gap-[4px] text-[12px] font-medium px-[6px] py-[3px] rounded-[2px] shrink-0"
+                style={{ color: STATUS_CHIPS[threadStatus].color, backgroundColor: STATUS_CHIPS[threadStatus].bg, fontFamily: "var(--font-geist-sans), 'Geist', sans-serif", letterSpacing: "-0.24px", lineHeight: "16px" }}>
                 {STATUS_CHIPS[threadStatus].iconPosition === "left" && <img src={STATUS_CHIPS[threadStatus].icon} alt="" className="w-[12px] h-[12px]" />}
                 {STATUS_CHIPS[threadStatus].label}
                 {STATUS_CHIPS[threadStatus].iconPosition === "right" && <img src={STATUS_CHIPS[threadStatus].icon} alt="" className="w-[12px] h-[12px]" />}
@@ -309,12 +310,13 @@ export default function MessageCard({ card, onDismiss, onContactTap }: MessageCa
             style={{ fontFamily: "var(--font-geist-sans), 'Geist', sans-serif", color: "#b48b08", letterSpacing: "-0.24px" }}>
             {suggestion}
           </div>
+          {/* Card button — Figma 137-1453: #f8f8f8 bg, 8px radius, px-12 py-3, 4px gap, 12px icon, Geist medium 12/16, -2% spacing */}
           {action && ACTION_CONFIG[action] && (
             <button onClick={(e) => { e.stopPropagation(); if (url) window.open(url, "_blank", "noopener,noreferrer"); }}
-              className="flex items-center gap-[2px] px-[8px] py-[4px] rounded-[4px] shrink-0"
-              style={{ backgroundColor: action === "reply" ? "#f8f8f8" : "#ffffff", boxShadow: "0px 0px 2px rgba(0, 0, 0, 0.25)", fontFamily: "var(--font-geist-sans), 'Geist', sans-serif" }}>
+              className="flex items-center gap-[4px] px-[12px] py-[3px] rounded-[8px] shrink-0"
+              style={{ backgroundColor: "#f8f8f8", fontFamily: "var(--font-geist-sans), 'Geist', sans-serif" }}>
               <img src={ACTION_CONFIG[action].icon} alt="" className="w-[12px] h-[12px]" />
-              <span className="text-[12px] font-medium leading-[14px]" style={{ color: "#1e252a" }}>
+              <span className="text-[12px] font-medium leading-[16px]" style={{ color: "#1e252a", letterSpacing: "-0.24px" }}>
                 {ACTION_CONFIG[action].label}
               </span>
             </button>
