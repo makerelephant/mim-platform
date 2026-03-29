@@ -252,7 +252,7 @@ export default function MessageCard({ card, onDismiss, onContactTap }: MessageCa
           <div className="flex items-center gap-[6px]">
             {threadStatus && threadStatus !== "unactioned" && STATUS_CHIPS[threadStatus] && (
               <span className="flex items-center gap-[4px] text-[12px] font-medium px-[6px] py-[3px] rounded-[2px] shrink-0"
-                style={{ color: STATUS_CHIPS[threadStatus].color, backgroundColor: STATUS_CHIPS[threadStatus].bg, fontFamily: "var(--font-geist-sans), 'Geist', sans-serif", letterSpacing: "-0.24px", lineHeight: "16px" }}>
+                style={{ color: STATUS_CHIPS[threadStatus].color, backgroundColor: STATUS_CHIPS[threadStatus].bg, fontFamily: "var(--font-geist-sans), 'Geist', sans-serif", letterSpacing: "0px", lineHeight: "16px" }}>
                 {STATUS_CHIPS[threadStatus].iconPosition === "left" && <img src={STATUS_CHIPS[threadStatus].icon} alt="" className="w-[12px] h-[12px]" />}
                 {STATUS_CHIPS[threadStatus].label}
                 {STATUS_CHIPS[threadStatus].iconPosition === "right" && <img src={STATUS_CHIPS[threadStatus].icon} alt="" className="w-[12px] h-[12px]" />}
@@ -309,16 +309,16 @@ export default function MessageCard({ card, onDismiss, onContactTap }: MessageCa
         <div className="flex items-center gap-[6px] w-full rounded-[12px] px-[12px] py-[6px]"
           style={{ backgroundColor: "rgba(255, 244, 224, 0.5)", border: "0.5px solid #ffb20a" }}>
           <div className="flex-1 text-[12px] font-normal leading-[18px] min-w-0"
-            style={{ fontFamily: "var(--font-geist-sans), 'Geist', sans-serif", color: "#b48b08", letterSpacing: "-0.24px" }}>
+            style={{ fontFamily: "var(--font-geist-sans), 'Geist', sans-serif", color: "#b48b08", letterSpacing: "0px" }}>
             {suggestion}
           </div>
           {/* Card button — Figma 137-1453: #f8f8f8 bg, 8px radius, px-12 py-3, 4px gap, 12px icon, Geist medium 12/16, -2% spacing */}
           {action && ACTION_CONFIG[action] && (
             <button onClick={(e) => { e.stopPropagation(); if (url) window.open(url, "_blank", "noopener,noreferrer"); }}
               className="flex items-center gap-[4px] px-[12px] py-[3px] rounded-[8px] shrink-0"
-              style={{ backgroundColor: "#f8f8f8", fontFamily: "var(--font-geist-sans), 'Geist', sans-serif" }}>
+              style={{ backgroundColor: "#ffffff", fontFamily: "var(--font-geist-sans), 'Geist', sans-serif" }}>
               <img src={ACTION_CONFIG[action].icon} alt="" className="w-[12px] h-[12px]" />
-              <span className="text-[12px] font-medium leading-[16px]" style={{ color: "#1e252a", letterSpacing: "-0.24px" }}>
+              <span className="text-[12px] font-medium leading-[16px]" style={{ color: "#1e252a", letterSpacing: "0px" }}>
                 {ACTION_CONFIG[action].label}
               </span>
             </button>
