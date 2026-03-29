@@ -237,13 +237,13 @@ export default function MotionFeedPage() {
           <div className="flex w-full flex-col gap-[3px]">
             <div className="flex w-full items-center justify-between">
               <p
-                className="text-[24px] font-semibold leading-[20px] text-[#3e4c60]"
+                className="text-[24px] font-semibold leading-[20px] text-white"
                 style={{
                   fontFamily: "var(--font-geist-sans), 'Geist', sans-serif",
                   letterSpacing: "-0.48px",
                 }}
               >
-                Hola 👋  Mark Slater.{" "}
+                Hola 👋  Mark Slater{" "}
               </p>
               <div className="flex shrink-0 items-center gap-[10px]">
                 <span
@@ -265,37 +265,20 @@ export default function MotionFeedPage() {
                     className={`size-[32px] ${loading || scanning ? "animate-spin" : ""}`}
                   />
                 </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    const next = sortMode === "recency" ? "importance" : "recency";
-                    setSortMode(next);
-                    loadCards(0, false);
-                  }}
-                  className="shrink-0 px-[10px] py-[4px] rounded-full text-[12px] font-semibold cursor-pointer transition-colors"
-                  style={{
-                    fontFamily: "var(--font-geist-sans), 'Geist', sans-serif",
-                    letterSpacing: "-0.24px",
-                    backgroundColor: sortMode === "importance" ? "rgba(40,155,255,0.15)" : "rgba(255,255,255,0.1)",
-                    color: sortMode === "importance" ? "#289bff" : "#97a5bd",
-                    border: `1px solid ${sortMode === "importance" ? "rgba(40,155,255,0.3)" : "rgba(255,255,255,0.1)"}`,
-                  }}
-                  title={`Sort by ${sortMode === "recency" ? "importance" : "recency"}`}
-                >
-                  {sortMode === "recency" ? "Recent" : "Important"}
-                </button>
+{/* Sort toggle removed — not in Figma design */}
               </div>
             </div>
             <p
-              className={`text-[18px] font-semibold leading-[20px] w-full ${scanError ? "text-[#e74c3c]" : "text-[#97a5bd]"}`}
+              className={`text-[18px] font-semibold leading-[20px] w-full ${scanError ? "text-[#e74c3c]" : ""}`}
               style={{
                 fontFamily: "var(--font-geist-sans), 'Geist', sans-serif",
                 letterSpacing: "-0.36px",
+                color: scanError ? "#e74c3c" : "#e6e9ee",
               }}
             >
               {scanError
                 ? scanError
-                : "Welcome to your In Motion office."}
+                : "Welcome to your MiM office."}
             </p>
           </div>
 
@@ -332,11 +315,11 @@ export default function MotionFeedPage() {
           </div>
         </div>
 
-        {/* ── Action buttons: Write, Plan, Add — per Figma 99:1314 ── */}
-        <div className="flex gap-[6px] items-center w-full">
+        {/* ── Header buttons: Write, Plan, Add Knowledge — Figma 95-839 / 137-1453 ── */}
+        <div className="flex gap-[12px] items-center">
           <button
             onClick={() => { setEditNoteId(null); setShowNotePanel(true); }}
-            className="flex gap-[6px] h-[28px] items-center justify-center px-[12px] py-[6px] rounded-[8px] bg-white cursor-pointer hover:bg-gray-50 transition-colors"
+            className="flex gap-[4px] items-center justify-center overflow-hidden px-[12px] py-[4px] rounded-[8px] bg-white cursor-pointer hover:bg-gray-50 transition-colors"
             style={{ boxShadow: "0px 0px 2px 0px rgba(0,0,0,0.25)" }}
           >
             <img src="/icons/intent/write.png" alt="" className="size-[16px]" />
@@ -344,18 +327,18 @@ export default function MotionFeedPage() {
               className="whitespace-nowrap"
               style={{
                 fontFamily: "var(--font-geist-sans), 'Geist', sans-serif",
-                fontSize: "12px",
+                fontSize: "14px",
                 fontWeight: 500,
-                lineHeight: "16px",
-                letterSpacing: "-0.12px",
-                color: "#3e4c60",
+                lineHeight: "18px",
+                letterSpacing: "-0.28px",
+                color: "#1e252a",
               }}
             >
               Write
             </span>
           </button>
           <button
-            className="flex gap-[6px] h-[28px] items-center justify-center px-[12px] py-[6px] rounded-[8px] bg-white cursor-pointer hover:bg-gray-50 transition-colors"
+            className="flex gap-[4px] items-center justify-center overflow-hidden px-[12px] py-[4px] rounded-[8px] bg-white cursor-pointer hover:bg-gray-50 transition-colors"
             style={{ boxShadow: "0px 0px 2px 0px rgba(0,0,0,0.25)" }}
           >
             <img src="/icons/calendar-plus.svg" alt="" className="size-[16px]" />
@@ -363,33 +346,33 @@ export default function MotionFeedPage() {
               className="whitespace-nowrap"
               style={{
                 fontFamily: "var(--font-geist-sans), 'Geist', sans-serif",
-                fontSize: "12px",
+                fontSize: "14px",
                 fontWeight: 500,
-                lineHeight: "16px",
-                letterSpacing: "-0.12px",
-                color: "#3e4c60",
+                lineHeight: "18px",
+                letterSpacing: "-0.28px",
+                color: "#1e252a",
               }}
             >
               Plan
             </span>
           </button>
           <button
-            className="flex gap-[6px] h-[28px] items-center justify-center px-[12px] py-[6px] rounded-[8px] bg-white cursor-pointer hover:bg-gray-50 transition-colors"
+            className="flex gap-[4px] items-center justify-center overflow-hidden px-[12px] py-[4px] rounded-[8px] bg-white cursor-pointer hover:bg-gray-50 transition-colors"
             style={{ boxShadow: "0px 0px 2px 0px rgba(0,0,0,0.25)" }}
           >
-            <img src="/icons/arrow-up-circle.svg" alt="" className="size-[16px]" />
+            <img src="/icons/satellite.svg" alt="" className="size-[16px]" />
             <span
               className="whitespace-nowrap"
               style={{
                 fontFamily: "var(--font-geist-sans), 'Geist', sans-serif",
-                fontSize: "12px",
+                fontSize: "14px",
                 fontWeight: 500,
-                lineHeight: "16px",
-                letterSpacing: "-0.12px",
-                color: "#3e4c60",
+                lineHeight: "18px",
+                letterSpacing: "-0.28px",
+                color: "#1e252a",
               }}
             >
-              Add
+              Add Knowledge
             </span>
           </button>
         </div>
